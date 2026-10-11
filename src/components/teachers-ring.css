@@ -1,0 +1,50 @@
+.tr-wrap{overflow-x:clip;padding:56px 0 24px;margin-top:24px}
+.tr-scene{position:relative;perspective:1800px;height:calc(var(--tr-h) + 120px);display:flex;justify-content:center;align-items:flex-start;outline:none}
+.tr-scene:focus-visible{outline:2px solid #0A0A0A;outline-offset:6px;border-radius:24px}
+.tr-stage{position:relative;width:var(--tr-w);height:var(--tr-h);transform-style:preserve-3d;will-change:transform;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
+.tr-stage.is-dragging{cursor:grabbing}
+.tr-slide{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.tr-floor{position:absolute;left:50%;top:calc(var(--tr-h) + 26px);width:min(92vw,calc(var(--tr-w) * 1.9));height:70px;transform:translateX(-50%);pointer-events:none}
+.tr-floor::before{content:"";position:absolute;inset:8px 6%;border-radius:50%;background:radial-gradient(closest-side,rgb(10 10 10 / .08),rgb(10 10 10 / 0))}
+.tr-floor::after{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid #D4D4D4}
+.tr-card{height:100%;box-sizing:border-box;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:24px;box-shadow:0 18px 40px rgb(10 10 10 / .07);overflow:hidden;color:#0A0A0A}
+.tr-sil{display:block;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tr-sil .a{stroke:#404040}.tr-sil .b{stroke:#A3A3A3}.tr-sil .c{stroke:#D4D4D4}
+.tr-label{display:block;font-size:13px;color:#404040;font-weight:500;letter-spacing:.04em}
+.tr-trait{font-family:var(--font-display,Sora),sans-serif;font-weight:700;color:#0A0A0A;margin:6px 0 8px;line-height:1.1}
+.tr-desc{color:#404040;font-size:15px;line-height:1.5;margin:0}
+.tr-tag{display:inline-flex;margin-top:16px;padding:6px 12px;border:1px solid #D4D4D4;border-radius:999px;font-size:12px;color:#404040;white-space:nowrap}
+.tr-single{display:grid;grid-template-columns:1fr 1fr;height:100%}
+.tr-single .tr-art{background:#F5F5F5;display:grid;place-items:center;padding:24px}
+.tr-single .tr-art svg{width:100%;max-height:340px}
+.tr-single .tr-text{padding:32px 28px;display:flex;flex-direction:column;justify-content:center}
+.tr-single .tr-trait{font-size:34px}
+.tr-trio{display:grid;grid-template-columns:repeat(3,1fr);height:100%}
+.tr-person{display:flex;flex-direction:column;padding:24px 16px;border-left:1px solid #E5E5E5;min-width:0}
+.tr-person:first-child{border-left:0}
+.tr-person .tr-art{background:#F5F5F5;border-radius:16px;display:grid;place-items:center;padding:12px;margin-bottom:16px}
+.tr-person .tr-art svg{width:100%;max-height:170px}
+.tr-person .tr-trait{font-size:19px;overflow-wrap:anywhere}
+.tr-person .tr-desc{font-size:13px}
+.tr-dots{display:flex;justify-content:center;gap:0;margin-top:8px}
+.tr-dot{width:44px;height:44px;display:grid;place-items:center;background:none;border:0;cursor:pointer;padding:0}
+.tr-dot span{width:10px;height:10px;border-radius:50%;background:#D4D4D4;transition:transform .3s}
+.tr-dot.is-active span{background:#0A0A0A;transform:scale(1.2)}
+.tr-dot:focus-visible{outline:2px solid #0A0A0A;border-radius:50%}
+.tr-row{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:8px max(16px,calc(50% - var(--tr-w) / 2)) 24px;outline:none}
+.tr-row>.tr-slide{position:relative;inset:auto;flex:0 0 var(--tr-w);height:var(--tr-h);scroll-snap-align:center}
+@media (max-width:1099px){.tr-scene{perspective:1200px}}
+@media (max-width:767px){
+  .tr-scene{perspective:900px}
+  .tr-single{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .tr-single .tr-art{padding:16px}.tr-single .tr-art svg{max-height:170px}
+  .tr-single .tr-text{padding:20px;justify-content:flex-start}
+  .tr-single .tr-trait{font-size:26px}
+  .tr-trio{grid-template-columns:1fr;grid-template-rows:repeat(3,1fr)}
+  .tr-person{flex-direction:row;align-items:center;gap:12px;border-left:0;border-top:1px solid #E5E5E5;padding:12px 14px}
+  .tr-person:first-child{border-top:0}
+  .tr-person .tr-art{flex:0 0 76px;margin:0;padding:6px}
+  .tr-person .tr-art svg{max-height:80px}
+  .tr-person .tr-trait{font-size:17px;margin:2px 0 4px}
+  .tr-person .tr-label{font-size:12px}
+}

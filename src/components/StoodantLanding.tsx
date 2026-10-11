@@ -8,6 +8,7 @@ import { AutoStory } from "@/components/AutoStory";
 import { PROBLEM_GRAPHICS } from "@/components/ProblemSlides";
 import { AHEAD_SLIDES } from "@/components/AheadSlides";
 import { ProcessSequence } from "@/components/ProcessSequence";
+import { TeachersRing } from "@/components/TeachersRing";
 import { Counter, Reveal } from "@/lib/directional-reveal";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -250,7 +251,7 @@ function SubjectsSection() {
 function Marquee({ values, reverse = false }: { values: readonly string[]; reverse?: boolean }) { const doubled = [...values, ...values]; return <div className="marquee"><div className={reverse ? "marquee-track reverse" : "marquee-track"}>{doubled.map((item, i) => <span key={`${item}-${i}`}>{item}<i /></span>)}</div></div>; }
 
 function TeachersSection() {
-  return <section className="teachers-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.teachers.kicker}>{SITE_CONFIG.teachers.headline}</SectionHeading><div className="teacher-grid">{SITE_CONFIG.teachers.labels.map((label, i) => <Reveal as="article" key={label} whileHover={{ y: -6 }}><TeacherSilhouette variant={i} /><div><small>0{i + 1}</small><p>{SITE_CONFIG.teachers.placeholder}</p><strong>{label}</strong></div></Reveal>)}</div></div></section>;
+  return <section className="teachers-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.teachers.kicker}>{SITE_CONFIG.teachers.headline}</SectionHeading></div><Reveal><TeachersRing /></Reveal></section>;
 }
 function TeacherSilhouette({ variant }: { variant: number }) { return <svg viewBox="0 0 260 280" aria-hidden="true"><circle cx={130 + (variant % 2) * 5} cy="86" r="45" /><path d={`M${48 + variant * 2} 265c5-75 38-114 82-114s79 39 83 114`} /><path d="M92 160c16 20 59 20 76 0" /></svg>; }
 
