@@ -1,0 +1,11 @@
+# Roadmap
+- [x] Replace Stay Ahead stick figure with scroll-driven 3D staircase and mobile list.
+- [x] Prevent English slide label overlap.
+- [x] Halve subject slide duration.
+- [x] Make the sticky navbar contrast appropriately over light and dark sections.
+- [x] Keep the custom cursor attached to the pointer and hide it on exit/coarse pointers.
+- [x] Keep the hero headline to three lines at 1280px.
+- [x] Replace only the final CTA loop with a lazy, viewport-gated 3D infinity ribbon and retain all required fallbacks.
+- [x] Replace pinned and scroll-driven stories with native-scroll, accessible auto-playing slideshows.
+- [x] Upgrade every slideshow with playback controls, timer dots, swipe, keyboard support, and reduced-motion behavior.
+- [x] Remove Lenis and all remaining pin, scrub, and scroll-driven storytelling behavior.
