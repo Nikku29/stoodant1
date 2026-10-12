@@ -57,7 +57,7 @@ export function ProcessSequence() {
           return { x: (p.x / VB_W) * rect.width, y: (p.y / VB_H) * VB_H };
         });
       }
-      (map.dataset as DOMStringMap).vertical = vertical ? "1" : "0";
+      (map.dataset as DOMStringMap)["vertical"] = vertical ? "1" : "0";
       nodesRef.current = pts;
       setNodes(pts);
     };
@@ -93,7 +93,7 @@ export function ProcessSequence() {
 
     const pointAt = (from: number, to: number, t: number): Pt => {
       const path = pathRef.current;
-      const vertical = root.current?.dataset.vertical === "1";
+      const vertical = root.current?.dataset["vertical"] === "1";
       const pts = nodesRef.current;
       if (!vertical && path && root.current) {
         const len = path.getTotalLength();
