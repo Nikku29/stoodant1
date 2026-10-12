@@ -251,7 +251,7 @@ function SubjectsSection() {
 function Marquee({ values, reverse = false }: { values: readonly string[]; reverse?: boolean }) { const doubled = [...values, ...values]; return <div className="marquee"><div className={reverse ? "marquee-track reverse" : "marquee-track"}>{doubled.map((item, i) => <span key={`${item}-${i}`}>{item}<i /></span>)}</div></div>; }
 
 function TeachersSection() {
-  return <section className="teachers-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.teachers.kicker}>{SITE_CONFIG.teachers.headline}</SectionHeading></div><Reveal><TeachersRing /></Reveal></section>;
+  return <section className="teachers-section eclipse-section"><div className="container"><SectionHeading kicker={SITE_CONFIG.teachers.kicker} inverse>{SITE_CONFIG.teachers.headline}</SectionHeading></div><div className="tr-reveal"><TeachersRing /></div></section>;
 }
 
 function ProgressSection() {
