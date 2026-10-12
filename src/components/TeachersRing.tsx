@@ -35,7 +35,7 @@ function Silhouette({ variant }: { variant: number }) {
 function SlideCard({ slide, offset }: { slide: Slide; offset: number }) {
   const t = SITE_CONFIG.teachers;
   if (slide.layout === "single") {
-    const p = slide.people[0];
+    const p = slide.people[0]!;
     return (
       <div className="tr-card tr-single">
         <div className="tr-art"><Silhouette variant={offset} /></div>
@@ -94,7 +94,7 @@ export function TeachersRing() {
     const out: { slide: Slide; realIndex: number; repeat: boolean }[] = [];
     if (!real.length) return out;
     let k = 0;
-    while (out.length < Math.max(MIN_SLIDES, real.length)) { out.push({ slide: real[k % real.length], realIndex: k % real.length, repeat: k >= real.length }); k++; }
+    while (out.length < Math.max(MIN_SLIDES, real.length)) { out.push({ slide: real[k % real.length]!, realIndex: k % real.length, repeat: k >= real.length }); k++; }
     return out;
   }, [real]);
   const n = visual.length;
