@@ -106,6 +106,8 @@ function OrbitSlide({ i, step, geo, eff, skew, children, onClick, isFront, isRep
 const RAYS = Array.from({ length: 48 }, (_, k) => ({ a: (k / 48) * 360, len: 10 + ((k * 37) % 23) }));
 
 function Eclipse({ geo, coronaOpacity, still }: { geo: Geo; coronaOpacity?: MotionValue<number>; still?: boolean }) {
+  const k = still ? 1 : (geo.persp + geo.rz) / geo.persp;
+  geo = { ...geo, disc: geo.disc * k };
   const r = geo.disc / 2;
   const box = geo.disc + 120;
   return (
@@ -160,7 +162,7 @@ export function TeachersRing() {
   });
   const mouseX = useMotionValue(0);
   const tilt = useSpring(mouseX, { stiffness: 60, damping: 18 });
-  const stageTransform = useTransform(tilt, (m) => `rotateX(-6deg) rotateY(${m * 6}deg)`);
+  const stageTransform = useTransform(tilt, (m) => `translateZ(${-geo.rz}px) rotateX(-6deg) rotateY(${m * 6}deg)`);
   const eclipseShift = useTransform(tilt, (m) => `translate3d(calc(-50% + ${-m * 12}px), -50%, 0)`);
 
   const [front, setFront] = useState(0);
