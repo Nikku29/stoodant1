@@ -428,3 +428,9 @@ html,body{overflow-x:clip}
 @keyframes rd-lfar{0%,86%{opacity:0}92%,100%{opacity:1}}@keyframes rd-qfar{0%,86%{opacity:.5}92%,100%{opacity:0}}
 @keyframes rd-cap1{0%,56%{opacity:0}60%,84%{opacity:1}88%,100%{opacity:0}}
 @keyframes rd-cap2{0%,88%{opacity:0}93%,100%{opacity:1}}
+
+/* Lazy section placeholders: same background and reserved height as the section they stand in for. */
+.lazy-slot{min-height:var(--slot-m)}
+.lazy-slot-ink{background:var(--ink)}
+@media(min-width:768px){.lazy-slot{min-height:var(--slot-t)}}
+@media(min-width:1024px){.lazy-slot{min-height:var(--slot-d)}}
