@@ -138,29 +138,17 @@ export const SITE_CONFIG = {
     placeholder: "Teacher profile coming soon",
     ringLabel: "Our teachers",
     profileTag: "Profile coming soon",
-    // TODO: Owner — replace ALL slides below with real teachers (labels, traits, descriptions).
-    // The ring needs at least 6 slides; if fewer are supplied the list is repeated visually (repeats are aria-hidden).
-    // layout "single" = 1 person, "trio" = 3 people. Traits allowed: Trained, Vetted, Student-friendly, Clear explainers.
+    pausedLabel: "Paused · tap to resume",
+    // TODO: Owner — replace with real teacher photo (photo URL), name and details.
+    // The ring needs at least 6 slides; if fewer are supplied they are repeated visually (repeats are aria-hidden).
     slides: [
-      { id: "t1", layout: "single", people: [{ label: "Teacher 01", trait: "Trained", description: "Teacher details coming soon." }] }, // TODO
-      { id: "t2", layout: "trio", people: [
-        { label: "Teacher 02", trait: "Vetted", description: "Profile details coming soon." }, // TODO
-        { label: "Teacher 03", trait: "Student-friendly", description: "More about this teacher soon." }, // TODO
-        { label: "Teacher 04", trait: "Clear explainers", description: "Teaching style details soon." }, // TODO
-      ] },
-      { id: "t3", layout: "single", people: [{ label: "Teacher 05", trait: "Student-friendly", description: "More about this teacher coming soon." }] }, // TODO
-      { id: "t4", layout: "trio", people: [
-        { label: "Teacher 06", trait: "Trained", description: "Teacher details coming soon." }, // TODO
-        { label: "Teacher 07", trait: "Clear explainers", description: "Teaching style details soon." }, // TODO
-        { label: "Teacher 08", trait: "Vetted", description: "Profile details coming soon." }, // TODO
-      ] },
-      { id: "t5", layout: "single", people: [{ label: "Teacher 09", trait: "Clear explainers", description: "Teaching style details coming soon." }] }, // TODO
-      { id: "t6", layout: "trio", people: [
-        { label: "Teacher 10", trait: "Student-friendly", description: "More about this teacher soon." }, // TODO
-        { label: "Teacher 11", trait: "Vetted", description: "Profile details coming soon." }, // TODO
-        { label: "Teacher 12", trait: "Trained", description: "Teacher details coming soon." }, // TODO
-      ] },
-    ] as { id: string; layout: "single" | "trio"; people: { label: string; trait: string; description: string }[] }[],
+      { id: "t1", label: "Teacher 01", trait: "Trained", description: "Profile details coming soon.", photo: null }, // TODO
+      { id: "t2", label: "Teacher 02", trait: "Vetted", description: "Profile details coming soon.", photo: null }, // TODO
+      { id: "t3", label: "Teacher 03", trait: "Student-friendly", description: "Profile details coming soon.", photo: null }, // TODO
+      { id: "t4", label: "Teacher 04", trait: "Clear explainers", description: "Profile details coming soon.", photo: null }, // TODO
+      { id: "t5", label: "Teacher 05", trait: "Trained", description: "Profile details coming soon.", photo: null }, // TODO
+      { id: "t6", label: "Teacher 06", trait: "Vetted", description: "Profile details coming soon.", photo: null }, // TODO
+    ] as { id: string; label: string; trait: string; description: string; photo: string | null }[],
   },
   progress: {
     kicker: "Parent progress",
