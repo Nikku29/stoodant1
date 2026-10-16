@@ -237,9 +237,9 @@ export function TeachersRing() {
           <i key={k} style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, animationDuration: `${s.dur}s`, animationDelay: `${s.delay}s` }} />
         ))}
       </div>
-      <div className="tr-halo" aria-hidden="true" />
       <div ref={sceneRef} className={`tr-scene ${dragging ? "is-dragging" : ""}`} role="region" aria-roledescription="carousel" aria-label={t.ringLabel} tabIndex={0} onKeyDown={onKey}
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+        <div className="tr-halo" aria-hidden="true" />
         <div className="tr-stage" style={{ transform: `translateZ(${-geo.r}px)` }}>
           {visual.map((v, i) => (
             <RingSlide key={`${v.slide.id}-${i}`} i={i} step={step} geo={geo} angle={angle}
