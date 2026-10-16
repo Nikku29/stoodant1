@@ -213,7 +213,7 @@ export function TeachersRing() {
     else if (e.key === "ArrowLeft") { e.preventDefault(); touch(); move(-1); }
   };
 
-  const vars = { "--tr-w": `${geo.w}px`, "--tr-h": `${geo.h}px`, "--tr-persp": `${geo.persp}px` } as React.CSSProperties;
+  const vars = { "--tr-w": `${geo.w}px`, "--tr-h": `${geo.h}px`, "--tr-persp": `${geo.persp}px` } as Record<string, string>;
   const activeReal = visual[front]?.realIndex ?? 0;
 
   if (reduced) {
