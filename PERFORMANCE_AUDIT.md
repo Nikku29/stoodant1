@@ -4,11 +4,36 @@ Date: 2026-10-16 · Branch: `perf/mobile` · Scope: step (a) only, no code chang
 
 Target device (CLAUDE.md): Moto G Power class, Slow 4G, 4x CPU throttle. Targets: Performance >= 85, LCP < 2.5s, TBT < 200ms, CLS < 0.1, initial JS <= 150 KB gzip.
 
+## 0. Product and page in 10 lines
+
+1. Stoodant is an Indian tutoring startup for Class 4-10 students on CBSE and ICSE.
+2. The audience is their parents, who mostly browse on mid-range Android phones over 4G.
+3. The gap it fills: big coaching centres focus on Class 11-12, so younger students end up in crowded batches.
+4. Differentiators: batch size from 1:1 to 1:20 (₹7,999 down to ₹2,999 a month), "stay ahead" (preview, then revise), real-life learning and parent progress visibility.
+5. The page has one conversion goal, booking a free demo, which is the form in the Final CTA (plus the navbar, hero and pricing buttons, and WhatsApp).
+6. The tone is calm, empathetic and premium. The palette is strictly monochrome, with the infinity loop as the brand motif.
+7. Top of the page: offer bar (only when an offer is on), sticky navbar, then the hero with its auto-rotating 3D subject deck (Maths, Science, English, Social Science).
+8. Story sections: Problem (4 auto-playing slides), The Gap (Class 4-10 timeline), How it works (4 cards with a travelling wave of light) and Stay Ahead (3 slides).
+9. Proof and details: Batches and pricing, Why Stoodant comparison, subject marquees, the Teachers 3D camera-roll ring, the parent progress "Sample view" dashboard, placeholder testimonials and the FAQ.
+10. The close: Final CTA with the demo form and the three.js infinity ribbon, the footer, and a floating WhatsApp button. All copy lives in `siteConfig.ts` and all timings in `timing.ts`.
+
 ## How this was measured
 
 - Read every file under `src/` (landing, all section components, `styles.css`, `teachers-ring.css`, config, root route).
 - Ran `vite build` locally and attributed every byte of each client chunk to its npm package using the sourcemaps (script kept outside the repo). Numbers below are from that build.
-- A Lighthouse run was **not** done yet: Lighthouse is not installed in the project and adding it is a new dependency. Proposed as the first step of (b) so every fix has a before/after number.
+- The project has no `index.html` and no `tailwind.config.*`. It is TanStack Start, so the HTML shell is `src/routes/__root.tsx`, and Tailwind v4 is configured in CSS (`styles.css` `@theme`). Lenis, ScrollTrigger and GSAP are not installed or imported anywhere.
+- **Lighthouse was not run.** Chrome is installed, but Lighthouse isn't, and running it needs a package download, which I didn't do during this read-only pass. On top of that, the build is a Cloudflare server bundle, so a local preview needs extra setup. The first step of (b) is to run `npx lighthouse` (mobile preset) against a local production preview, without adding it to `package.json`.
+
+### Estimated mobile Lighthouse, from the code (not measured)
+
+| Metric | Estimate today | Main reason |
+|---|---|---|
+| Performance | ~45–65 | LCP and TBT below |
+| LCP | ~4–6 s | hero text hidden until ~189 KB of JS hydrates on 4x CPU, plus Google Fonts round trips |
+| TBT | ~400–800 ms | parsing and hydrating ~590 KB raw JS, ~40 observers, hundreds of motion components |
+| CLS | ~0.0–0.1 | mostly fine; the font swap from Google Fonts can shift the hero headline |
+
+These ranges are estimates and need to be replaced by real numbers in step (b).
 
 ## 1. Headline numbers (production build, today)
 
@@ -93,6 +118,14 @@ Fix: low tier gets a flat 2D version (front card sharp, neighbours dimmed with p
 15. **FAQ animates `height: auto`** (`StoodantLanding.tsx:266`), which causes layout each frame. User-triggered and short, so low priority.
 16. **Pricing card hover pulse** runs an infinite scale animation on up to 20 dots per card while hovered. Desktop only in practice.
 17. **CSS is 125 KB raw.** ~62 KB is `styles.css`, ~15 KB `tw-animate-css`, and roughly 45 KB is Tailwind utilities generated from scanning the 48 unused shadcn files in `src/components/ui/` (`@source "../src"`). Trimming the scan to the files actually used (or deleting the unused shadcn components) cuts CSS without changing any styles in use.
+17b. **Hover effects fire on touch devices.** None of the `:hover` rules are wrapped in `@media (hover:hover)` (`styles.css:65,68,70,72,96,98,104`). Phones apply "sticky hover" after a tap:
+- Tapping a pricing card starts the infinite dot pulse (`styles.css:96`), and it keeps running after the tap.
+- `whileHover`/`whileTap` on the pricing cards (`StoodantLanding.tsx:237`).
+- In the hero deck, tapping fires `onMouseEnter`, which pauses auto-advance until the user taps somewhere else (`HeroSubjectDeck.tsx:91`).
+- The Teachers ring's `onMouseEnter` sets `hover=true` on tap, which pauses the ring the same way (`TeachersRing.tsx:233`).
+
+AutoStory already guards this correctly (`AutoStory.tsx:61`). The fix is to wrap hover styles in `@media (hover:hover) and (pointer:fine)` and ignore pointer events that are not from a mouse.
+
 18. **Custom cursor and magnetic buttons** attach listeners on every device; they are hidden by CSS on touch but still run. Should not mount on the low tier.
 19. **Hero 3D tilt** (`HeroSubjectDeck.tsx:53-54`) creates springs and 8 `useTransform`s per chip on all devices even when tilt is disabled.
 20. **Unused dependencies in `package.json`**: recharts, embla, cmdk, vaul, react-day-picker, input-otp, date-fns, react-resizable-panels, sonner, most @radix-ui packages. They are tree-shaken out of the bundle today (no bundle cost), but slow installs and invite accidental imports.
@@ -102,6 +135,32 @@ Fix: low tier gets a flat 2D version (front card sharp, neighbours dimmed with p
 - `.cta-loop path` references `animation: loop-draw`, but no `@keyframes loop-draw` exists, so the 2D fallback loop in the Final CTA never animates (`styles.css:103`).
 - Hero deck interval is 2000ms instead of `TIMING.heroDeckAdvance` (3s), and the hero deck has no "Paused · tap to resume" tap toggle.
 - Demo form logs the parent's phone number to the console (`StoodantLanding.tsx:305`). CLAUDE.md forbids personal data in logs; this goes away when the Firestore form lands in step (d).
+
+## 2b. Ranked summary: impact vs effort, and risk to the design
+
+Impact is measured on a mid-range Android. Design risk is what a visitor could notice.
+
+| # | Problem | Mobile impact | Effort | Proposed fix | Design risk |
+|---|---|---|---|---|---|
+| 1 | Hero text hidden until JS hydrates; loader on phones | Very high (LCP) | Low | Hero visible in HTML, CSS entrance; no loader on low tier | Low: the entrance animation stays on desktop, phones get a shorter fade |
+| 2 | Initial JS 189 KB gz, all sections eager | Very high (LCP, TBT) | Medium | LazyMotion + `m`, drop react-query, lazy sections | None: same visuals; sections render a fixed-height placeholder before loading |
+| 3 | Google Fonts render-blocking | High (FCP, LCP) | Low | `@fontsource`, preload Sora 800 | None: same fonts and weights |
+| 4 | ~20 endless hero loops on phones | High (scroll jank, battery) | Medium | Flat deck on low tier, pause offscreen/hidden | Low–medium: phones lose the bob and floating chips; the deck and lessons stay |
+| 5 | Teachers ring backdrop blur ×6, 36 specks | High (GPU) | Medium | Flat 2D ring on low tier, neighbours dimmed by opacity | Medium: neighbours dim instead of blurring on phones; 3 visible slides kept |
+| 6 | Full-screen grain overlay | Medium–high | Very low | Off on low tier | Low: grain is at 4% opacity |
+| 7 | Navbar backdrop blur | Medium | Very low | Solid background on low tier | Low |
+| 8 | three.js ribbon renders forever, loads on tablets | Medium (tablets), high battery | Low | High tier only, pause offscreen | None on desktop; tablets get the 2D loop |
+| 9 | Animated blur filter in Problem slide 4 | Medium | Low | Static soft shapes, animate transform only | Low: the mist looks the same, minus live blur |
+| 10 | ProcessSequence rAF never stops | Medium (battery) | Low | Stop loop offscreen; cache measurements | None |
+| 11 | ~40 IntersectionObservers, per-word motion | Medium (TBT) | Medium | One shared observer hook | None |
+| 12 | No `content-visibility` | Medium | Low | Add to below-fold sections | Low: anchor-jump positions need checking |
+| 13 | Marquees run offscreen | Low | Very low | Pause offscreen | None |
+| 14 | Per-frame clocks and `setState` in slideshows | Low–medium | Low | Timeouts instead of per-frame rAF | None |
+| 15 | FAQ animates height | Low | Low | Keep, or switch to grid-rows/transform | None |
+| 17 | 125 KB CSS from scanning unused shadcn files | Low–medium | Low | Narrow `@source` / delete unused ui files | None |
+| 17b | Hover effects on touch (sticky pulse, paused deck/ring) | Medium | Low | `(hover:hover)` guards, mouse-only handlers | None: fixes a real bug where the ring and deck stay paused after a tap |
+| 18–19 | Cursor, magnetic buttons, tilt springs on all devices | Low | Low | Do not mount on low tier | None on touch |
+| 20 | Unused dependencies | None at runtime | Low | Remove after approval | None |
 
 ## 3. Proposed performance tier (`src/lib/perf.ts`, `usePerfTier()`)
 
