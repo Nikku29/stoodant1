@@ -212,3 +212,32 @@ Expected outcome: initial JS within 150 KB gz, hero text in the first paint, and
   - Keep TanStack Start and switch it to static prerender of `/` (SPA fallback for anything else). Keeps Lovable compatibility and keeps the hero in the HTML, which helps LCP. **Recommended.**
   - Replace TanStack Start with a plain Vite + React SPA. Saves roughly another 35 KB gz (router, Start runtime, seroval), but the hero would no longer be in the HTML, and it would likely break the Lovable project sync.
 - **Firebase SDK** must be imported dynamically when the form nears the viewport or gets focus; the modular Firestore + App Check SDKs are roughly 60–90 KB gz and must never land in the initial bundle.
+
+## 6. Results: build and loading step (2026-10-17)
+
+Commits on `perf/mobile`: dependency cleanup, self-hosted fonts, LazyMotion, Vite build config, hero on first paint, lazy sections, content-visibility.
+
+**Bundle (Vite gzip figures)**
+
+| | Before | After |
+|---|---|---|
+| Initial JS | 189 KB gz (591 KB raw) | 159 KB gz (466 KB raw) |
+| Initial CSS | 24.6 KB gz (129 KB raw) | 15.7 KB gz (76 KB raw) |
+| Third-party requests | Google Fonts CSS + font files | none |
+| Below-the-fold code | in the initial bundle | 13 lazy chunks, loaded 600px before they are needed |
+
+The remaining initial JS is React (68 KB), TanStack router/Start (42 KB), Framer Motion (34 KB) and the hero (~15 KB). Putting Framer Motion in its own chunk (as asked) costs about 5 KB versus letting the bundler split it by section; the hero deck and tier work in the next step reduce what the hero needs from it.
+
+**Measured load (Chrome, 412×823, 4x CPU throttle, 1.6 Mbps / 150 ms network, cold cache, 3 runs each)**
+
+| | Before | After |
+|---|---|---|
+| First contentful paint | 1.9–2.3 s | 1.1 s |
+| Hero headline and subhead painted | 6.0–7.0 s | 1.3–1.4 s |
+| Final LCP (the hero deck's English lesson card) | 9.4–10.4 s | 6.5 s |
+| Total blocking time (first 9 s) | 513–723 ms | 459–502 ms |
+| CLS | 0.02–0.05 | 0.001–0.03 |
+
+**Lighthouse 12 mobile (simulated Slow 4G, 4x CPU, 5 runs, median)**: Performance 77 → 74, FCP 3.5 → 2.8 s, LCP 3.7 → 3.8 s, TBT 113 → 275 ms, CLS 0.00 → 0.00. Runs ranged 52–84 on the new build and 68–78 on the old one, so the score itself is within noise. Lighthouse's simulated LCP does not improve because the page's real LCP element is the hero deck lesson card, which is re-created every 2 seconds by JavaScript (see note below), so it always waits for JS.
+
+**Why LCP is still the hero deck:** each time the deck advances, the lesson inside the front card is unmounted and mounted again, so the browser counts it as a new, larger paint. The English lesson's sentence is the largest text on the first screen, so LCP keeps moving to whenever that card first appears. This is a hero deck behaviour fix (next step), not a loading fix.
