@@ -1,4 +1,4 @@
-import { motion, useAnimationControls, useReducedMotion, type Variants } from "framer-motion";
+import { m, useAnimationControls, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useRef, type ComponentProps, type ReactNode, type RefObject } from "react";
 
 /**
@@ -40,7 +40,7 @@ export const fadeUp: Variants = { hidden: { opacity: 0, y: 40 }, visible: { opac
 const reducedFade: Variants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.4 } } };
 
 type Tag = "div" | "p" | "article" | "span";
-type RevealProps = { as?: Tag; variants?: Variants; children?: ReactNode } & Omit<ComponentProps<typeof motion.div>, "variants" | "initial" | "animate" | "whileInView" | "viewport" | "children">;
+type RevealProps = { as?: Tag; variants?: Variants; children?: ReactNode } & Omit<ComponentProps<typeof m.div>, "variants" | "initial" | "animate" | "whileInView" | "viewport" | "children">;
 
 /** Framer Motion wrapper driven by the directional rule. Variant children (hidden/visible) follow automatically. */
 export function Reveal({ as = "div", variants = fadeUp, children, ...rest }: RevealProps) {
@@ -52,7 +52,7 @@ export function Reveal({ as = "div", variants = fadeUp, children, ...rest }: Rev
     finish: () => controls.set("visible"),
     reset: () => controls.set("hidden"),
   }));
-  const Component = motion[as] as typeof motion.div;
+  const Component = m[as] as typeof m.div;
   return <Component ref={ref as RefObject<HTMLDivElement>} variants={reduced ? reducedFade : variants} initial="hidden" animate={controls} {...rest}>{children}</Component>;
 }
 

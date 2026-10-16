@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, LazyMotion, m, useReducedMotion } from "framer-motion";
 import { ArrowDownRight, Check, ChevronDown, Menu, MessageCircle, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
@@ -14,11 +14,13 @@ import { Counter, Reveal } from "@/lib/directional-reveal";
 const EASE = [0.22, 1, 0.36, 1] as const;
 const reveal = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } };
 const FinalCtaInfinityRibbon = lazy(() => import("@/components/FinalCtaInfinityRibbon"));
+const loadMotionFeatures = () => import("@/lib/motion-features").then((mod) => mod.default);
 
 export function StoodantLanding() {
   const reduceMotion = useReducedMotion();
 
   return (
+    <LazyMotion features={loadMotionFeatures} strict>
     <div className="site-shell">
       <Loader disabled={Boolean(reduceMotion)} />
       <CustomCursor />
@@ -41,6 +43,7 @@ export function StoodantLanding() {
       <Footer />
       <WhatsappButton />
     </div>
+    </LazyMotion>
   );
 }
 
@@ -69,10 +72,10 @@ function Loader({ disabled }: { disabled: boolean }) {
   return (
     <AnimatePresence>
       {visible && (
-        <motion.div className="loader" initial={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
+        <m.div className="loader" initial={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
           <svg viewBox="0 0 130 62" aria-hidden="true"><path d="M8 31C22 3 45 3 65 31s43 28 57 0C108 3 85 3 65 31S22 59 8 31Z" /></svg>
-          <motion.strong initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.05, duration: 0.5 }}>{SITE_CONFIG.brand.name.toUpperCase()}</motion.strong>
-        </motion.div>
+          <m.strong initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.05, duration: 0.5 }}>{SITE_CONFIG.brand.name.toUpperCase()}</m.strong>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -159,12 +162,12 @@ function Header() {
         </div>
       </header>
       <AnimatePresence>
-        {menu && <motion.div className="mobile-menu" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
+        {menu && <m.div className="mobile-menu" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
           <button aria-label={SITE_CONFIG.navigation.menuClose} onClick={() => setMenu(false)}><X /></button>
           <Logo inverse />
           <nav>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href} onClick={() => setMenu(false)}>{link.label}</a>)}</nav>
           <a href="#demo" onClick={() => setMenu(false)}>{SITE_CONFIG.navigation.cta}<ArrowDownRight /></a>
-        </motion.div>}
+        </m.div>}
       </AnimatePresence>
     </>
   );
@@ -187,10 +190,10 @@ function Hero() {
       <FloatingShapes />
       <div className="container hero-grid">
         <div className="hero-copy">
-          <h1>{SITE_CONFIG.hero.headline.map((line, index) => <span className="line-mask" key={line}><motion.span initial={{ y: "110%" }} animate={{ y: 0 }} transition={{ delay: .3 + index * .12, duration: .8, ease: EASE }}>{line}</motion.span></span>)}</h1>
-          <motion.p variants={reveal} initial="hidden" animate="visible" transition={{ delay: .55 }}>{SITE_CONFIG.hero.subhead}</motion.p>
-          <motion.div className="hero-actions" variants={reveal} initial="hidden" animate="visible"><MagneticLink href="#demo">{SITE_CONFIG.hero.primaryCta}</MagneticLink><MagneticLink href="#batches" outline>{SITE_CONFIG.hero.secondaryCta}</MagneticLink></motion.div>
-          <motion.small variants={reveal} initial="hidden" animate="visible">{SITE_CONFIG.hero.trust}</motion.small>
+          <h1>{SITE_CONFIG.hero.headline.map((line, index) => <span className="line-mask" key={line}><m.span initial={{ y: "110%" }} animate={{ y: 0 }} transition={{ delay: .3 + index * .12, duration: .8, ease: EASE }}>{line}</m.span></span>)}</h1>
+          <m.p variants={reveal} initial="hidden" animate="visible" transition={{ delay: .55 }}>{SITE_CONFIG.hero.subhead}</m.p>
+          <m.div className="hero-actions" variants={reveal} initial="hidden" animate="visible"><MagneticLink href="#demo">{SITE_CONFIG.hero.primaryCta}</MagneticLink><MagneticLink href="#batches" outline>{SITE_CONFIG.hero.secondaryCta}</MagneticLink></m.div>
+          <m.small variants={reveal} initial="hidden" animate="visible">{SITE_CONFIG.hero.trust}</m.small>
         </div>
         <HeroSubjectDeck />
       </div>
@@ -199,11 +202,11 @@ function Hero() {
 }
 
 function FloatingShapes() {
-  return <div className="floating-shapes" aria-hidden="true">{Array.from({ length: 7 }, (_, i) => <motion.svg key={i} viewBox="0 0 80 80" animate={{ y: [0, -14 - i, 0], rotate: [0, i % 2 ? 5 : -5, 0] }} transition={{ duration: 7 + i, repeat: Infinity, ease: "easeInOut" }}><rect x="16" y="20" width="48" height="40" rx="4" /><path d={i % 3 === 0 ? "M22 30h36M22 40h28M22 50h20" : i % 3 === 1 ? "M18 58 58 18l5 5-40 40Z" : "M18 44h44M22 35l10-10 8 8 16-16"} /></motion.svg>)}</div>;
+  return <div className="floating-shapes" aria-hidden="true">{Array.from({ length: 7 }, (_, i) => <m.svg key={i} viewBox="0 0 80 80" animate={{ y: [0, -14 - i, 0], rotate: [0, i % 2 ? 5 : -5, 0] }} transition={{ duration: 7 + i, repeat: Infinity, ease: "easeInOut" }}><rect x="16" y="20" width="48" height="40" rx="4" /><path d={i % 3 === 0 ? "M22 30h36M22 40h28M22 50h20" : i % 3 === 1 ? "M18 58 58 18l5 5-40 40Z" : "M18 44h44M22 35l10-10 8 8 16-16"} /></m.svg>)}</div>;
 }
 
 function SectionHeading({ kicker, children, inverse = false }: { kicker: string; children: string; inverse?: boolean }) {
-  return <Reveal className={`section-heading ${inverse ? "inverse" : ""}`} variants={GROUP}><motion.span variants={reveal}>{kicker}</motion.span><h2>{children.split(" ").map((word, i) => <span className="word-mask" key={`${word}-${i}`}><motion.i variants={{ hidden: { y: "115%" }, visible: { y: 0, transition: { duration: .8, delay: i * .08, ease: EASE } } }}>{word}&nbsp;</motion.i></span>)}</h2></Reveal>;
+  return <Reveal className={`section-heading ${inverse ? "inverse" : ""}`} variants={GROUP}><m.span variants={reveal}>{kicker}</m.span><h2>{children.split(" ").map((word, i) => <span className="word-mask" key={`${word}-${i}`}><m.i variants={{ hidden: { y: "115%" }, visible: { y: 0, transition: { duration: .8, delay: i * .08, ease: EASE } } }}>{word}&nbsp;</m.i></span>)}</h2></Reveal>;
 }
 
 function ProblemSection(_: { reduced: boolean }) {
@@ -214,7 +217,7 @@ function ProblemSection(_: { reduced: boolean }) {
 function Divider({ inverse = false }: { inverse?: boolean }) { return <div className={`divider ${inverse ? "inverse" : ""}`}><svg viewBox="0 0 130 54"><path d="M7 27C22 2 44 2 65 27s43 25 58 0C108 2 86 2 65 27S22 52 7 27Z" /></svg></div>; }
 
 function GapSection() {
-  return <section className="gap-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.gap.kicker}>{SITE_CONFIG.gap.headline}</SectionHeading><div className="gap-copy">{SITE_CONFIG.gap.paragraphs.map((p) => <Reveal as="p" key={p}>{p}</Reveal>)}</div><Reveal className="class-timeline" variants={GROUP}>{SITE_CONFIG.gap.classes.map((grade, i) => <motion.div key={grade} variants={{ hidden: { opacity: .15 }, visible: { opacity: 1, transition: { delay: i * .14, duration: .5 } } }}><span>{grade}</span></motion.div>)}<div className="beyond"><small>{SITE_CONFIG.gap.focus}</small><strong>{SITE_CONFIG.gap.beyond}</strong></div></Reveal></div><Divider /></section>;
+  return <section className="gap-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.gap.kicker}>{SITE_CONFIG.gap.headline}</SectionHeading><div className="gap-copy">{SITE_CONFIG.gap.paragraphs.map((p) => <Reveal as="p" key={p}>{p}</Reveal>)}</div><Reveal className="class-timeline" variants={GROUP}>{SITE_CONFIG.gap.classes.map((grade, i) => <m.div key={grade} variants={{ hidden: { opacity: .15 }, visible: { opacity: 1, transition: { delay: i * .14, duration: .5 } } }}><span>{grade}</span></m.div>)}<div className="beyond"><small>{SITE_CONFIG.gap.focus}</small><strong>{SITE_CONFIG.gap.beyond}</strong></div></Reveal></div><Divider /></section>;
 }
 
 const GROUP = { hidden: {}, visible: {} };
@@ -238,7 +241,7 @@ function PricingCard({ batch }: { batch: Batch }) {
 }
 
 function DotClass({ students }: { students: number }) {
-  return <div className="dot-class"><div className="dot-legend"><span><i className="teacher-dot" />{SITE_CONFIG.pricing.teacher}</span><span><i />{SITE_CONFIG.pricing.students}</span></div><div className="dot-field"><i className="teacher-dot" />{Array.from({ length: students }, (_, i) => <motion.i key={i} variants={{ hidden: { opacity: 0, scale: 0 }, visible: { opacity: 1, scale: 1, transition: { delay: i * .05 } } }} style={{ animationDelay: `${i * .08}s` }} />)}</div></div>;
+  return <div className="dot-class"><div className="dot-legend"><span><i className="teacher-dot" />{SITE_CONFIG.pricing.teacher}</span><span><i />{SITE_CONFIG.pricing.students}</span></div><div className="dot-field"><i className="teacher-dot" />{Array.from({ length: students }, (_, i) => <m.i key={i} variants={{ hidden: { opacity: 0, scale: 0 }, visible: { opacity: 1, scale: 1, transition: { delay: i * .05 } } }} style={{ animationDelay: `${i * .08}s` }} />)}</div></div>;
 }
 
 function ComparisonSection() {
@@ -255,15 +258,15 @@ function TeachersSection() {
 }
 
 function ProgressSection() {
-  return <section className="progress-section section-light"><div className="container"><SectionHeading kicker={SITE_CONFIG.progress.kicker}>{SITE_CONFIG.progress.headline}</SectionHeading><Reveal className="dashboard"><div className="dashboard-top"><strong>{SITE_CONFIG.progress.week}</strong><span>{SITE_CONFIG.progress.sample}</span></div><div className="rings">{SITE_CONFIG.progress.rings.map((ring) => <ProgressRing key={ring.label} {...ring} />)}</div><div className="dashboard-lower"><div className="bar-chart">{SITE_CONFIG.progress.bars.map((bar, i) => <div key={i}><motion.i variants={{ hidden: { scaleY: 0 }, visible: { scaleY: 1, transition: { delay: i * .08, duration: .8, ease: EASE } } }} style={{ height: `${bar}%` }} /><span>{SITE_CONFIG.progress.days[i]}</span></div>)}</div><div className="report-card"><span>01 / 01</span><h3>{SITE_CONFIG.progress.reportTitle}</h3><p>{SITE_CONFIG.progress.reportCopy}</p></div></div></Reveal></div></section>;
+  return <section className="progress-section section-light"><div className="container"><SectionHeading kicker={SITE_CONFIG.progress.kicker}>{SITE_CONFIG.progress.headline}</SectionHeading><Reveal className="dashboard"><div className="dashboard-top"><strong>{SITE_CONFIG.progress.week}</strong><span>{SITE_CONFIG.progress.sample}</span></div><div className="rings">{SITE_CONFIG.progress.rings.map((ring) => <ProgressRing key={ring.label} {...ring} />)}</div><div className="dashboard-lower"><div className="bar-chart">{SITE_CONFIG.progress.bars.map((bar, i) => <div key={i}><m.i variants={{ hidden: { scaleY: 0 }, visible: { scaleY: 1, transition: { delay: i * .08, duration: .8, ease: EASE } } }} style={{ height: `${bar}%` }} /><span>{SITE_CONFIG.progress.days[i]}</span></div>)}</div><div className="report-card"><span>01 / 01</span><h3>{SITE_CONFIG.progress.reportTitle}</h3><p>{SITE_CONFIG.progress.reportCopy}</p></div></div></Reveal></div></section>;
 }
-function ProgressRing({ label, value }: { label: string; value: number }) { return <div className="ring-item"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42"/><motion.circle className="ring-value" cx="50" cy="50" r="42" variants={{ hidden: { pathLength: 0 }, visible: { pathLength: value / 100, transition: { duration: 1.3, ease: EASE } } }} /></svg><strong><Counter value={value} />%</strong><span>{label}</span></div>; }
+function ProgressRing({ label, value }: { label: string; value: number }) { return <div className="ring-item"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42"/><m.circle className="ring-value" cx="50" cy="50" r="42" variants={{ hidden: { pathLength: 0 }, visible: { pathLength: value / 100, transition: { duration: 1.3, ease: EASE } } }} /></svg><strong><Counter value={value} />%</strong><span>{label}</span></div>; }
 
 function TestimonialsSection() { return <section className="testimonials-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.testimonials.kicker}>{SITE_CONFIG.testimonials.headline}</SectionHeading><div className="testimonial-grid">{SITE_CONFIG.testimonials.cards.map((card, i) => <Reveal as="article" key={i}><span>“</span><p>{card}</p><i /></Reveal>)}</div></div></section>; }
 
 function FaqSection() {
   const [open, setOpen] = useState<number | null>(0);
-  return <section id="faq" className="faq-section section-light"><div className="container faq-grid"><SectionHeading kicker={SITE_CONFIG.faq.kicker}>{SITE_CONFIG.faq.headline}</SectionHeading><div className="accordion">{SITE_CONFIG.faq.items.map((item, i) => <div className="faq-item" key={item.q}><button aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}><span>{item.q}</span><ChevronDown className={open === i ? "rotated" : ""} /></button><AnimatePresence initial={false}>{open === i && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .35, ease: EASE }}><p>{item.a}</p></motion.div>}</AnimatePresence></div>)}</div></div></section>;
+  return <section id="faq" className="faq-section section-light"><div className="container faq-grid"><SectionHeading kicker={SITE_CONFIG.faq.kicker}>{SITE_CONFIG.faq.headline}</SectionHeading><div className="accordion">{SITE_CONFIG.faq.items.map((item, i) => <div className="faq-item" key={item.q}><button aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}><span>{item.q}</span><ChevronDown className={open === i ? "rotated" : ""} /></button><AnimatePresence initial={false}>{open === i && <m.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .35, ease: EASE }}><p>{item.a}</p></m.div>}</AnimatePresence></div>)}</div></div></section>;
 }
 
 function FinalCta() {
@@ -306,7 +309,7 @@ function FinalCta() {
     setSuccess(true);
   };
   const fallbackLoop = <svg className={success ? "cta-loop complete" : "cta-loop"} viewBox="0 0 300 135"><path d="M15 67C45 5 100 5 150 67s105 62 135 0C255 5 200 5 150 67S45 129 15 67Z" /></svg>;
-  return <section ref={section} id="demo" className="final-cta section-dark"><div className="container final-grid"><div><span className="eyebrow inverse">{SITE_CONFIG.form.kicker}</span><h2>{SITE_CONFIG.form.headline}</h2>{nearViewport && supportsRibbon ? <Suspense fallback={fallbackLoop}><FinalCtaInfinityRibbon success={success} /></Suspense> : fallbackLoop}</div><div className="form-wrap"><OfferBadge />{success ? <motion.div className="success" role="status" aria-live="polite" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}><Check /><h3>{SITE_CONFIG.form.success}</h3></motion.div> : <form onSubmit={submit} noValidate><Field label={SITE_CONFIG.form.studentName} error={errors["studentName"]}><input name="studentName" placeholder={SITE_CONFIG.form.studentPlaceholder} maxLength={80} aria-invalid={Boolean(errors["studentName"])} /></Field><div className="form-row"><Field label={SITE_CONFIG.form.classLabel} error={errors["studentClass"]}><select name="studentClass" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.classPlaceholder}</option>{SITE_CONFIG.form.classes.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label={SITE_CONFIG.form.boardLabel} error={errors["board"]}><select name="board" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.boardPlaceholder}</option>{SITE_CONFIG.form.boards.map((item) => <option key={item}>{item}</option>)}</select></Field></div><Field label={SITE_CONFIG.form.phoneLabel} error={errors["phone"]}><input name="phone" type="tel" inputMode="numeric" maxLength={10} placeholder={SITE_CONFIG.form.phonePlaceholder} aria-invalid={Boolean(errors["phone"])} /></Field><button className="button button-light" type="submit">{SITE_CONFIG.form.submit}<ArrowDownRight /></button></form>}</div></div></section>;
+  return <section ref={section} id="demo" className="final-cta section-dark"><div className="container final-grid"><div><span className="eyebrow inverse">{SITE_CONFIG.form.kicker}</span><h2>{SITE_CONFIG.form.headline}</h2>{nearViewport && supportsRibbon ? <Suspense fallback={fallbackLoop}><FinalCtaInfinityRibbon success={success} /></Suspense> : fallbackLoop}</div><div className="form-wrap"><OfferBadge />{success ? <m.div className="success" role="status" aria-live="polite" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}><Check /><h3>{SITE_CONFIG.form.success}</h3></m.div> : <form onSubmit={submit} noValidate><Field label={SITE_CONFIG.form.studentName} error={errors["studentName"]}><input name="studentName" placeholder={SITE_CONFIG.form.studentPlaceholder} maxLength={80} aria-invalid={Boolean(errors["studentName"])} /></Field><div className="form-row"><Field label={SITE_CONFIG.form.classLabel} error={errors["studentClass"]}><select name="studentClass" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.classPlaceholder}</option>{SITE_CONFIG.form.classes.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label={SITE_CONFIG.form.boardLabel} error={errors["board"]}><select name="board" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.boardPlaceholder}</option>{SITE_CONFIG.form.boards.map((item) => <option key={item}>{item}</option>)}</select></Field></div><Field label={SITE_CONFIG.form.phoneLabel} error={errors["phone"]}><input name="phone" type="tel" inputMode="numeric" maxLength={10} placeholder={SITE_CONFIG.form.phonePlaceholder} aria-invalid={Boolean(errors["phone"])} /></Field><button className="button button-light" type="submit">{SITE_CONFIG.form.submit}<ArrowDownRight /></button></form>}</div></div></section>;
 }
 function Field({ label, error, children }: { label: string; error: string | undefined; children: ReactNode }) { return <label className="field"><span>{label}</span>{children}{error && <small role="alert">{error}</small>}</label>; }
 

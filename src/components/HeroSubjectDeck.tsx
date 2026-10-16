@@ -1,4 +1,4 @@
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
+import { m, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { useEffect, useState, type FocusEvent, type MouseEvent } from "react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -93,7 +93,7 @@ export function HeroSubjectDeck() {
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={blur}
     >
-      <motion.div
+      <m.div
         className="hero-subject-deck"
         style={reducedMotion || coarsePointer ? { rotateX: 0, rotateY: 0 } : { rotateX, rotateY }}
         animate={!reducedMotion && coarsePointer ? { y: [0, -6, 0, 6, 0] } : { y: 0 }}
@@ -103,7 +103,7 @@ export function HeroSubjectDeck() {
           const depth = (index - active + SUBJECTS.length) % SUBJECTS.length;
           const isActive = depth === 0;
           return (
-            <motion.article
+            <m.article
               className={`hero-subject-card ${isActive ? "is-active" : ""}`}
               key={subject.name}
               aria-hidden={!isActive}
@@ -123,10 +123,10 @@ export function HeroSubjectDeck() {
                 <SubjectIcon kind={subject.kind} />
               </header>
               {isActive && <SubjectLesson key={`${subject.kind}-${active}`} subject={subject} reduced={Boolean(reducedMotion)} />}
-            </motion.article>
+            </m.article>
           );
         })}
-      </motion.div>
+      </m.div>
 
       <div className="hero-subject-chips" aria-hidden="true">
         {FLOATING_CHIPS.map((chip, index) => (
@@ -166,14 +166,14 @@ function MathsLesson({ subject, reduced }: { subject: (typeof SUBJECTS)[0]; redu
   return (
     <div className="lesson lesson-maths">
       <svg viewBox="0 0 180 130" aria-label="Right triangle with sides a, b and c">
-        <motion.path d="M28 105V24l122 81H28Z" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ duration: 0.8, ease: EASE }} />
-        <motion.path d="M28 87h18v18" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ delay: reduced ? 0 : 0.08, duration: 0.8, ease: EASE }} />
+        <m.path d="M28 105V24l122 81H28Z" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ duration: 0.8, ease: EASE }} />
+        <m.path d="M28 87h18v18" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ delay: reduced ? 0 : 0.08, duration: 0.8, ease: EASE }} />
         <text x="12" y="68">a</text><text x="83" y="121">b</text><text x="95" y="55">c</text>
       </svg>
       <div>
         <TypeLine text={subject.primary} reduced={reduced} />
         <p>{subject.lines[0]}</p>
-        <div className="circle-formula"><p>{subject.lines[1]}</p><svg viewBox="0 0 42 42"><motion.circle cx="21" cy="21" r="15" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ delay: reduced ? 0 : 0.24, duration: 0.8, ease: EASE }} /><path d="M21 21h15" /></svg></div>
+        <div className="circle-formula"><p>{subject.lines[1]}</p><svg viewBox="0 0 42 42"><m.circle cx="21" cy="21" r="15" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ delay: reduced ? 0 : 0.24, duration: 0.8, ease: EASE }} /><path d="M21 21h15" /></svg></div>
       </div>
     </div>
   );
@@ -183,9 +183,9 @@ function ScienceLesson({ subject, reduced }: { subject: (typeof SUBJECTS)[1]; re
   return (
     <div className="lesson lesson-science">
       <svg viewBox="0 0 150 160" aria-label="Beaker with rising liquid">
-        <motion.path d="M52 18h46M61 18v48l-34 62c-5 9 2 17 12 17h72c10 0 17-8 12-17L89 66V18" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ duration: 0.8, ease: EASE }} />
-        <motion.path className="beaker-liquid" d="M38 119h74l10 18c2 4-2 8-8 8H36c-6 0-10-4-8-8Z" initial={reduced ? false : { scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: reduced ? 0 : 0.16, duration: 0.8, ease: EASE }} />
-        {[48, 66, 84, 101].map((cx, index) => <motion.circle key={cx} className="bubble" cx={cx} cy={112 - index * 8} r={3 + index % 2} animate={reduced ? false : { y: [10, -18], opacity: [0, 1, 0] }} transition={{ delay: index * 0.08, duration: 2 + index * 0.2, repeat: Infinity, ease: "easeOut" }} />)}
+        <m.path d="M52 18h46M61 18v48l-34 62c-5 9 2 17 12 17h72c10 0 17-8 12-17L89 66V18" variants={DRAW} initial={reduced ? "shown" : "hidden"} animate="shown" transition={{ duration: 0.8, ease: EASE }} />
+        <m.path className="beaker-liquid" d="M38 119h74l10 18c2 4-2 8-8 8H36c-6 0-10-4-8-8Z" initial={reduced ? false : { scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: reduced ? 0 : 0.16, duration: 0.8, ease: EASE }} />
+        {[48, 66, 84, 101].map((cx, index) => <m.circle key={cx} className="bubble" cx={cx} cy={112 - index * 8} r={3 + index % 2} animate={reduced ? false : { y: [10, -18], opacity: [0, 1, 0] }} transition={{ delay: index * 0.08, duration: 2 + index * 0.2, repeat: Infinity, ease: "easeOut" }} />)}
       </svg>
       <div><TypeLine text={subject.primary} reduced={reduced} /><p>{subject.lines[0]}</p><p>{subject.lines[1]}</p></div>
     </div>
@@ -197,7 +197,7 @@ function EnglishLesson({ subject, reduced }: { subject: (typeof SUBJECTS)[2]; re
     <div className="lesson lesson-english">
       <p className="grammar-sentence">
         <span>{subject.sentence[0]}</span>{" "}
-        {subject.sentence.slice(1, 4).map((part, index) => <motion.span className="grammar-word" key={part} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08, duration: 0.4 }}><i>{subject.tags[index]}</i>{part}</motion.span>)}{" "}
+        {subject.sentence.slice(1, 4).map((part, index) => <m.span className="grammar-word" key={part} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08, duration: 0.4 }}><i>{subject.tags[index]}</i>{part}</m.span>)}{" "}
         <span>{subject.sentence[4]}</span>
       </p>
       <div className="english-lines"><p>{subject.lines[0]}</p><p>{subject.lines[1]}</p></div>
@@ -210,17 +210,17 @@ function SocialLesson({ subject, reduced }: { subject: (typeof SUBJECTS)[3]; red
     <div className="lesson lesson-social">
       <svg viewBox="0 0 180 170" aria-label="Globe with latitude and longitude lines">
         <circle cx="90" cy="84" r="58" />
-        <motion.ellipse cx="90" cy="84" rx="27" ry="58" animate={reduced ? false : { scaleX: [1, 0.35, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} />
+        <m.ellipse cx="90" cy="84" rx="27" ry="58" animate={reduced ? false : { scaleX: [1, 0.35, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} />
         <ellipse cx="90" cy="84" rx="58" ry="23" /><path d="M32 84h116" />
-        <motion.g initial={reduced ? false : { y: -24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: reduced ? 0 : 0.16, duration: 0.8, type: "spring", bounce: 0.45 }}><path d="M122 43c-10 0-18 8-18 18 0 15 18 31 18 31s18-16 18-31c0-10-8-18-18-18Z" /><circle cx="122" cy="61" r="5" /></motion.g>
+        <m.g initial={reduced ? false : { y: -24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: reduced ? 0 : 0.16, duration: 0.8, type: "spring", bounce: 0.45 }}><path d="M122 43c-10 0-18 8-18 18 0 15 18 31 18 31s18-16 18-31c0-10-8-18-18-18Z" /><circle cx="122" cy="61" r="5" /></m.g>
       </svg>
-      <div className="social-labels">{subject.chips.map((chip, index) => <motion.span key={chip} initial={reduced ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.08, duration: 0.4 }}>{chip}</motion.span>)}</div>
+      <div className="social-labels">{subject.chips.map((chip, index) => <m.span key={chip} initial={reduced ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.08, duration: 0.4 }}>{chip}</m.span>)}</div>
     </div>
   );
 }
 
 function TypeLine({ text, reduced }: { text: string; reduced: boolean }) {
-  return <p className="type-line" aria-label={text}>{text.split("").map((character, index) => <motion.span key={`${character}-${index}`} aria-hidden="true" initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.035 + 0.12, duration: 0.12 }}>{character}</motion.span>)}</p>;
+  return <p className="type-line" aria-label={text}>{text.split("").map((character, index) => <m.span key={`${character}-${index}`} aria-hidden="true" initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.035 + 0.12, duration: 0.12 }}>{character}</m.span>)}</p>;
 }
 
 function SubjectIcon({ kind }: { kind: Subject["kind"] }) {
@@ -237,5 +237,5 @@ type Chip = (typeof FLOATING_CHIPS)[number];
 function DepthChip({ chip, index, active, x, y, reduced }: { chip: Chip; index: number; active: number; x: ReturnType<typeof useMotionValue<number>>; y: ReturnType<typeof useMotionValue<number>>; reduced: boolean }) {
   const offsetX = useTransform(x, (value) => value * chip.depth * 18);
   const offsetY = useTransform(y, (value) => value * chip.depth * 14);
-  return <motion.span className={`depth-chip chip-${index + 1} ${active === chip.subject ? "is-active" : ""}`} style={reduced ? { x: 0, y: 0, translateZ: chip.depth * 70 } : { x: offsetX, y: offsetY, translateZ: chip.depth * 70 }}><motion.i animate={reduced ? false : { x: [0, index % 2 ? -8 : 8, 0], y: [0, index % 2 ? 10 : -6, 0] }} transition={{ duration: 5.5 + index * 0.65, repeat: Infinity, ease: "easeInOut" }}>{chip.label}</motion.i></motion.span>;
+  return <m.span className={`depth-chip chip-${index + 1} ${active === chip.subject ? "is-active" : ""}`} style={reduced ? { x: 0, y: 0, translateZ: chip.depth * 70 } : { x: offsetX, y: offsetY, translateZ: chip.depth * 70 }}><m.i animate={reduced ? false : { x: [0, index % 2 ? -8 : 8, 0], y: [0, index % 2 ? 10 : -6, 0] }} transition={{ duration: 5.5 + index * 0.65, repeat: Infinity, ease: "easeInOut" }}>{chip.label}</m.i></m.span>;
 }

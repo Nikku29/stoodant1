@@ -1,4 +1,4 @@
-import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
+import { animate, m, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { TIMING } from "@/config/timing";
@@ -77,11 +77,11 @@ function RingSlide({ i, step, geo, angle, children, onClick, isFront, isRepeat }
   const pointerEvents = useTransform(opacity, (o) => (o <= 0.001 ? "none" : "auto"));
   const blur = useTransform(angle, (a) => Math.min(1, Math.abs(rel(a)) / 60));
   return (
-    <motion.div className="tr-slide" style={{ transform, opacity, visibility, pointerEvents }}
+    <m.div className="tr-slide" style={{ transform, opacity, visibility, pointerEvents }}
       aria-hidden={!isFront || isRepeat} inert={!isFront} onClick={onClick}>
       {children}
-      <motion.div className="tr-blur" style={{ opacity: blur }} aria-hidden="true" />
-    </motion.div>
+      <m.div className="tr-blur" style={{ opacity: blur }} aria-hidden="true" />
+    </m.div>
   );
 }
 
@@ -227,7 +227,7 @@ export function TeachersRing() {
   }
 
   return (
-    <motion.div className="tr-wrap" style={vars}
+    <m.div className="tr-wrap" style={vars}
       initial={{ opacity: 0, y: 40 }} animate={entered ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
       transition={{ duration: TIMING.reveal, ease: EASE }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
@@ -264,6 +264,6 @@ export function TeachersRing() {
           </button>
         ))}
       </div>
-    </motion.div>
+    </m.div>
   );
 }
