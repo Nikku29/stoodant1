@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import heroFont from "@fontsource/sora/files/sora-latin-800-normal.woff2?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -85,10 +86,9 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: appCss,
       },
+      // Hero headline font (Sora 800), preloaded so the LCP text renders in its final font.
+      { rel: "preload", href: heroFont, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&display=swap" },
     ],
   }),
   shellComponent: RootShell,
