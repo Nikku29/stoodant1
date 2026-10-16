@@ -81,6 +81,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .hero h1 { margin: 0; font: 800 clamp(2.5rem,6.5vw,6rem)/.94 var(--font-display); letter-spacing: 0; }
 .line-mask,.word-mask { display: block; overflow: hidden; }
 .line-mask>span { display: block; }
+.hero-line { animation: hero-line-in .8s cubic-bezier(.22,1,.36,1) both; }
+.hero-rise { animation: hero-rise-in .8s cubic-bezier(.22,1,.36,1) both; }
+@keyframes hero-line-in { from { transform: translateY(110%); } to { transform: none; } }
+@keyframes hero-rise-in { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 .hero-copy>p { max-width: 610px; margin: 32px 0 0; color: var(--grey-5); font-size: clamp(16px,2vw,20px); line-height: 1.7; }
 .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 36px; }
 .hero-copy>small { display: block; margin-top: 22px; color: var(--grey-4); font-size: 12px; font-weight: 600; }

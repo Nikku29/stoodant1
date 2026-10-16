@@ -10,6 +10,8 @@ import { AHEAD_SLIDES } from "@/components/AheadSlides";
 import { ProcessSequence } from "@/components/ProcessSequence";
 import { TeachersRing } from "@/components/TeachersRing";
 import { Counter, Reveal } from "@/lib/directional-reveal";
+import { detectPerfTier } from "@/lib/perf";
+import { TIMING } from "@/config/timing";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const reveal = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } };
@@ -64,7 +66,9 @@ function Logo({ inverse = false }: { inverse?: boolean }) {
 function Loader({ disabled }: { disabled: boolean }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    if (disabled || sessionStorage.getItem("stoodant-loaded")) return;
+    // Never on the low tier (phones, weak devices, reduced motion); first visit only elsewhere. It mounts
+    // after hydration, so the hero has already painted underneath it.
+    if (disabled || detectPerfTier() === "low" || sessionStorage.getItem("stoodant-loaded")) return;
     setVisible(true);
     const timeout = window.setTimeout(() => { setVisible(false); sessionStorage.setItem("stoodant-loaded", "1"); }, 1900);
     return () => window.clearTimeout(timeout);
@@ -184,16 +188,19 @@ function MagneticLink({ href, children, outline = false }: { href: string; child
   return <a ref={ref} href={href} onMouseMove={move} onMouseLeave={() => ref.current?.style.setProperty("transform", "translate(0,0)")} className={`button ${outline ? "button-outline" : "button-dark"}`}>{children}<ArrowDownRight size={18} /></a>;
 }
 
+const heroRise = { animationDuration: `${TIMING.heroEntrance}s` };
+
 function Hero() {
   return (
     <section id="top" className="hero section-light">
       <FloatingShapes />
       <div className="container hero-grid">
         <div className="hero-copy">
-          <h1>{SITE_CONFIG.hero.headline.map((line, index) => <span className="line-mask" key={line}><m.span initial={{ y: "110%" }} animate={{ y: 0 }} transition={{ delay: .3 + index * .12, duration: .8, ease: EASE }}>{line}</m.span></span>)}</h1>
-          <m.p variants={reveal} initial="hidden" animate="visible" transition={{ delay: .55 }}>{SITE_CONFIG.hero.subhead}</m.p>
-          <m.div className="hero-actions" variants={reveal} initial="hidden" animate="visible"><MagneticLink href="#demo">{SITE_CONFIG.hero.primaryCta}</MagneticLink><MagneticLink href="#batches" outline>{SITE_CONFIG.hero.secondaryCta}</MagneticLink></m.div>
-          <m.small variants={reveal} initial="hidden" animate="visible">{SITE_CONFIG.hero.trust}</m.small>
+          {/* Entrance runs in CSS from the first paint, so the hero never waits for JavaScript. */}
+          <h1>{SITE_CONFIG.hero.headline.map((line, index) => <span className="line-mask" key={line}><span className="hero-line" style={{ animationDuration: `${TIMING.heroEntrance}s`, animationDelay: `${TIMING.heroLineDelay + index * TIMING.heroLineStagger}s` }}>{line}</span></span>)}</h1>
+          <p className="hero-rise" style={heroRise}>{SITE_CONFIG.hero.subhead}</p>
+          <div className="hero-actions hero-rise" style={heroRise}><MagneticLink href="#demo">{SITE_CONFIG.hero.primaryCta}</MagneticLink><MagneticLink href="#batches" outline>{SITE_CONFIG.hero.secondaryCta}</MagneticLink></div>
+          <small className="hero-rise" style={heroRise}>{SITE_CONFIG.hero.trust}</small>
         </div>
         <HeroSubjectDeck />
       </div>

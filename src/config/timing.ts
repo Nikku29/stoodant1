@@ -9,6 +9,9 @@ export const TIMING = {
   realLifePair: 1.2,
   howItWorksStep: 1.5,
   heroDeckAdvance: 3,
+  heroEntrance: 0.8,
+  heroLineDelay: 0.3,
+  heroLineStagger: 0.12,
   teachersAdvance: 2.5,
   teachersStep: 0.7,
 } as const;
