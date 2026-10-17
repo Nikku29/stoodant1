@@ -6,15 +6,17 @@ export const TIMING = {
   storySlideAnim: 2.5,
   readHold: 1,
   storyWatchdog: 4.5,
-  realLifePair: 1.2,
-  // Story slideshows (Problem, Stay Ahead): slide graphics play this many times faster than their
-  // keyframes in styles.css; a slide shows for at least minSlide and moves on after the caption hold.
+  realLifePair: 0.8,
+  // Story slideshows (Problem, Stay Ahead): each graphic plays one beat (src/brand/storyBeats.ts),
+  // holds briefly, then moves on, so a slide lasts about 2-3s. Hover or focus pauses it for at most hoverPause.
   story: {
-    speed: 2,
-    minSlide: 3,
-    watchdog: 8,
-    holdMin: 1,
-    holdPerWord: 0.2,
+    beat: 2.2,
+    speed: 1,
+    minSlide: 2.2,
+    watchdog: 6,
+    holdMin: 0.5,
+    holdPerWord: 0.06,
+    hoverPause: 3,
   },
   // How it works: the highlight moving from step to step.
   process: {
@@ -72,9 +74,10 @@ export const TIMING = {
   // Story slides with ant characters: slide length and the stretch (start %, end %) in which the ant walks.
   // Lengths match the slide keyframes in styles.css.
   slideAnts: {
-    pace: { length: 6, walk: [0, 80] },
-    shift: { length: 8, walk: [42, 58] },
-    path: { length: 9, walk: [6, 58] },
+    pace: { walk: [0, 85] },
+    paceAhead: { walk: [0, 45] },
+    shift: { walk: [28, 55] },
+    path: { walk: [5, 60] },
   },
   // Roaming ant (src/brand/RoamingAnt.tsx): seconds, and walking speed in px per second.
   roamer: {

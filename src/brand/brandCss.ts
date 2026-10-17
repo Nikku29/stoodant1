@@ -3,6 +3,7 @@
 // Animations use transform and opacity only.
 import { TIMING } from "@/config/timing";
 import { sceneAt } from "./antScene";
+import { STORY_CSS } from "./storyBeats";
 
 const S = TIMING.splash;
 const A = TIMING.ant;
@@ -35,7 +36,8 @@ var skip=function(){var el=document.getElementById("splash");if(el)el.classList.
  */
 function slideAntSwaps() {
   return Object.entries(TIMING.slideAnts)
-    .map(([name, { length, walk: [from, to] }]) => {
+    .map(([name, { walk: [from, to] }]) => {
+      const length = TIMING.story.beat;
       const lead = (on: number) => (from ? `,${from - 0.1}%{opacity:${1 - on}}${from}%` : "");
       return (
         `.ass:not(.is-reduced) .is-active .aw-${name}{animation:ant-walk-${name} ${s(length)} infinite}` +
@@ -136,6 +138,7 @@ html:not([data-perf=high]) .ant-celebrate{animation:none}
 .ps-ant-dim,.ps-ant-school{color:#737373;--ant-eye:#a3a3a3;--ant-bag:#a3a3a3;--ant-bag-light:#d4d4d4;--ant-bag-deep:#737373}
 .aw{opacity:0}
 ${slideAntSwaps()}
+${STORY_CSS}
 
 .au-leg-l,.au-leg-r,.au-arm-l,.au-arm-r,.au-body{transform-box:view-box}
 .au-leg-l{transform-origin:36px 77px;animation:au-step ${s(R.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}

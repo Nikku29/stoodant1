@@ -32,8 +32,8 @@ export function PaceGraphic() {
       <line x1="30" y1={l.y} x2="362" y2={l.y} className="ps-track" />
       {l.cls === "behind" && <line x1="30" y1={l.y} x2="230" y2={l.y} className="ps-trail" />}
       <g className={`ps-orb ps-${l.cls}`}>
-        <AntUse cx={30} base={l.y} h={20} pose="walk" className="ps-ant aw aw-pace" />
-        <AntUse cx={30} base={l.y} h={20} pose={l.cls === "ahead" ? "wave" : "static"} className="ps-ant ar ar-pace" />
+        <AntUse cx={30} base={l.y} h={20} pose="walk" className={`ps-ant aw aw-${l.cls === "ahead" ? "paceAhead" : "pace"}`} />
+        <AntUse cx={30} base={l.y} h={20} pose={l.cls === "ahead" ? "wave" : "static"} className={`ps-ant ar ar-${l.cls === "ahead" ? "paceAhead" : "pace"}`} />
       </g>
     </g>)}
     <line x1="362" y1="34" x2="362" y2="212" className="ps-line" /><path d="M362 34 L382 40 L362 46 Z" className="ps-fill" />

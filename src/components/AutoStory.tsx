@@ -55,7 +55,15 @@ export function AutoStory({ slides, label, className = "" }: { slides: AutoSlide
   const [desktop, setDesktop] = useState(false);
   const count = slides.length;
 
-  const paused = !visible || hidden || (desktop && (hover || focus));
+  // Hover or focus pauses the story only briefly, so a resting pointer or a clicked dot never freezes it.
+  const [holding, setHolding] = useState(false);
+  useEffect(() => {
+    if (!(desktop && (hover || focus))) { setHolding(false); return; }
+    setHolding(true);
+    const t = window.setTimeout(() => setHolding(false), TIMING.story.hoverPause * 1000);
+    return () => window.clearTimeout(t);
+  }, [desktop, hover, focus]);
+  const paused = !visible || hidden || holding;
   const clock = useRef({ elapsed: 0, doneAt: -1, hold: HOLD_MIN });
 
   useEffect(() => {
