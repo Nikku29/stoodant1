@@ -42,6 +42,7 @@ export const SITE_CONFIG = {
   },
   hero: {
     headline: ["Learning that moves", "at your pace."],
+    highlight: "your pace", // amber highlighter swoosh behind this phrase
     subhead: "Personalised tuition for Class 4 to 10. CBSE & ICSE. Small batches, real attention.",
     primaryCta: "Book a Free Demo",
     secondaryCta: "See Batches",
@@ -194,6 +195,7 @@ export const SITE_CONFIG = {
   form: {
     kicker: "Free demo",
     headline: "Ready to learn your way?",
+    highlight: "your way", // amber highlighter swoosh behind this phrase
     studentName: "Student name",
     studentPlaceholder: "Enter student name",
     classLabel: "Class",

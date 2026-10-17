@@ -47,6 +47,12 @@ export const TIMING = {
     wave: 0.45,
     pupilEase: 0.15,
   },
+  // Amber highlighter swoosh behind a heading phrase (src/brand/Highlight.tsx).
+  highlight: {
+    draw: 0.5,
+    heroDelay: 0.3,
+    ctaDelay: 0.2,
+  },
   // The ant mascot (src/brand/Ant.tsx).
   ant: {
     step: 0.3,

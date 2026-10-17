@@ -2,14 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { TIMING } from "@/config/timing";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { AntUse } from "./Ant";
+import { FLAG, SLOPE, SLOPE_DEG, START, sceneAt } from "./antScene";
 
-// Path from the start point to the flag (viewBox units). The ant's feet follow this straight, gently rising line.
-const START = { x: 40, y: 150 };
-const FLAG = { x: 318, y: 128 };
-const SLOPE = (FLAG.y - START.y) / (FLAG.x - START.x);
-const SLOPE_DEG = (Math.atan(SLOPE) * 180) / Math.PI;
-/** Walker transform at fraction t of the way to the flag (shared with the loop keyframes in brandCss). */
-export const sceneAt = (t: number) => `translate(${((FLAG.x - START.x) * t).toFixed(1)}px,${((FLAG.y - START.y) * t).toFixed(1)}px)`;
 const at = sceneAt;
 
 /**

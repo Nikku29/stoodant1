@@ -2,10 +2,11 @@
 // Both are inlined in the server-rendered shell (__root.tsx) so the splash paints on the first frame.
 // Animations use transform and opacity only.
 import { TIMING } from "@/config/timing";
-import { sceneAt } from "./AntFlagScene";
+import { sceneAt } from "./antScene";
 
 const S = TIMING.splash;
 const A = TIMING.ant;
+const H = TIMING.highlight;
 const L = TIMING.logo;
 const s = (n: number) => `${+n.toFixed(3)}s`;
 
@@ -119,4 +120,17 @@ html:not([data-perf=high]) .ant-celebrate{animation:none}
 @keyframes flag-wave{0%{transform:none}100%{transform:skewY(-8deg) scaleX(.9)}}
 @media (max-width:1199px){.cta-scene{width:min(100%,480px)}}
 @media (max-width:767px){.cta-scene{width:100%;margin:24px auto 0}}
+
+.hl{position:relative;display:inline-block;isolation:isolate;white-space:nowrap}
+.hl-swoosh{position:absolute;z-index:-1;left:-.08em;width:calc(100% + .16em);top:.4em;height:.6em;overflow:visible}
+.hl-swoosh path{fill:none;stroke:var(--amber);stroke-width:30;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
+.hl.is-static .hl-swoosh path{stroke-dashoffset:0}
+.hl.is-drawn .hl-swoosh path{animation:hl-draw ${s(H.draw / 2)} linear calc(var(--hl-delay, 0s) + var(--hl-splash, 0s)) forwards}
+html[data-perf=high]:not([data-splash=off]) .hero .hl{--hl-splash:${s(S.liftAt + S.lift)}}
+.hl-join .hl-swoosh{width:calc(100% + .42em)}
+.hl-dark .hl-swoosh{top:.08em;height:.94em}
+.hl-dark .hl-swoosh path{stroke-width:40}
+.hl-dark{transition:color .15s calc(var(--hl-delay, 0s) + ${s(H.draw / 2)})}
+.hl-dark.is-drawn,.hl-dark.is-static{color:var(--ink)}
+@keyframes hl-draw{to{stroke-dashoffset:0}}
 `.trim();

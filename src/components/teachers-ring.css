@@ -7,7 +7,7 @@
 .tr-halo{position:absolute;left:50%;top:50%;width:calc(var(--tr-h) * 1.6);height:calc(var(--tr-h) * 1.6);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,rgb(255 255 255 / .16),rgb(255 255 255 / .06) 55%,rgb(255 255 255 / 0));pointer-events:none;z-index:0}
 .tr-scene{position:relative;z-index:2;perspective:var(--tr-persp);perspective-origin:50% 50%;height:calc(var(--tr-h) + 80px);outline:none;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
 .tr-scene.is-dragging{cursor:grabbing}
-.tr-scene:focus-visible{outline:2px solid #F5F5F5;outline-offset:6px;border-radius:24px}
+.tr-scene:focus-visible{outline:2px solid var(--amber);outline-offset:6px;border-radius:24px}
 .tr-stage{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d;will-change:transform}
 .tr-slide{position:absolute;left:calc(var(--tr-w) / -2);top:calc(var(--tr-h) / -2);width:var(--tr-w);height:var(--tr-h);border-radius:24px;backface-visibility:hidden}
 .tr-blur{position:absolute;inset:0;border-radius:24px;background:rgb(10 10 10 / .35);backdrop-filter:blur(6px);pointer-events:none}
@@ -31,11 +31,11 @@
 .tr-dots{position:relative;z-index:2;display:flex;justify-content:center}
 .tr-dot{width:44px;height:44px;display:grid;place-items:center;background:none;border:0;cursor:pointer;padding:0}
 .tr-dot span{width:10px;height:10px;border-radius:50%;background:#737373;transition:transform .3s}
-.tr-dot.is-active span{background:#FFFFFF;transform:scale(1.2)}
-.tr-dot:focus-visible{outline:2px solid #F5F5F5;border-radius:50%}
+.tr-dot.is-active span{background:var(--amber);transform:scale(1.2)}
+.tr-dot:focus-visible{outline:2px solid var(--amber);border-radius:50%}
 .tr-wrap.is-reduced{justify-content:flex-start}
 .tr-row{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:8px max(16px,calc(50% - var(--tr-w) / 2)) 24px;outline:none}
-.tr-row:focus-visible{outline:2px solid #F5F5F5}
+.tr-row:focus-visible{outline:2px solid var(--amber)}
 .tr-row-slide{flex:0 0 var(--tr-w);height:var(--tr-h);scroll-snap-align:center}
 @media (max-width:767px){
   .tr-trait{font-size:22px}
