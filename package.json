@@ -14,7 +14,8 @@
     "test:watch": "vitest"
   },
   "overrides": {
-    "rolldown": "1.2.1"
+    "rolldown": "1.2.1",
+    "@grpc/grpc-js": "^1.13.6"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

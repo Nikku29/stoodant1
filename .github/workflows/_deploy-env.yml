@@ -1,0 +1,57 @@
+# Reusable deploy of one environment; called by deploy.yml for staging, then production.
+name: Deploy one environment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: npm ci
+        working-directory: functions
+      - run: npx vite build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY }}
+      - run: node scripts/check-bundle.mjs --strict
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - run: npx firebase deploy --project "${{ vars.FIREBASE_PROJECT_ID }}" --only hosting,functions,firestore,storage --force --non-interactive
+        working-directory: functions
+      - name: Smoke test
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          set -e
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/")" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/this-page-does-not-exist")" = 404
+          curl -s "$SITE_URL/" | grep -q "Learning that moves"
+          # The lead endpoint must refuse a request without an allowed origin (proves the rewrite and function are live).
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$SITE_URL/api/lead")" = 403
+      - if: inputs.environment == 'production'
+        run: |
+          tag="v$(date -u +%Y.%m.%d)-${{ github.run_number }}"
+          git tag "$tag" && git push origin "$tag"

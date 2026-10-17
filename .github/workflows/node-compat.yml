@@ -1,0 +1,25 @@
+# Weekly: resolve the same package.json with npm instead of bun and run the tests under Node, so a bun-only
+# install quirk shows up here first (owner concern about bun's Node compatibility, 2026-10-17).
+name: Node compatibility
+
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: rm bun.lock && npm install --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npx vite build
+      - run: node scripts/check-bundle.mjs
