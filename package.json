@@ -25,6 +25,7 @@
     "@tanstack/react-router": "1.170.41",
     "@tanstack/react-start": "1.168.60",
     "@tanstack/router-plugin": "1.168.42",
+    "firebase": "^12.19.0",
     "framer-motion": "^14.0.0",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",

@@ -186,8 +186,9 @@ export const SITE_CONFIG = {
   form: {
     kicker: "Free demo",
     headline: "Ready to learn your way?",
-    studentName: "Student name",
-    studentPlaceholder: "Enter student name",
+    // Parent's name, not the student's: no child's personal data at the lead stage (owner, 2026-10-17).
+    parentName: "Parent name",
+    parentPlaceholder: "Enter your name",
     classLabel: "Class",
     classPlaceholder: "Select class",
     boardLabel: "Board",
@@ -197,8 +198,13 @@ export const SITE_CONFIG = {
     classes: ["4", "5", "6", "7", "8", "9", "10"],
     boards: ["CBSE", "ICSE"],
     submit: "Book my free demo",
+    submitting: "Booking your demo…",
+    // TODO: Owner — confirm this notice with a lawyer and link the Privacy page once it exists.
+    // Bump noticeVersion (YYYY-MM-DD) whenever the wording changes; each lead records the version it agreed to.
+    consent: "I agree that Stoodant may use these details to contact me about a free demo. We keep them for 3 months and never sell them.",
+    noticeVersion: "2026-10-17",
     success: "Thank you! We'll call you shortly.",
-    errors: { name: "Please enter the student's name.", className: "Please select a class.", board: "Please select a board.", phone: "Enter a valid 10-digit Indian mobile number." },
+    errors: { name: "Please enter your name.", className: "Please select a class.", board: "Please select a board.", phone: "Enter a valid 10-digit Indian mobile number.", consent: "Please tick the box so we can contact you.", rateLimited: "You've sent a few requests already. We'll be in touch soon, or message us on WhatsApp.", network: "We couldn't send your request. Please try again, or message us on WhatsApp." },
   },
   footer: { quickLinks: "Quick links", contact: "Contact", rights: "All rights reserved." },
   whatsapp: { label: "Chat on WhatsApp", message: "Hi Stoodant, I'd like to book a demo class." },
