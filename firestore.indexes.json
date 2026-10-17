@@ -1,0 +1,35 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "leads",
+      "fieldPath": "retainUntil",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "consentLog",
+      "fieldPath": "retainUntil",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "leadDedupe",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "leadRequests",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "rateLimits",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    }
+  ]
+}

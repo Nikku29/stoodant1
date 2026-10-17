@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Deny by default. Nothing is uploaded at launch; these rules are ready for consented teacher photos.
+// Originals are admin-only; a function writes WebP/AVIF variants to public/ only when consent is logged.
+// See BACKEND_PLAN.md §5.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /public/teachers/{slug}/{file} {
+      allow read: if true;
+    }
+
+    match /originals/{kind}/{id}/{file} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && kind in ['teachers', 'media']
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|heic)');
+    }
+
+    match /private/{allPaths=**} {
+      allow read: if isAdmin();
+    }
+  }
+}
