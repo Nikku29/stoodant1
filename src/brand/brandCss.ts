@@ -98,16 +98,8 @@ html[data-perf=low] .lg-anim-intro .lg-eyeball{animation:lg-blink-once ${s(S.bli
 .ant{overflow:visible;--ant-walk:paused;--ant-wave:paused}
 .ant-walk{--ant-walk:running}
 .ant-wave{--ant-wave:running}
-.ant-legs-a,.ant-legs-b,.ant-wave-leg,.ant-body{transform-box:view-box;transform-origin:35px 30px}
-.ant-wave-leg{transform-origin:40px 30px}
-.ant-legs-a{animation:ant-step ${s(A.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}
-.ant-legs-b{animation:ant-step ${s(A.step)} linear ${s(-A.step / 2)} infinite;animation-play-state:var(--ant-walk,paused)}
-.ant-body{animation:ant-bob ${s(A.step / 2)} ease-in-out infinite alternate;animation-play-state:var(--ant-walk,paused)}
-.ant-wave-leg{animation:ant-wave ${s(A.wave)} ease-in-out infinite alternate;animation-play-state:var(--ant-wave,paused)}
 .ant-celebrate{transform-box:fill-box;transform-origin:50% 100%;animation:ant-hop ${s(A.hop)} cubic-bezier(.3,1.4,.5,1) 2}
-@keyframes ant-step{0%,100%{transform:none}25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
 @keyframes ant-bob{to{transform:translateY(-1.5px)}}
-@keyframes ant-wave{0%{transform:none}40%{transform:rotate(-100deg)}100%{transform:rotate(-70deg)}}
 @keyframes ant-hop{0%,100%{transform:none}35%{transform:translateY(-8px) scale(.95,1.06)}70%{transform:translateY(0) scale(1.06,.94)}}
 html:not([data-perf=high]) .ant{--ant-walk:paused;--ant-wave:paused}
 html:not([data-perf=high]) .ant-celebrate{animation:none}
@@ -141,8 +133,7 @@ html:not([data-perf=high]) .ant-celebrate{animation:none}
 @media (max-width:767px){.cta-scene{width:100%;margin:24px auto 0}}
 
 .ps-ant{color:var(--ass-1, #f5f5f5)}
-.ps-ant-dim{color:#737373;--ant-eye:#737373}
-.ps-ant-school{color:#737373;--ant-eye:#737373}
+.ps-ant-dim,.ps-ant-school{color:#737373;--ant-eye:#a3a3a3;--ant-bag:#a3a3a3;--ant-bag-light:#d4d4d4;--ant-bag-deep:#737373}
 .aw{opacity:0}
 ${slideAntSwaps()}
 

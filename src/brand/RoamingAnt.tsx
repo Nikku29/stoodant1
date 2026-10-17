@@ -3,7 +3,25 @@ import { SITE_CONFIG } from "@/config/siteConfig";
 import { TIMING } from "@/config/timing";
 import { ANT_UPRIGHT_ID } from "./AntUpright";
 
-type Message = (typeof SITE_CONFIG.mascot.messages)[number];
+type Messages = typeof SITE_CONFIG.mascot.messages;
+type Message = Messages[keyof Messages][number];
+// Which messages fit which part of the page.
+const SECTIONS: [selector: string, key: Exclude<keyof Messages, "general">][] = [
+  [".hero", "hero"], [".problem-slides", "problem"], [".gap-section", "gap"], [".process-section", "process"],
+  [".ahead-slides", "ahead"], [".pricing-section", "batches"], [".comparison-section", "why"], [".subjects-section", "subjects"],
+  [".teachers-section", "teachers"], [".progress-section", "progress"], [".testimonials-section", "testimonials"], [".faq-section", "faq"],
+];
+const shuffled = (n: number) => Array.from({ length: n }, (_, i) => i).sort(() => Math.random() - 0.5);
+
+/** The section in the middle of the screen, if any. */
+function currentSection(): Exclude<keyof Messages, "general"> | null {
+  for (const el of document.elementsFromPoint(window.innerWidth / 2, window.innerHeight / 2)) {
+    const section = el.closest("section");
+    if (!section) continue;
+    for (const [selector, key] of SECTIONS) if (section.matches(selector)) return key;
+  }
+  return null;
+}
 const T = TIMING.roamer;
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -20,7 +38,7 @@ export function RoamingAnt() {
   const [shown, setShown] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const talkUntil = useRef(0);
-  const deck = useRef<number[]>([]);
+  const decks = useRef<Partial<Record<keyof Messages, number[]>>>({});
   const blocked = useRef(false);
 
   // Keep clear of the demo form and the footer.
@@ -107,9 +125,14 @@ export function RoamingAnt() {
   }, [message]);
 
   const talk = () => {
-    const messages = SITE_CONFIG.mascot.messages;
-    if (!deck.current.length) deck.current = messages.map((_, i) => i).sort(() => Math.random() - 0.5);
-    const next = messages[deck.current.pop() ?? 0];
+    // A line for the section on screen first; once those are used up, a general one.
+    const all = SITE_CONFIG.mascot.messages;
+    const section = currentSection();
+    let key: keyof Messages = "general";
+    if (section && (decks.current[section] ??= shuffled(all[section].length)).length) key = section;
+    else if (!decks.current.general?.length) decks.current.general = shuffled(all.general.length);
+    const index = decks.current[key]?.pop() ?? 0;
+    const next: Message | undefined = all[key][index];
     if (next) setMessage(next);
     talkUntil.current = Date.now() + T.bubbleHold * 1000;
     const el = wrap.current;

@@ -73,8 +73,6 @@ export const TIMING = {
   },
   // The ant mascot (src/brand/Ant.tsx).
   ant: {
-    step: 0.3,
-    wave: 0.9,
     hop: 0.5,
     trailWalk: 1.6,
     ctaLoop: 9,

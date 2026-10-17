@@ -51,17 +51,17 @@ export function AntFlagScene({ success }: { success: boolean }) {
     <figure className="cta-scene">
       <svg ref={scene} viewBox="0 0 400 180" className={`cta-scene-svg${animated ? " is-animated" : ""}${arrived ? " is-arrived" : ""}`} role="img" aria-label={arrived ? "The ant has reached the flag" : "An ant walking along a dotted path toward a flag"}>
         <line className="cta-scene-path" x1={START.x - 24} y1={START.y - 24 * SLOPE} x2={FLAG.x} y2={FLAG.y} />
-        <g className="cta-flag" transform={`translate(${FLAG.x + 14} ${FLAG.y})`}>
+        <g className="cta-flag" transform={`translate(${FLAG.x + 24} ${FLAG.y})`}>
           <path className="cta-flag-pole" d="M0 0V-58" />
           <path className="cta-flag-cloth" d="M1 -57h26l-7 9 7 9H1Z" />
         </g>
         <g ref={walker} className="cta-walker" style={arrived ? { transform: at(1) } : !animated ? { transform: at(0.55) } : undefined}>
           <g transform={`translate(${START.x} ${START.y}) rotate(${SLOPE_DEG.toFixed(1)})`}>
-            <AntUse x={-50} y={-41} pose={pose} />
+            <AntUse cx={0} base={0} h={46} pose={pose} />
             {arrived && (
               <g className="cta-sparks">
-                <path d="M10 -34l4 -6" />
-                <path d="M14 -28l7 -2" />
+                <path d="M9 -41l3 -6" />
+                <path d="M14 -36l7 -2" />
               </g>
             )}
           </g>

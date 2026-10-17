@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { AntUse } from "./Ant";
 
 const TRAIL_W = 320;
-const ANT_X = TRAIL_W / 2 - 34; // the ant rests just left of centre, head near the middle
+const GROUND = 50;
 
 /**
  * Section divider: a dotted trail. When it first scrolls in from below, the ant walks across once
@@ -36,10 +36,10 @@ export function AntTrail({ inverse = false }: { inverse?: boolean }) {
   }, []);
   return (
     <div ref={ref} className={`ant-trail${inverse ? " inverse" : ""}`} aria-hidden="true">
-      <svg viewBox={`0 0 ${TRAIL_W} 48`}>
-        <line className="ant-trail-dots" x1="1" y1="41.5" x2={TRAIL_W - 1} y2="41.5" />
+      <svg viewBox={`0 0 ${TRAIL_W} 56`}>
+        <line className="ant-trail-dots" x1="1" y1={GROUND + 0.5} x2={TRAIL_W - 1} y2={GROUND + 0.5} />
         <g className="ant-trail-walker">
-          <AntUse x={ANT_X} y={0} className="ant-trail-ant" />
+          <AntUse cx={TRAIL_W / 2} base={GROUND} h={46} className="ant-trail-ant" />
         </g>
       </svg>
     </div>
