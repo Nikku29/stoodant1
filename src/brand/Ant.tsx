@@ -1,5 +1,6 @@
 // The Stoodant ant: one <symbol> defined once (<AntSprite />) and reused with <use>.
 // Line art, 2px round strokes in currentColor; only the eyes and antenna tips are amber.
+// It wears the logo's glasses (amber eyes in rings joined by a bridge) and carries a school bag.
 // Poses are driven by custom properties that inherit into the <use> instance (see ANT_CSS in brandCss.ts).
 import { BRAND_COLORS } from "./logoMarkup";
 
@@ -33,17 +34,23 @@ export function AntSprite() {
             <ellipse cx="36" cy="27" rx="5.5" ry="4.5" />
             <circle cx="50" cy="19" r="9.5" />
             <path d="M46 10l-4-7M53 10l3-7" />
-            <path d="M47.5 19h2" />
             <circle cx="42" cy="3" r="1.8" stroke="none" style={TIP} />
             <circle cx="56" cy="3" r="1.8" stroke="none" style={TIP} />
+            {/* School bag on its back: body, flap, pocket, strap */}
+            <rect x="24" y="11" width="13" height="11" rx="4" />
+            <path d="M28 11V9.5a2.5 2.5 0 0 1 5 0V11M24 15.5h13M28.5 18.5h4M35.5 22l2 4" />
+            {/* Logo-style glasses: amber eyes in dark rings joined by a bridge */}
+            <path d="M48.6 19h1.8" />
             <g stroke="none">
-              <circle cx="45" cy="19" r="3.6" style={EYE} />
-              <circle cx="53" cy="19" r="3.6" style={EYE} />
-              <circle cx="46" cy="18.5" r="1.6" fill={pupilOnDark} />
-              <circle cx="54" cy="18.5" r="1.6" fill={pupilOnDark} />
-              <circle cx="46.6" cy="17.8" r=".55" fill={white} />
-              <circle cx="54.6" cy="17.8" r=".55" fill={white} />
+              <circle cx="44.5" cy="19" r="3.6" style={EYE} />
+              <circle cx="54.5" cy="19" r="3.6" style={EYE} />
+              <circle cx="45.5" cy="18.5" r="1.6" fill={pupilOnDark} />
+              <circle cx="55.5" cy="18.5" r="1.6" fill={pupilOnDark} />
+              <circle cx="46.1" cy="17.8" r=".55" fill={white} />
+              <circle cx="56.1" cy="17.8" r=".55" fill={white} />
             </g>
+            <circle cx="44.5" cy="19" r="4.3" strokeWidth="1.6" />
+            <circle cx="54.5" cy="19" r="4.3" strokeWidth="1.6" />
           </g>
         </g>
       </symbol>

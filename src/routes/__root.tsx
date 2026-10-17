@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BRAND_CSS, HEAD_SCRIPT } from "../brand/brandCss";
 import { Splash } from "../brand/Splash";
+import { SITE_CONFIG } from "../config/siteConfig";
 
 function NotFoundComponent() {
   return (
@@ -82,12 +83,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "theme-color", content: "#ffffff" },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "/og-image.png" },
+      { property: "og:image", content: `${SITE_CONFIG.siteUrl}/og-image.png` },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:image:alt", content: "Stoodant, your class, your pace, your tutor" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "/og-image.png" },
+      { name: "twitter:image", content: `${SITE_CONFIG.siteUrl}/og-image.png` },
     ],
     links: [
       {

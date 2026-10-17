@@ -1,13 +1,13 @@
 export const SITE_CONFIG = {
   brand: { name: "Stoodant", tagline: "Your Class. Your Pace. Your Tutor." },
+  // Live address; used for absolute share links (OG image, canonical URL).
+  siteUrl: "https://stoodant.com",
 
   // ---- MASCOT (the ant) ----
-  // TODO(owner): choose the mascot's name.
-  // TODO(owner): approve these lines before launch. Used once, as the caption under the Final CTA ant.
-  // Keep them about learning; make no factual claims about ants.
+  // The ant has no name for now and none is shown anywhere. TODO(owner): revisit a name later if wanted.
+  // Its caption under the Final CTA ant is the brand tagline (brand.tagline above).
   mascot: {
     name: "",
-    lines: ["Small steps. Big journeys.", "Every big learner starts small.", "One step at a time. Always ahead."],
   },
   contact: { phone: "+91 XXXXX XXXXX", whatsapp: "91XXXXXXXXXX", email: "hello@stoodant.com" },
 

@@ -439,3 +439,7 @@ html,body{overflow-x:clip}
 .process-sequence:not(.is-reduced) .process-card.is-lit span{background:var(--amber);color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
 .hero-subject-tabs i.is-running{background:var(--amber);box-shadow:0 1px 0 var(--ink)}
 .ps-label.sa-orb-label{fill:var(--amber)}
+/* AA contrast on the off-white (#F5F5F5) sections and the dark footer. */
+.section-off .section-heading>span,.pricing-intro p,.pricing-note{color:var(--grey-5)}
+.beyond small,.beyond strong{color:var(--grey-5)}
+.copyright{color:var(--grey-3)}

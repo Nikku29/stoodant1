@@ -67,7 +67,7 @@ export function AntFlagScene({ success }: { success: boolean }) {
           </g>
         </g>
       </svg>
-      <figcaption className="cta-scene-caption">{SITE_CONFIG.mascot.lines[0]}</figcaption>
+      <figcaption className="cta-scene-caption">{SITE_CONFIG.brand.tagline}</figcaption>
     </figure>
   );
 }
