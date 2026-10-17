@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
 const BUDGET_KB = 150;
-const root = ".output/public";
+const root = "dist/client";
 const html = readFileSync(`${root}/index.html`, "utf8");
 const urls = new Set([
   ...[...html.matchAll(/<script[^>]+src="([^"]+\.js)"/g)].map((m) => m[1]),

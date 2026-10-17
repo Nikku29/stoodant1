@@ -1,10 +1,7 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
-//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
 
 // Keep large libraries in their own long-cached chunks. A group only bundles what is already
 // reachable from where it is used, so three.js stays lazy (Final CTA only). Shared dependencies are not
@@ -18,29 +15,45 @@ const vendorChunks = [
 ];
 
 export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
-    prerender: { enabled: true, crawlLinks: true },
-    pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }],
+  plugins: [
+    tailwindcss(),
+    tanstackStart({
+      // Server-only code must never end up in the browser bundle.
+      importProtection: {
+        behavior: "error",
+        client: { files: ["**/server/**"], specifiers: ["server-only"] },
+      },
+      // Use src/server.ts (our SSR error wrapper) as the server entry.
+      server: { entry: "server" },
+      // Every page is rendered to static HTML at build time; Firebase Hosting serves dist/client.
+      prerender: { enabled: true, crawlLinks: true },
+      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }],
+    }),
+    viteReact(),
+  ],
+  css: { transformer: "lightningcss" },
+  resolve: {
+    tsconfigPaths: true,
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
-  vite: {
-    environments: {
-      client: {
-        build: {
-          target: "es2020",
-          cssCodeSplit: true,
-          sourcemap: false,
-          // Vite 8 minifies with Oxc (its built-in replacement for esbuild).
-          minify: "oxc",
-          rolldownOptions: {
-            // console.log calls become dead code and are removed; console.error/warn are kept for error reporting.
-            treeshake: { manualPureFunctions: ["console.log"] },
-            output: {
-              minify: { compress: { dropDebugger: true } },
-              codeSplitting: { includeDependenciesRecursively: false, groups: vendorChunks },
-            },
+  optimizeDeps: {
+    include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "react/jsx-dev-runtime"],
+  },
+  server: { port: 8080 },
+  environments: {
+    client: {
+      build: {
+        target: "es2020",
+        cssCodeSplit: true,
+        sourcemap: false,
+        // Vite 8 minifies with Oxc (its built-in replacement for esbuild).
+        minify: "oxc",
+        rolldownOptions: {
+          // console.log calls become dead code and are removed; console.error/warn are kept for error reporting.
+          treeshake: { manualPureFunctions: ["console.log"] },
+          output: {
+            minify: { compress: { dropDebugger: true } },
+            codeSplitting: { includeDependenciesRecursively: false, groups: vendorChunks },
           },
         },
       },

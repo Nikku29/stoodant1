@@ -209,8 +209,8 @@ Expected outcome: initial JS within 150 KB gz, hero text in the first paint, and
 ## 5. Notes for steps (c) and (d)
 
 - **Hosting mismatch.** The build currently targets Cloudflare Workers with server-side rendering (Nitro preset `cloudflare-module`, see `vite.config.ts` and `src/server.ts`). Firebase Hosting serves static files only. Two options for (c):
-  - Keep TanStack Start and switch it to static prerender of `/` (SPA fallback for anything else). Keeps Lovable compatibility and keeps the hero in the HTML, which helps LCP. **Recommended.**
-  - Replace TanStack Start with a plain Vite + React SPA. Saves roughly another 35 KB gz (router, Start runtime, seroval), but the hero would no longer be in the HTML, and it would likely break the Lovable project sync.
+  - Keep TanStack Start and switch it to static prerender of `/` (SPA fallback for anything else). Keeps the hero in the HTML, which helps LCP. **Recommended.**
+  - Replace TanStack Start with a plain Vite + React SPA. Saves roughly another 35 KB gz (router, Start runtime, seroval), but the hero would no longer be in the HTML.
 - **Firebase SDK** must be imported dynamically when the form nears the viewport or gets focus; the modular Firestore + App Check SDKs are roughly 60–90 KB gz and must never land in the initial bundle.
 
 ## 6. Results: build and loading step (2026-10-17)

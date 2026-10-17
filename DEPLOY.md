@@ -98,7 +98,7 @@ Then in GitHub → Settings → Environments create `preview`, `staging` and `pr
 
 Finally add the **repository** variable `DEPLOY_ENABLED` = `true`. Until then the deploy and preview jobs are skipped and every other check still runs. No GitHub **secrets** are needed.
 
-Branch protection on `main`: require the CI checks, one review, no direct pushes. Check that Lovable can still sync (it may need to push to its own branch).
+Branch protection on `main`: require the CI checks, one review, no direct pushes.
 
 ### 7. Admin access
 ```bash

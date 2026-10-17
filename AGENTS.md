@@ -1,13 +1,4 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# Notes for coding agents
 
 - Keep all editable Stoodant content, prices, labels, and contact details in `src/config/siteConfig.ts` so the page has one source of truth.
 - Keep the hero's live subject curriculum and floating-chip content centralized at the top of `HeroSubjectDeck.tsx` because that component owns the self-contained teaching visual.
