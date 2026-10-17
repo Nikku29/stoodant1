@@ -39,3 +39,4 @@ firebase-export-*/
 # Playwright
 test-results/
 playwright-report/
+.lighthouseci/

@@ -1,5 +1,7 @@
 export const SITE_CONFIG = {
   brand: { name: "Stoodant", tagline: "Your Class. Your Pace. Your Tutor." },
+  // Live address; used for absolute share links (OG image, canonical URL).
+  siteUrl: "https://stoodant.com",
   contact: { phone: "+91 XXXXX XXXXX", whatsapp: "91XXXXXXXXXX", email: "hello@stoodant.com" },
 
   // ---- OFFER / DISCOUNT ----
