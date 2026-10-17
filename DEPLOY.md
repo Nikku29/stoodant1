@@ -137,4 +137,4 @@ Cloud Monitoring → Uptime checks: `https://stoodant.com/` (expect 200, every 5
 
 ## Deletion requests
 
-A parent can ask for their data to be deleted at any time: find the lead by phone in Firestore (`parentPhoneE164`), delete the lead, its `notes`, its `consentLog` entries and the `leadDedupe` entry, and reply to the parent within 30 days.
+A parent can ask for their data to be deleted at any time: find the lead by phone in Firestore (`parentPhoneE164`), delete the lead, its `notes`, its `consentLog` entries and the `leadDedupe` entry, and confirm to the parent once it is done. Ask a lawyer for the exact response deadline under the DPDP Rules.
