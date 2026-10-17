@@ -35,3 +35,7 @@ dist-ssr
 .firebase/
 *-debug.log
 firebase-export-*/
+
+# Playwright
+test-results/
+playwright-report/
