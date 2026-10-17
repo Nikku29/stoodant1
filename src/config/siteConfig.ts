@@ -122,7 +122,8 @@ export const SITE_CONFIG = {
       ["One pace", "Your pace"],
       ["Rote learning", "Concept clarity"],
       ["No preview", "Know what's next"],
-      ["Parents in the dark", "Parents see progress"],
+      // Hidden until parent logins and progress reports exist (owner, 2026-10-17). Uncomment to show it again.
+      // ["Parents in the dark", "Parents see progress"],
     ],
   },
   subjects: {

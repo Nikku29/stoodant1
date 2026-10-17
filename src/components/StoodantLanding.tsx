@@ -22,7 +22,8 @@ const MAIN_SECTIONS: LazySectionDef[] = [
   { load: () => import("@/components/sections/ComparisonSection"), id: "why-stoodant", tone: "section-light", heights: [921, 846, 993] },
   { load: () => import("@/components/sections/SubjectsSection"), id: "subjects", tone: "section-dark", heights: [600, 606, 753] },
   { load: () => import("@/components/sections/TeachersSection"), tone: "lazy-slot-ink", heights: [1023, 1039, 1113] },
-  { load: () => import("@/components/sections/ProgressSection"), tone: "section-light", heights: [1192, 1007, 1101] },
+  // Parent progress is hidden until parent logins and real progress reports exist (owner, 2026-10-17). Uncomment to show it again.
+  // { load: () => import("@/components/sections/ProgressSection"), tone: "section-light", heights: [1192, 1007, 1101] },
   { load: () => import("@/components/sections/TestimonialsSection"), tone: "section-off", heights: [1159, 673, 700] },
   { load: () => import("@/components/sections/FaqSection"), id: "faq", tone: "section-light", heights: [983, 940, 781] },
   { load: () => import("@/components/sections/FinalCta"), id: "demo", tone: "section-dark", heights: [1196, 1226, 847] },
