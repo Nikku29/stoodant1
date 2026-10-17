@@ -1,4 +1,76 @@
 {
+  "hosting": {
+    "public": ".output/public",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "_headers",
+      "**/.*"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/lead",
+        "function": {
+          "functionId": "submitLead",
+          "region": "asia-south1"
+        }
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          },
+          {
+            "key": "Permissions-Policy",
+            "value": "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+          },
+          {
+            "key": "Strict-Transport-Security",
+            "value": "max-age=31536000"
+          }
+        ]
+      },
+      {
+        "source": "/assets/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json",
@@ -61,6 +133,10 @@
     "logging": {
       "host": "127.0.0.1",
       "port": 4500
+    },
+    "hosting": {
+      "host": "127.0.0.1",
+      "port": 5000
     }
   }
 }
