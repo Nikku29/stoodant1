@@ -102,6 +102,8 @@ export const SITE_CONFIG = {
       { title: "Old methods, new world.", type: "device" },
       { title: "Nobody tells you what's next.", type: "path" },
     ],
+    // "Old methods, new world" slide: how the student feels before and after.
+    shiftMood: { before: "Bored", after: "Happy!" },
   },
   gap: {
     kicker: "The missing middle",

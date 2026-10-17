@@ -36,8 +36,8 @@ var skip=function(){var el=document.getElementById("splash");if(el)el.classList.
  */
 function slideAntSwaps() {
   return Object.entries(TIMING.slideAnts)
-    .map(([name, { walk: [from, to] }]) => {
-      const length = TIMING.story.beat;
+    .map(([name, { walk: [from, to], slide }]) => {
+      const length = slide === "pace" ? TIMING.story.paceBeat : slide === "shift" ? TIMING.story.shiftBeat : TIMING.story.beat;
       const lead = (on: number) => (from ? `,${from - 0.1}%{opacity:${1 - on}}${from}%` : "");
       return (
         `.ass:not(.is-reduced) .is-active .aw-${name}{animation:ant-walk-${name} ${s(length)} infinite}` +

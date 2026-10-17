@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
 import { AntUse } from "@/brand/Ant";
+import { buildLogo, logoViewBox } from "@/brand/logoMarkup";
+import { SITE_CONFIG } from "@/config/siteConfig";
+
+const MOOD = SITE_CONFIG.problem.shiftMood;
+// Small Stoodant wordmark at the top of the "Now" lesson (white letters on the dark slide).
+const NOW_LOGO = buildLogo("wordmark", "dark", "nwlg");
 
 const wide = Array.from({ length: 40 }, (_, i) => ({ x: 56 + (i % 10) * 32, y: 96 + Math.floor(i / 10) * 30 }));
 const narrow = Array.from({ length: 40 }, (_, i) => ({ x: 88 + (i % 8) * 32, y: 88 + Math.floor(i / 8) * 28 }));
@@ -50,6 +56,7 @@ export function ShiftGraphic() {
     {[0, 1, 2, 3, 4, 5].map((i) => <line key={i} x1="56" y1={62 + i * 20} x2={i % 2 ? 128 : 144} y2={62 + i * 20} className="ps-track" />)}
     <rect x="50" y="54" width="100" height="16" rx="3" className="pv nw-hl" />
     <rect x="225" y="36" width="150" height="146" rx="14" className="ps-line" />
+    <g className="nw-logo"><svg x="262" y="44" width="76" height="13" viewBox={logoViewBox("wordmark")} aria-hidden="true" dangerouslySetInnerHTML={{ __html: NOW_LOGO }} /></g>
     <g className="nw-tri"><path d="M245 120 L305 120 L245 76 Z" pathLength="1" className="ps-line nw-draw" /><path d="M291 120 A14 14 0 0 0 294 112" pathLength="1" className="ps-line thin nw-draw nw-d2" /></g>
     <line x1="245" y1="140" x2="355" y2="140" className="ps-track" />
     <circle cx="255" cy="140" r="6" className="ps-fill pv nw-knob" />
@@ -59,8 +66,17 @@ export function ShiftGraphic() {
     <path d="M322 163 l5 5 l9 -10" pathLength="1" className="sa-tick-dark nw-draw nw-d3" />
     <g className="nw-dots">{[0, 1, 2].map((i) => <circle key={i} cx={120 + i * 8} cy="210" r="2" className={`ps-fill dim nw-dot nw-dot${i}`} />)}</g>
     <g className="pv nw-orb">
-      <g className="nw-dim"><AntUse cx={100} base={222} h={30} className="ps-ant ps-ant-dim ar ar-shift" /><AntUse cx={100} base={222} h={30} pose="walk" className="ps-ant ps-ant-dim aw aw-shift" /></g>
-      <g className="nw-bright"><AntUse cx={100} base={222} h={30} pose="walk" className="ps-ant aw aw-shift" /><AntUse cx={100} base={222} h={30} className="ps-ant ar ar-shift" /></g>
+      <g className="nw-dim">
+        <text x="82" y="216" className="ps-label small ps-end nw-bored">{MOOD.before}</text>
+        <AntUse cx={100} base={222} h={30} className="ps-ant ps-ant-dim ar ar-shift" /><AntUse cx={100} base={222} h={30} pose="walk" className="ps-ant ps-ant-dim aw aw-shift" />
+      </g>
+      <g className="nw-bright">
+        <g className="nw-hop">
+          <AntUse cx={100} base={222} h={30} pose="walk" className="ps-ant aw aw-shift" /><AntUse cx={100} base={222} h={30} className="ps-ant ar ar-shift" />
+          <path d="M107 193l3-5M112 197l5-2" className="nw-spark" />
+        </g>
+        <text x="120" y="216" className="ps-label small ps-start nw-happy">{MOOD.after}</text>
+      </g>
     </g>
   </svg>;
 }

@@ -11,6 +11,9 @@ export const TIMING = {
   // holds briefly, then moves on, so a slide lasts about 2-3s. Hover or focus pauses it for at most hoverPause.
   story: {
     beat: 2.2,
+    // Slides that need a little longer for the idea to land.
+    paceBeat: 4,
+    shiftBeat: 3.6,
     speed: 1,
     minSlide: 2.2,
     watchdog: 6,
@@ -74,10 +77,10 @@ export const TIMING = {
   // Story slides with ant characters: slide length and the stretch (start %, end %) in which the ant walks.
   // Lengths match the slide keyframes in styles.css.
   slideAnts: {
-    pace: { walk: [0, 85] },
-    paceAhead: { walk: [0, 45] },
-    shift: { walk: [28, 55] },
-    path: { walk: [5, 60] },
+    pace: { walk: [0, 85], slide: "pace" },
+    paceAhead: { walk: [0, 45], slide: "pace" },
+    shift: { walk: [32, 52], slide: "shift" },
+    path: { walk: [5, 60], slide: "" },
   },
   // Roaming ant (src/brand/RoamingAnt.tsx): seconds, and walking speed in px per second.
   roamer: {

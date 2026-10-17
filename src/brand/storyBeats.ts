@@ -5,8 +5,12 @@ import { TIMING } from "@/config/timing";
 
 const D = `${TIMING.story.beat}s`;
 const PAIR = `${TIMING.realLifePair}s`;
-const on = (cls: string, anim: string, easing = "linear") =>
-  `.ass:not(.is-reduced) .ass-slide.is-active ${cls}{animation:${anim} ${D} ${easing} forwards}`;
+const on = (cls: string, anim: string, easing = "linear", duration = D) =>
+  `.ass:not(.is-reduced) .ass-slide.is-active ${cls}{animation:${anim} ${duration} ${easing} forwards}`;
+const PACE = `${TIMING.story.paceBeat}s`;
+const SHIFT = `${TIMING.story.shiftBeat}s`;
+const pace = (cls: string, anim: string, easing = "linear") => on(cls, anim, easing, PACE);
+const shift = (cls: string, anim: string, easing = "linear") => on(cls, anim, easing, SHIFT);
 
 export const STORY_CSS = [
   // Problem 1: the crowd appears, then one question, then a second, goes unanswered.
@@ -22,40 +26,50 @@ export const STORY_CSS = [
   "@keyframes b-ask2{0%,58%{opacity:0;transform:scale(.4)}68%{opacity:1;transform:scale(1.2)}76%,100%{opacity:1;transform:none}}",
 
   // Problem 2: class pace sweeps at one speed; the slow ant falls behind, the fast one arrives early and waits.
-  on(".ps-sweep,.ps-even", "b-sweep"),
-  on(".ps-behind", "b-behind"),
-  on(".ps-ahead", "b-ahead", "cubic-bezier(.3,.6,.4,1)"),
-  on(".ps-trail", "b-trail"),
-  on(".ps-timed", "b-cap"),
+  pace(".ps-sweep,.ps-even", "b-sweep"),
+  pace(".ps-behind", "b-behind"),
+  pace(".ps-ahead", "b-ahead", "cubic-bezier(.3,.6,.4,1)"),
+  pace(".ps-trail", "b-trail"),
+  pace(".ps-timed", "b-cap"),
   "@keyframes b-sweep{0%{transform:translateX(0)}85%,100%{transform:translateX(332px)}}",
   "@keyframes b-behind{0%{transform:translateX(0)}85%,100%{transform:translateX(200px)}}",
   "@keyframes b-ahead{0%{transform:translateX(0)}45%,100%{transform:translateX(332px)}}",
   "@keyframes b-trail{0%{transform:scaleX(0)}85%,100%{transform:scaleX(1)}}",
   "@keyframes b-cap{0%,70%{opacity:0}85%,100%{opacity:1}}",
 
-  // Problem 3: bored with the page (Then), the ant moves to the interactive lesson (Now) and lights up.
-  on(".nw-hl", "b-nw-hl"),
-  on(".nw-dots", "b-nw-dots"),
-  on(".nw-orb", "b-nw-orb", "cubic-bezier(.45,0,.25,1)"),
-  on(".nw-dim", "b-nw-dim"),
-  on(".nw-bright", "b-nw-bright"),
-  on(".nw-draw", "b-nw-draw"),
-  on(".nw-d2", "b-nw-draw2"),
-  on(".nw-d3", "b-nw-draw3"),
-  on(".nw-tri", "b-nw-tri", "cubic-bezier(.22,1,.36,1)"),
-  on(".nw-knob", "b-nw-knob", "cubic-bezier(.22,1,.36,1)"),
-  on(".nw-tap", "b-nw-tap"),
-  "@keyframes b-nw-hl{0%{opacity:.15;transform:translateY(0)}25%{opacity:.15;transform:translateY(100px)}30%,100%{opacity:0;transform:translateY(100px)}}",
-  "@keyframes b-nw-dots{0%,25%{opacity:1}30%,100%{opacity:0}}",
-  "@keyframes b-nw-orb{0%,28%{transform:translate(0,0)}42%{transform:translate(100px,-36px)}55%,100%{transform:translate(200px,0)}}",
-  "@keyframes b-nw-dim{0%,42%{opacity:1}52%,100%{opacity:0}}",
-  "@keyframes b-nw-bright{0%,42%{opacity:0}52%,100%{opacity:1}}",
-  "@keyframes b-nw-draw{0%,55%{stroke-dashoffset:1}68%,100%{stroke-dashoffset:0}}",
-  "@keyframes b-nw-draw2{0%,62%{stroke-dashoffset:1}72%,100%{stroke-dashoffset:0}}",
-  "@keyframes b-nw-draw3{0%,78%{stroke-dashoffset:1}88%,100%{stroke-dashoffset:0}}",
-  "@keyframes b-nw-tri{0%,62%{transform:scale(1)}74%,100%{transform:scale(1.25)}}",
-  "@keyframes b-nw-knob{0%,62%{transform:translateX(0)}74%,100%{transform:translateX(60px)}}",
-  "@keyframes b-nw-tap{0%,78%{opacity:0;transform:scale(.9)}86%,100%{opacity:.9;transform:none}}",
+  // Problem 3: bored with the textbook page (Then), the ant moves to a Stoodant lesson (Now) and is happy.
+  shift(".nw-hl", "b-nw-hl"),
+  shift(".nw-dots", "b-nw-dots"),
+  shift(".nw-bored", "b-nw-bored"),
+  shift(".nw-orb", "b-nw-orb", "cubic-bezier(.45,0,.25,1)"),
+  shift(".nw-dim", "b-nw-dim"),
+  shift(".nw-bright", "b-nw-bright"),
+  shift(".nw-logo", "b-nw-logo", "cubic-bezier(.3,1.5,.5,1)"),
+  shift(".nw-draw", "b-nw-draw"),
+  shift(".nw-d2", "b-nw-draw2"),
+  shift(".nw-d3", "b-nw-draw3"),
+  shift(".nw-tri", "b-nw-tri", "cubic-bezier(.22,1,.36,1)"),
+  shift(".nw-knob", "b-nw-knob", "cubic-bezier(.22,1,.36,1)"),
+  shift(".nw-tap", "b-nw-tap"),
+  shift(".nw-hop", "b-nw-hop"),
+  shift(".nw-happy", "b-nw-happy"),
+  shift(".nw-spark", "b-nw-spark", "cubic-bezier(.3,1.6,.5,1)"),
+  "@keyframes b-nw-hl{0%{opacity:.15;transform:translateY(0)}28%{opacity:.15;transform:translateY(100px)}32%,100%{opacity:0;transform:translateY(100px)}}",
+  "@keyframes b-nw-dots{0%,30%{opacity:1}34%,100%{opacity:0}}",
+  "@keyframes b-nw-bored{0%,4%{opacity:0;transform:translateY(4px)}10%,100%{opacity:1;transform:none}}",
+  "@keyframes b-nw-orb{0%,32%{transform:translate(0,0)}42%{transform:translate(100px,-36px)}52%,100%{transform:translate(200px,0)}}",
+  "@keyframes b-nw-dim{0%,42%{opacity:1}50%,100%{opacity:0}}",
+  "@keyframes b-nw-bright{0%,42%{opacity:0}50%,100%{opacity:1}}",
+  "@keyframes b-nw-logo{0%,40%{opacity:.35;transform:scale(.9)}52%,100%{opacity:1;transform:none}}",
+  "@keyframes b-nw-draw{0%,54%{stroke-dashoffset:1}64%,100%{stroke-dashoffset:0}}",
+  "@keyframes b-nw-draw2{0%,60%{stroke-dashoffset:1}68%,100%{stroke-dashoffset:0}}",
+  "@keyframes b-nw-draw3{0%,70%{stroke-dashoffset:1}76%,100%{stroke-dashoffset:0}}",
+  "@keyframes b-nw-tri{0%,58%{transform:scale(1)}68%,100%{transform:scale(1.25)}}",
+  "@keyframes b-nw-knob{0%,58%{transform:translateX(0)}68%,100%{transform:translateX(60px)}}",
+  "@keyframes b-nw-tap{0%,66%{opacity:0;transform:scale(.9)}72%,100%{opacity:.9;transform:none}}",
+  "@keyframes b-nw-hop{0%,78%{transform:none}83%{transform:translateY(-7px)}88%{transform:none}92%{transform:translateY(-3px)}96%,100%{transform:none}}",
+  "@keyframes b-nw-happy{0%,78%{opacity:0;transform:translateY(4px)}86%,100%{opacity:1;transform:none}}",
+  "@keyframes b-nw-spark{0%,78%{transform:scale(0)}86%,100%{transform:none}}",
 
   // Problem 4: walking the road, each sign is a "?" until the ant reaches it; then the lantern lights up what's ahead.
   on(".rd-orb", "b-rd-orb", "cubic-bezier(.45,0,.25,1)"),
@@ -108,6 +122,7 @@ export const STORY_CSS = [
   `.ass:not(.is-reduced) .ass-slide.is-active .as-pair .as-d{stroke-dasharray:1;animation:as-d ${PAIR} forwards}`,
   `.ass:not(.is-reduced) .ass-slide.is-active .as-pair .as-fade,.ass:not(.is-reduced) .ass-slide.is-active .as-pair foreignObject,.ass:not(.is-reduced) .ass-slide.is-active .as-concept-box{animation:b-pairin ${PAIR} forwards}`,
   "@keyframes b-pairin{0%{opacity:0}20%,100%{opacity:1}}",
+  ".nw-spark{fill:none;stroke:var(--amber);stroke-width:2;stroke-linecap:round}",
   // Revised chapters keep their "Revise" label once shown.
   ".ps-svg .sa-revise{opacity:1}",
 ].join("\n");
