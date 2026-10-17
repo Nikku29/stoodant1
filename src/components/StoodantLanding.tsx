@@ -15,6 +15,7 @@ import { AntSprite } from "@/brand/Ant";
 import { AntTrail } from "@/brand/AntTrail";
 import { AntFlagScene } from "@/brand/AntFlagScene";
 import { Highlight } from "@/brand/Highlight";
+import { RoamingAnt } from "@/brand/RoamingAnt";
 import { TIMING } from "@/config/timing";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -45,6 +46,7 @@ export function StoodantLanding() {
       </main>
       <Footer />
       <WhatsappButton />
+      <RoamingAnt />
     </div>
   );
 }

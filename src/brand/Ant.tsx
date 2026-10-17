@@ -3,6 +3,7 @@
 // It wears the logo's glasses (amber eyes in rings joined by a bridge) and carries a school bag.
 // Poses are driven by custom properties that inherit into the <use> instance (see ANT_CSS in brandCss.ts).
 import { BRAND_COLORS } from "./logoMarkup";
+import { AntUprightSymbol } from "./AntUpright";
 
 export const ANT_SYMBOL_ID = "stoodant-ant";
 export type AntPose = "walk" | "wave" | "celebrate" | "static";
@@ -54,6 +55,7 @@ export function AntSprite() {
           </g>
         </g>
       </symbol>
+      <AntUprightSymbol />
     </svg>
   );
 }

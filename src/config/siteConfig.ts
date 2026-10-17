@@ -8,6 +8,25 @@ export const SITE_CONFIG = {
   // Its caption under the Final CTA ant is the brand tagline (brand.tagline above).
   mascot: {
     name: "",
+    // The roaming ant: pops up now and then, walks a little, and says one of these when tapped
+    // (shuffled, no repeats until all are used). Keep them warm and short; no factual claims about ants.
+    // TODO(owner): approve or edit these lines.
+    roamerLabel: "Stoodant ant. Tap for a study tip",
+    messages: [
+      { text: "Hi! I'm the Stoodant ant. Small steps add up." },
+      { text: "Tip: peek at tomorrow's chapter for 10 minutes tonight." },
+      { text: "Stuck on a doubt? Ask it. Every question is a good one." },
+      { text: "A little revision every day beats one big night." },
+      { text: "Explain a topic to someone else. It's the best test of understanding." },
+      { text: "Short breaks help focus. Stretch, sip water, back to it." },
+      { text: "Mistakes are just learning showing up. Keep going!" },
+      { text: "Maths is everywhere, even in a pizza slice." },
+      { text: "Ahead of school, not behind it. That's the Stoodant way." },
+      { text: "Your class. Your pace. Your tutor." },
+      { text: "Small batches, from 1:1 to 1:20. Pick what suits you.", link: { label: "See batches", href: "#batches" } },
+      { text: "Try a free demo class. No pressure, just learning.", link: { label: "Book a free demo", href: "#demo" } },
+      { text: "Parents see the progress, not just the marks.", link: { label: "How it works", href: "#how-it-works" } },
+    ],
   },
   contact: { phone: "+91 XXXXX XXXXX", whatsapp: "91XXXXXXXXXX", email: "hello@stoodant.com" },
 

@@ -60,6 +60,17 @@ export const TIMING = {
     shift: { length: 8, walk: [42, 58] },
     path: { length: 9, walk: [6, 58] },
   },
+  // Roaming ant (src/brand/RoamingAnt.tsx): seconds, and walking speed in px per second.
+  roamer: {
+    firstDelay: 8,
+    minGap: 25,
+    maxGap: 45,
+    pop: 0.35,
+    speed: 70,
+    stay: 6,
+    bubbleHold: 6,
+    step: 0.36,
+  },
   // The ant mascot (src/brand/Ant.tsx).
   ant: {
     step: 0.3,

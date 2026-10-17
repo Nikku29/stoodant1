@@ -7,6 +7,7 @@ import { sceneAt } from "./antScene";
 const S = TIMING.splash;
 const A = TIMING.ant;
 const H = TIMING.highlight;
+const R = TIMING.roamer;
 const L = TIMING.logo;
 const s = (n: number) => `${+n.toFixed(3)}s`;
 
@@ -144,6 +145,27 @@ html:not([data-perf=high]) .ant-celebrate{animation:none}
 .ps-ant-school{color:#737373;--ant-eye:#737373}
 .aw{opacity:0}
 ${slideAntSwaps()}
+
+.au-leg-l,.au-leg-r,.au-arm-l,.au-arm-r,.au-body{transform-box:view-box}
+.au-leg-l{transform-origin:36px 77px;animation:au-step ${s(R.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}
+.au-leg-r{transform-origin:44px 77px;animation:au-step ${s(R.step)} linear ${s(-R.step / 2)} infinite;animation-play-state:var(--ant-walk,paused)}
+.au-arm-r{transform-origin:47px 48px;animation:au-step ${s(R.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}
+.au-body{animation:ant-bob ${s(R.step / 2)} ease-in-out infinite alternate;animation-play-state:var(--ant-walk,paused)}
+.au-arm-l{transform-origin:33px 47px;animation:au-wave ${s(R.step * 1.5)} ease-in-out infinite alternate;animation-play-state:var(--ant-wave,paused)}
+@keyframes au-step{0%,100%{transform:none}25%{transform:rotate(14deg)}75%{transform:rotate(-14deg)}}
+@keyframes au-wave{to{transform:rotate(-28deg)}}
+.roamer{position:fixed;left:0;bottom:10px;z-index:85;width:64px;visibility:hidden;transform:translate(0,110%)}
+.roamer.is-shown{visibility:visible}
+.roamer.is-walking .ant{--ant-walk:running}
+.roamer.is-talking .ant{--ant-wave:running}
+.roamer-ant{display:block;width:100%;padding:0;border:0;background:none;color:var(--ink);cursor:pointer}
+.roamer-ant svg{display:block;width:100%;height:auto;overflow:visible}
+.roamer-bubble{position:absolute;bottom:100%;left:0;margin-bottom:4px;width:max-content;max-width:min(240px,calc(100vw - 16px))}
+.roamer.is-right .roamer-bubble{left:auto;right:0}
+.roamer-bubble:empty{display:none}
+.roamer-bubble p{margin:0;padding:10px 14px;border:1px solid #e5e5e5;border-radius:16px;background:#fff;color:#0a0a0a;font-size:13px;line-height:1.45;box-shadow:0 8px 24px rgba(10,10,10,.12)}
+.roamer-bubble a{display:block;margin-top:6px;font-weight:600;text-decoration:underline}
+@media (max-width:767px){.roamer{width:52px}}
 
 .hl{position:relative;display:inline-block;isolation:isolate;white-space:nowrap}
 .hl-swoosh{position:absolute;z-index:-1;left:-.08em;width:calc(100% + .16em);top:.4em;height:.6em;overflow:visible}
