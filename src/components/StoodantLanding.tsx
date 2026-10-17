@@ -10,6 +10,7 @@ import { AHEAD_SLIDES } from "@/components/AheadSlides";
 import { ProcessSequence } from "@/components/ProcessSequence";
 import { TeachersRing } from "@/components/TeachersRing";
 import { Counter, Reveal } from "@/lib/directional-reveal";
+import { Logo } from "@/brand/Logo";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const reveal = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } };
@@ -20,7 +21,6 @@ export function StoodantLanding() {
 
   return (
     <div className="site-shell">
-      <Loader disabled={Boolean(reduceMotion)} />
       <CustomCursor />
       <Header />
       <main>
@@ -44,37 +44,18 @@ export function StoodantLanding() {
   );
 }
 
-function Logo({ inverse = false }: { inverse?: boolean }) {
-  const color = inverse ? "var(--white)" : "var(--ink)";
+/** Home link around the brand logo. In the navbar: full lockup, wordmark below 480px, pupils follow the pointer. */
+function BrandLink({ dark = false, nav = false }: { dark?: boolean; nav?: boolean }) {
+  const tone = dark ? "dark" : "light";
   return (
-    <a href="#top" className="logo" aria-label={`${SITE_CONFIG.brand.name} home`}>
-      <svg viewBox="0 0 194 30" role="img" aria-label={SITE_CONFIG.brand.name}>
-        <text x="0" y="24" fill={color} className="logo-text">ST</text>
-        <path d="M40 15c8-15 20-15 28 0 8 15 20 15 28 0C88 0 76 0 68 15 60 30 48 30 40 15Z" fill="none" stroke={color} strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" />
-        <text x="101" y="24" fill={color} className="logo-text">DANT</text>
-      </svg>
-      <span>{SITE_CONFIG.brand.tagline}</span>
+    <a href="#top" className={nav ? "logo logo-nav" : "logo"} aria-label={`${SITE_CONFIG.brand.name} home`}>
+      {nav ? (
+        <>
+          <Logo tone={tone} animate="blink" follow className="logo-full" />
+          <Logo variant="wordmark" tone={tone} animate="blink" follow className="logo-compact" />
+        </>
+      ) : <Logo tone={tone} />}
     </a>
-  );
-}
-
-function Loader({ disabled }: { disabled: boolean }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    if (disabled || sessionStorage.getItem("stoodant-loaded")) return;
-    setVisible(true);
-    const timeout = window.setTimeout(() => { setVisible(false); sessionStorage.setItem("stoodant-loaded", "1"); }, 1900);
-    return () => window.clearTimeout(timeout);
-  }, [disabled]);
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div className="loader" initial={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
-          <svg viewBox="0 0 130 62" aria-hidden="true"><path d="M8 31C22 3 45 3 65 31s43 28 57 0C108 3 85 3 65 31S22 59 8 31Z" /></svg>
-          <motion.strong initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.05, duration: 0.5 }}>{SITE_CONFIG.brand.name.toUpperCase()}</motion.strong>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 
@@ -150,7 +131,7 @@ function Header() {
       {showOffer && <div className="announcement"><span>{getOfferText()}</span><button onClick={closeOffer} aria-label="Dismiss offer"><X size={16} /></button></div>}
       <header ref={navRef} className={`navbar${overDark ? " navbar-dark" : ""}`}>
         <div className="nav-inner">
-          <Logo inverse={overDark} />
+          <BrandLink nav dark={overDark} />
           <nav className="desktop-nav" aria-label="Main navigation">
             {SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
           </nav>
@@ -161,7 +142,7 @@ function Header() {
       <AnimatePresence>
         {menu && <motion.div className="mobile-menu" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
           <button aria-label={SITE_CONFIG.navigation.menuClose} onClick={() => setMenu(false)}><X /></button>
-          <Logo inverse />
+          <BrandLink dark />
           <nav>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href} onClick={() => setMenu(false)}>{link.label}</a>)}</nav>
           <a href="#demo" onClick={() => setMenu(false)}>{SITE_CONFIG.navigation.cta}<ArrowDownRight /></a>
         </motion.div>}
@@ -305,11 +286,11 @@ function FinalCta() {
     console.log("TODO: Connect demo request to Lovable Cloud or email", values); setSuccess(true);
   };
   const fallbackLoop = <svg className={success ? "cta-loop complete" : "cta-loop"} viewBox="0 0 300 135"><path d="M15 67C45 5 100 5 150 67s105 62 135 0C255 5 200 5 150 67S45 129 15 67Z" /></svg>;
-  return <section ref={section} id="demo" className="final-cta section-dark"><div className="container final-grid"><div><span className="eyebrow inverse">{SITE_CONFIG.form.kicker}</span><h2>{SITE_CONFIG.form.headline}</h2>{nearViewport && supportsRibbon ? <Suspense fallback={fallbackLoop}><FinalCtaInfinityRibbon success={success} /></Suspense> : fallbackLoop}</div><div className="form-wrap"><OfferBadge />{success ? <motion.div className="success" role="status" aria-live="polite" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}><Check /><h3>{SITE_CONFIG.form.success}</h3></motion.div> : <form onSubmit={submit} noValidate><Field label={SITE_CONFIG.form.studentName} error={errors["studentName"]}><input name="studentName" placeholder={SITE_CONFIG.form.studentPlaceholder} maxLength={80} aria-invalid={Boolean(errors["studentName"])} /></Field><div className="form-row"><Field label={SITE_CONFIG.form.classLabel} error={errors["studentClass"]}><select name="studentClass" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.classPlaceholder}</option>{SITE_CONFIG.form.classes.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label={SITE_CONFIG.form.boardLabel} error={errors["board"]}><select name="board" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.boardPlaceholder}</option>{SITE_CONFIG.form.boards.map((item) => <option key={item}>{item}</option>)}</select></Field></div><Field label={SITE_CONFIG.form.phoneLabel} error={errors["phone"]}><input name="phone" type="tel" inputMode="numeric" maxLength={10} placeholder={SITE_CONFIG.form.phonePlaceholder} aria-invalid={Boolean(errors["phone"])} /></Field><button className="button button-light" type="submit">{SITE_CONFIG.form.submit}<ArrowDownRight /></button></form>}</div></div></section>;
+  return <section ref={section} id="demo" className="final-cta section-dark"><div className="container final-grid"><div><span className="eyebrow inverse">{SITE_CONFIG.form.kicker}</span><h2>{SITE_CONFIG.form.headline}</h2>{nearViewport && supportsRibbon ? <Suspense fallback={fallbackLoop}><FinalCtaInfinityRibbon success={success} /></Suspense> : fallbackLoop}</div><div className="form-wrap"><OfferBadge />{success ? <motion.div className="success" role="status" aria-live="polite" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}><Logo variant="mark" tone="dark" animate="blink" /><h3>{SITE_CONFIG.form.success}</h3></motion.div> : <form onSubmit={submit} noValidate><Field label={SITE_CONFIG.form.studentName} error={errors["studentName"]}><input name="studentName" placeholder={SITE_CONFIG.form.studentPlaceholder} maxLength={80} aria-invalid={Boolean(errors["studentName"])} /></Field><div className="form-row"><Field label={SITE_CONFIG.form.classLabel} error={errors["studentClass"]}><select name="studentClass" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.classPlaceholder}</option>{SITE_CONFIG.form.classes.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label={SITE_CONFIG.form.boardLabel} error={errors["board"]}><select name="board" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.boardPlaceholder}</option>{SITE_CONFIG.form.boards.map((item) => <option key={item}>{item}</option>)}</select></Field></div><Field label={SITE_CONFIG.form.phoneLabel} error={errors["phone"]}><input name="phone" type="tel" inputMode="numeric" maxLength={10} placeholder={SITE_CONFIG.form.phonePlaceholder} aria-invalid={Boolean(errors["phone"])} /></Field><button className="button button-light" type="submit">{SITE_CONFIG.form.submit}<ArrowDownRight /></button></form>}</div></div></section>;
 }
 function Field({ label, error, children }: { label: string; error: string | undefined; children: ReactNode }) { return <label className="field"><span>{label}</span>{children}{error && <small role="alert">{error}</small>}</label>; }
 
 function Footer() {
-  return <footer><div className="container footer-grid"><Logo inverse /><div><strong>{SITE_CONFIG.footer.quickLinks}</strong>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}</div><div><strong>{SITE_CONFIG.footer.contact}</strong><a href={`tel:${SITE_CONFIG.contact.phone}`}>{SITE_CONFIG.contact.phone}</a><a href={`mailto:${SITE_CONFIG.contact.email}`}>{SITE_CONFIG.contact.email}</a></div></div><div className="container copyright">© {new Date().getFullYear()} {SITE_CONFIG.brand.name}. {SITE_CONFIG.footer.rights}</div></footer>;
+  return <footer><div className="container footer-grid"><BrandLink dark /><div><strong>{SITE_CONFIG.footer.quickLinks}</strong>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}</div><div><strong>{SITE_CONFIG.footer.contact}</strong><a href={`tel:${SITE_CONFIG.contact.phone}`}>{SITE_CONFIG.contact.phone}</a><a href={`mailto:${SITE_CONFIG.contact.email}`}>{SITE_CONFIG.contact.email}</a></div></div><div className="container copyright">© {new Date().getFullYear()} {SITE_CONFIG.brand.name}. {SITE_CONFIG.footer.rights}</div></footer>;
 }
 function WhatsappButton() { const [hidden, setHidden] = useState(false); useEffect(() => { const targets = [document.querySelector("#demo form, #demo .form-wrap"), document.querySelector("footer")].filter(Boolean) as Element[]; const seen = new Set<Element>(); const io = new IntersectionObserver((entries) => { entries.forEach((e) => e.isIntersecting ? seen.add(e.target) : seen.delete(e.target)); setHidden(seen.size > 0); }); targets.forEach((t) => io.observe(t)); return () => io.disconnect(); }, []); const href = `https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${encodeURIComponent(SITE_CONFIG.whatsapp.message)}`; return <a className={hidden ? "whatsapp is-hidden" : "whatsapp"} aria-hidden={hidden || undefined} tabIndex={hidden ? -1 : undefined} href={href} target="_blank" rel="noreferrer" aria-label={SITE_CONFIG.whatsapp.label}><MessageCircle /></a>; }
