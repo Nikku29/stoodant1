@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import type { AutoSlide, StorySlideProps } from "@/components/AutoStory";
 import { AntUse } from "@/brand/Ant";
+import { TIMING } from "@/config/timing";
 
 const A = SITE_CONFIG.ahead;
 // Slide 1 geometry: three steps filling ~80% of the card width.
@@ -73,7 +74,7 @@ function Drawing({ kind }: { kind: string }) {
 function RealLifeGraphic({ active, onDone, reducedMotion, paused }: StorySlideProps) {
   const [i, setI] = useState(0);
   const elapsed = useRef(0);
-  const step = 2200;
+  const step = TIMING.realLifePair * 1000;
   useEffect(() => { setI(0); elapsed.current = 0; }, [active]);
   useEffect(() => {
     if (!active || reducedMotion || paused) return;

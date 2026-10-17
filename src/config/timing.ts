@@ -7,6 +7,22 @@ export const TIMING = {
   readHold: 1,
   storyWatchdog: 4.5,
   realLifePair: 1.2,
+  // Story slideshows (Problem, Stay Ahead): slide graphics play this many times faster than their
+  // keyframes in styles.css; a slide shows for at least minSlide and moves on after the caption hold.
+  story: {
+    speed: 2,
+    minSlide: 3,
+    watchdog: 8,
+    holdMin: 1,
+    holdPerWord: 0.2,
+  },
+  // How it works: the highlight moving from step to step.
+  process: {
+    dwell: 0.7,
+    travel: 0.7,
+    pause: 0.6,
+    draw: 0.9,
+  },
   howItWorksStep: 1.5,
   heroDeckAdvance: 3,
   teachersAdvance: 2.5,

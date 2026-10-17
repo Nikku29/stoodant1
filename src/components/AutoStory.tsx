@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { TIMING } from "@/config/timing";
 
 /** Props every story slide graphic receives. Play once from frame 0 while active, call onDone at the last frame. */
 export type StorySlideProps = { active: boolean; onDone: () => void; reducedMotion: boolean; paused: boolean };
 export type AutoSlide = { title: string; caption?: ReactNode; graphic?: ReactNode; Graphic?: ComponentType<StorySlideProps> };
 
-const MIN_SLIDE = 5000;
-const WATCHDOG = 12000;
+const MIN_SLIDE = TIMING.story.minSlide * 1000;
+const WATCHDOG = TIMING.story.watchdog * 1000;
+const HOLD_MIN = TIMING.story.holdMin * 1000;
 const FADE = 600;
 
 const words = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
@@ -24,7 +26,7 @@ function CssOnce({ active, onDone, paused, scope, children }: StorySlideProps & 
       const all = node && typeof node.getAnimations === "function" ? node.getAnimations({ subtree: true }) : [];
       const list = all.filter((a) => typeof CSSAnimation !== "undefined" && a instanceof CSSAnimation);
       anims.current = list;
-      list.forEach((a) => { try { a.effect?.updateTiming({ iterations: 1, fill: "forwards" }); } catch { /* ignore */ } });
+      list.forEach((a) => { try { a.effect?.updateTiming({ iterations: 1, fill: "forwards" }); a.playbackRate = TIMING.story.speed; } catch { /* ignore */ } });
       if (!list.length) { onDone(); return; }
       Promise.all(list.map((a) => a.finished)).then(() => { if (!cancelled) onDone(); }, () => { /* cancelled: not a finish */ });
     });
@@ -54,7 +56,7 @@ export function AutoStory({ slides, label, className = "" }: { slides: AutoSlide
   const count = slides.length;
 
   const paused = !visible || hidden || (desktop && (hover || focus));
-  const clock = useRef({ elapsed: 0, doneAt: -1, hold: 1500 });
+  const clock = useRef({ elapsed: 0, doneAt: -1, hold: HOLD_MIN });
 
   useEffect(() => {
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -68,7 +70,7 @@ export function AutoStory({ slides, label, className = "" }: { slides: AutoSlide
   }, []);
 
   const restart = useCallback(() => {
-    clock.current = { elapsed: 0, doneAt: -1, hold: 1500 };
+    clock.current = { elapsed: 0, doneAt: -1, hold: HOLD_MIN };
     setIndex(0); setPrev(null); setCycle((c) => c + 1);
   }, []);
 
@@ -90,7 +92,7 @@ export function AutoStory({ slides, label, className = "" }: { slides: AutoSlide
   }, [restart]);
 
   const advance = useCallback(() => {
-    clock.current = { elapsed: 0, doneAt: -1, hold: 1500 };
+    clock.current = { elapsed: 0, doneAt: -1, hold: HOLD_MIN };
     setIndex((cur) => { setPrev(cur); return (cur + 1) % count; });
     setCycle((c) => c + 1);
   }, [count]);
@@ -103,7 +105,7 @@ export function AutoStory({ slides, label, className = "" }: { slides: AutoSlide
     if (c.doneAt >= 0) return;
     const el = slideRefs.current[index];
     const cap = el?.querySelector(".ass-caption")?.textContent ?? "";
-    c.hold = Math.max(1500, 300 * words(cap));
+    c.hold = Math.max(HOLD_MIN, TIMING.story.holdPerWord * 1000 * words(cap));
     c.doneAt = c.elapsed;
   }, [index, cycle]); // eslint-disable-line react-hooks/exhaustive-deps
 
