@@ -2,8 +2,10 @@
 // Both are inlined in the server-rendered shell (__root.tsx) so the splash paints on the first frame.
 // Animations use transform and opacity only.
 import { TIMING } from "@/config/timing";
+import { sceneAt } from "./AntFlagScene";
 
 const S = TIMING.splash;
+const A = TIMING.ant;
 const L = TIMING.logo;
 const s = (n: number) => `${+n.toFixed(3)}s`;
 
@@ -72,4 +74,49 @@ html[data-perf=low] .lg-anim-intro .lg-eyeball{animation:lg-blink-once ${s(S.bli
 .brand-logo .lg-look{transition:none}
 }
 @keyframes sp-gone{to{opacity:0;visibility:hidden}}
+
+.ant{overflow:visible;--ant-walk:paused;--ant-wave:paused}
+.ant-walk{--ant-walk:running}
+.ant-wave{--ant-wave:running}
+.ant-legs-a,.ant-legs-b,.ant-wave-leg,.ant-body{transform-box:view-box;transform-origin:35px 30px}
+.ant-wave-leg{transform-origin:40px 30px}
+.ant-legs-a{animation:ant-step ${s(A.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}
+.ant-legs-b{animation:ant-step ${s(A.step)} linear ${s(-A.step / 2)} infinite;animation-play-state:var(--ant-walk,paused)}
+.ant-body{animation:ant-bob ${s(A.step / 2)} ease-in-out infinite alternate;animation-play-state:var(--ant-walk,paused)}
+.ant-wave-leg{animation:ant-wave ${s(A.wave)} ease-in-out infinite alternate;animation-play-state:var(--ant-wave,paused)}
+.ant-celebrate{transform-box:fill-box;transform-origin:50% 100%;animation:ant-hop ${s(A.hop)} cubic-bezier(.3,1.4,.5,1) 2}
+@keyframes ant-step{0%,100%{transform:none}25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
+@keyframes ant-bob{to{transform:translateY(-1.5px)}}
+@keyframes ant-wave{0%{transform:none}40%{transform:rotate(-100deg)}100%{transform:rotate(-70deg)}}
+@keyframes ant-hop{0%,100%{transform:none}35%{transform:translateY(-8px) scale(.95,1.06)}70%{transform:translateY(0) scale(1.06,.94)}}
+html:not([data-perf=high]) .ant{--ant-walk:paused;--ant-wave:paused}
+html:not([data-perf=high]) .ant-celebrate{animation:none}
+@media (prefers-reduced-motion: reduce){.ant{--ant-walk:paused;--ant-wave:paused}.ant-celebrate{animation:none}}
+
+.ant-trail{height:90px;display:grid;place-items:center;margin-bottom:-90px;color:var(--ink)}
+.ant-trail svg{width:min(320px,72vw);height:auto;overflow:visible}
+.ant-trail-dots{stroke:#d4d4d4;stroke-width:1;stroke-dasharray:1 6}
+.ant-trail.inverse{color:#f5f5f5}.ant-trail.inverse .ant-trail-dots{stroke:#404040}
+.ant-trail.is-waiting .ant-trail-walker{transform:translateX(-130px);opacity:0}
+.ant-trail.is-walking .ant-trail-walker{animation:ant-cross ${s(A.trailWalk)} cubic-bezier(.3,.1,.4,1) both}
+.ant-trail.is-walking .ant{--ant-walk:running}
+@keyframes ant-cross{0%{transform:translateX(-130px);opacity:0}12%{opacity:1}100%{transform:none;opacity:1}}
+
+.cta-scene{margin:48px 0 0;width:min(100%,560px)}
+.cta-scene-svg{display:block;width:100%;height:auto;overflow:visible;color:#f5f5f5}
+.cta-scene-path{stroke:#d4d4d4;stroke-width:2;stroke-linecap:round;stroke-dasharray:0 9}
+.cta-flag-pole{stroke:#d4d4d4;stroke-width:2;stroke-linecap:round}
+.cta-flag-cloth{fill:#f5f5f5;transform-box:fill-box;transform-origin:0 50%}
+.cta-walker{transform-box:view-box}
+.cta-sparks{fill:none;stroke:var(--amber);stroke-width:2.5;stroke-linecap:round}
+.cta-sparks path{transform-box:fill-box;transform-origin:0 100%;animation:sp-pop ${s(A.sparkPop)} cubic-bezier(.3,1.6,.5,1) both}
+.cta-scene-svg.is-animated .cta-walker{animation:cta-walk ${s(A.ctaLoop)} linear infinite}
+.cta-scene-svg.is-paused .cta-walker{animation-play-state:paused}
+.cta-scene-svg.is-paused .ant{--ant-walk:paused}
+.cta-scene-svg.is-animated.is-arrived .cta-flag-cloth{animation:flag-wave ${s(A.flagWave)} ease-in-out 4 alternate}
+.cta-scene-caption{margin:16px 0 0;color:#a3a3a3;font-size:14px;line-height:1.5}
+@keyframes cta-walk{0%{transform:${sceneAt(0)};opacity:0}6%{opacity:1}70%{transform:${sceneAt(0.72)};opacity:1}78%,100%{transform:${sceneAt(0.72)};opacity:0}}
+@keyframes flag-wave{0%{transform:none}100%{transform:skewY(-8deg) scaleX(.9)}}
+@media (max-width:1199px){.cta-scene{width:min(100%,480px)}}
+@media (max-width:767px){.cta-scene{width:100%;margin:24px auto 0}}
 `.trim();

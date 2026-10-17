@@ -26,7 +26,7 @@ function ClimbGraphic() {
     <g className="sa-orb"><g className="sa-squash">
       <text x="102" y="144" className="ps-label small sa-orb-label">{A.stoodantPace}</text>
       <g className="sa-spin"><circle cx="102" cy="166" r="13" className="ps-line" />
-      <path d="M93 166c3-5 6-5 9 0s6 5 9 0c-3-5-6-5-9 0s-6 5-9 0Z" className="ps-line thin" /></g>
+      <circle cx="102" cy="166" r="5" className="ps-fill" /></g>
     </g></g>
   </svg></div>;
 }

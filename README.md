@@ -51,8 +51,8 @@ The offer text must update everywhere automatically from the config. The label a
 Add a short comment block above the offer object explaining how to switch it on and off.
 
 ## BRAND & LOGO
-- Wordmark: bold, rounded, geometric black letters spelling STOODANT where the two O's are joined to form an infinity loop (∞). Recreate it as an inline SVG component <Logo /> (no image file). Tagline below it in 11px uppercase with 0.3em letter spacing.
-- The infinity loop is the recurring motif: page loader, section dividers, final CTA graphic. Do not use it anywhere else.
+- Wordmark: the official STOODANT logo (brand-assets/stoodant-logo-original.jpeg): the two O's are amber eyes joined by a small glasses bridge. Recreate it as an inline SVG component <Logo /> (no image file). Tagline below it in 11px uppercase with 0.3em letter spacing.
+- The ant (Stood + ANT) is the secondary motif: section dividers (dotted trail), final CTA graphic, form success, and the Problem / Stay Ahead slides. Do not use it anywhere else.
 
 ## COLOURS (strictly monochrome, no exceptions)
 White #FFFFFF, off-white #F5F5F5, greys #E5E5E5 / #D4D4D4 / #A3A3A3 / #737373 / #404040, near-black #0A0A0A. No blue, green, red, gradients with colour, or coloured glows. Emphasis comes only from size, weight, contrast, and motion.
@@ -65,8 +65,8 @@ White #FFFFFF, off-white #F5F5F5, greys #E5E5E5 / #D4D4D4 / #A3A3A3 / #737373 / 
 
 ## ANIMATION SPEC (be exact)
 - Easing everywhere: cubic-bezier(0.22, 1, 0.36, 1). Reveal duration 0.8s. Stagger 0.08s. Translate distance 40px.
-- LOADER (first visit only, max 2.2s): the infinity loop draws itself via stroke-dashoffset in 1.2s, wordmark fades in, then the loader slides up and away to reveal the hero.
-- HERO: headline reveals line by line using masked slide-up. Background has 6-8 slow-floating grey SVG shapes (books, pencil, ruler, lightbulb, infinity) drifting at different parallax speeds on scroll. Two CTAs with magnetic hover (button moves up to 8px toward the cursor).
+- LOADER (first visit only, max 2.2s): the logo letters jump in, the eyes pop and blink, sparks and tagline appear, then the splash lifts away to reveal the hero.
+- HERO: headline reveals line by line using masked slide-up. Background has 6-8 slow-floating grey SVG shapes (books, pencil, ruler, lightbulb) drifting at different parallax speeds on scroll. Two CTAs with magnetic hover (button moves up to 8px toward the cursor).
 - Every section heading reveals word by word. Every card lifts 6px with a shadow on hover. Buttons invert colours on hover.
 - Sticky storytelling (GSAP ScrollTrigger pin) for sections 3 and 6. Roadmap in section 5 draws its SVG path with scrub linked to scroll.
 - Counters count up once when they enter the viewport.
@@ -135,7 +135,7 @@ Visual: a 3-step staircase labelled "Today", "Next", "Future" where a small figu
 
 13. FAQ: animated accordion with 6 questions: How do batches work? Which boards and classes do you cover? Is there a free demo? Can we switch batches later? Is it online or offline? How do I pay? Write short, honest placeholder answers and add TODOs for the owner to confirm. Do not invent policies like refunds.
 
-14. FINAL CTA (full black): huge "Ready to learn your way?", animated infinity loop drawing continuously, and a demo form: Student name, Class (4-10 dropdown), Board (CBSE/ICSE), Parent phone (10-digit Indian number validation), Submit. Success state: the infinity loop completes and shows "Thank you! We'll call you shortly." If the offer is active, show the offer badge above the form.
+14. FINAL CTA (full black): huge "Ready to learn your way?", the ant walking a dotted path toward a flag, and a demo form: Student name, Class (4-10 dropdown), Board (CBSE/ICSE), Parent phone (10-digit Indian number validation), Submit. Success state: the ant reaches the flag, the flag waves, sparks pop, and the form shows "Thank you! We'll call you shortly." If the offer is active, show the offer badge above the form.
 
 15. FOOTER: logo, tagline, quick links, contact from config, © {year} Stoodant.
 

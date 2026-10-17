@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowDownRight, Check, ChevronDown, Menu, MessageCircle, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { formatINR, getOfferText, getPrice, isOfferActive } from "@/lib/pricing";
 import { HeroSubjectDeck } from "@/components/HeroSubjectDeck";
@@ -11,16 +11,19 @@ import { ProcessSequence } from "@/components/ProcessSequence";
 import { TeachersRing } from "@/components/TeachersRing";
 import { Counter, Reveal } from "@/lib/directional-reveal";
 import { Logo } from "@/brand/Logo";
+import { AntSprite } from "@/brand/Ant";
+import { AntTrail } from "@/brand/AntTrail";
+import { AntFlagScene } from "@/brand/AntFlagScene";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const reveal = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } };
-const FinalCtaInfinityRibbon = lazy(() => import("@/components/FinalCtaInfinityRibbon"));
 
 export function StoodantLanding() {
   const reduceMotion = useReducedMotion();
 
   return (
     <div className="site-shell">
+      <AntSprite />
       <CustomCursor />
       <Header />
       <main>
@@ -192,10 +195,9 @@ function ProblemSection(_: { reduced: boolean }) {
   return <section className="story-section section-dark problem-slides"><div className="container story-grid"><div><SectionHeading kicker={SITE_CONFIG.problem.kicker} inverse>{SITE_CONFIG.problem.title}</SectionHeading><p className="story-note">{SITE_CONFIG.problem.note}</p></div><AutoStory slides={slides} label="The challenge, in four slides" /></div></section>;
 }
 
-function Divider({ inverse = false }: { inverse?: boolean }) { return <div className={`divider ${inverse ? "inverse" : ""}`}><svg viewBox="0 0 130 54"><path d="M7 27C22 2 44 2 65 27s43 25 58 0C108 2 86 2 65 27S22 52 7 27Z" /></svg></div>; }
 
 function GapSection() {
-  return <section className="gap-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.gap.kicker}>{SITE_CONFIG.gap.headline}</SectionHeading><div className="gap-copy">{SITE_CONFIG.gap.paragraphs.map((p) => <Reveal as="p" key={p}>{p}</Reveal>)}</div><Reveal className="class-timeline" variants={GROUP}>{SITE_CONFIG.gap.classes.map((grade, i) => <motion.div key={grade} variants={{ hidden: { opacity: .15 }, visible: { opacity: 1, transition: { delay: i * .14, duration: .5 } } }}><span>{grade}</span></motion.div>)}<div className="beyond"><small>{SITE_CONFIG.gap.focus}</small><strong>{SITE_CONFIG.gap.beyond}</strong></div></Reveal></div><Divider /></section>;
+  return <section className="gap-section section-off"><div className="container"><SectionHeading kicker={SITE_CONFIG.gap.kicker}>{SITE_CONFIG.gap.headline}</SectionHeading><div className="gap-copy">{SITE_CONFIG.gap.paragraphs.map((p) => <Reveal as="p" key={p}>{p}</Reveal>)}</div><Reveal className="class-timeline" variants={GROUP}>{SITE_CONFIG.gap.classes.map((grade, i) => <motion.div key={grade} variants={{ hidden: { opacity: .15 }, visible: { opacity: 1, transition: { delay: i * .14, duration: .5 } } }}><span>{grade}</span></motion.div>)}<div className="beyond"><small>{SITE_CONFIG.gap.focus}</small><strong>{SITE_CONFIG.gap.beyond}</strong></div></Reveal></div><AntTrail /></section>;
 }
 
 const GROUP = { hidden: {}, visible: {} };
@@ -223,7 +225,7 @@ function DotClass({ students }: { students: number }) {
 }
 
 function ComparisonSection() {
-  return <section id="why-stoodant" className="comparison-section section-light"><div className="container"><SectionHeading kicker={SITE_CONFIG.comparison.kicker}>{SITE_CONFIG.comparison.headline}</SectionHeading><div className="comparison-table"><div className="comparison-head"><span>{SITE_CONFIG.comparison.columns[0]}</span><strong>{SITE_CONFIG.comparison.columns[1]}</strong></div>{SITE_CONFIG.comparison.rows.map((row, i) => <Reveal className="comparison-row" key={row[0]} variants={{ hidden: { opacity: 0, x: -40 }, visible: { opacity: 1, x: 0, transition: { delay: i * .08, duration: .8, ease: EASE } } }}><span>{row[0]}</span><strong><Check />{row[1]}</strong></Reveal>)}</div></div><Divider /></section>;
+  return <section id="why-stoodant" className="comparison-section section-light"><div className="container"><SectionHeading kicker={SITE_CONFIG.comparison.kicker}>{SITE_CONFIG.comparison.headline}</SectionHeading><div className="comparison-table"><div className="comparison-head"><span>{SITE_CONFIG.comparison.columns[0]}</span><strong>{SITE_CONFIG.comparison.columns[1]}</strong></div>{SITE_CONFIG.comparison.rows.map((row, i) => <Reveal className="comparison-row" key={row[0]} variants={{ hidden: { opacity: 0, x: -40 }, visible: { opacity: 1, x: 0, transition: { delay: i * .08, duration: .8, ease: EASE } } }}><span>{row[0]}</span><strong><Check />{row[1]}</strong></Reveal>)}</div></div><AntTrail /></section>;
 }
 
 function SubjectsSection() {
@@ -249,33 +251,6 @@ function FaqSection() {
 
 function FinalCta() {
   const [success, setSuccess] = useState(false); const [errors, setErrors] = useState<Record<string, string>>({});
-  const section = useRef<HTMLElement>(null);
-  const [nearViewport, setNearViewport] = useState(false);
-  const [supportsRibbon, setSupportsRibbon] = useState(false);
-  useEffect(() => {
-    const narrow = window.matchMedia("(max-width: 767px)");
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const checkSupport = () => {
-      if (narrow.matches || reduced.matches) { setSupportsRibbon(false); return; }
-      const canvas = document.createElement("canvas");
-      setSupportsRibbon(Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl")));
-    };
-    checkSupport();
-    narrow.addEventListener("change", checkSupport);
-    reduced.addEventListener("change", checkSupport);
-    return () => { narrow.removeEventListener("change", checkSupport); reduced.removeEventListener("change", checkSupport); };
-  }, []);
-  useEffect(() => {
-    const node = section.current;
-    if (!node || nearViewport) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry?.isIntersecting) return;
-      setNearViewport(true);
-      observer.disconnect();
-    }, { rootMargin: "350px 0px" });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [nearViewport]);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const data = new FormData(event.currentTarget); const values = Object.fromEntries(data); const next: Record<string, string> = {};
     if (!String(values["studentName"] ?? "").trim()) next["studentName"] = SITE_CONFIG.form.errors.name;
@@ -285,8 +260,7 @@ function FinalCta() {
     setErrors(next); if (Object.keys(next).length) return;
     console.log("TODO: Connect demo request to Lovable Cloud or email", values); setSuccess(true);
   };
-  const fallbackLoop = <svg className={success ? "cta-loop complete" : "cta-loop"} viewBox="0 0 300 135"><path d="M15 67C45 5 100 5 150 67s105 62 135 0C255 5 200 5 150 67S45 129 15 67Z" /></svg>;
-  return <section ref={section} id="demo" className="final-cta section-dark"><div className="container final-grid"><div><span className="eyebrow inverse">{SITE_CONFIG.form.kicker}</span><h2>{SITE_CONFIG.form.headline}</h2>{nearViewport && supportsRibbon ? <Suspense fallback={fallbackLoop}><FinalCtaInfinityRibbon success={success} /></Suspense> : fallbackLoop}</div><div className="form-wrap"><OfferBadge />{success ? <motion.div className="success" role="status" aria-live="polite" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}><Logo variant="mark" tone="dark" animate="blink" /><h3>{SITE_CONFIG.form.success}</h3></motion.div> : <form onSubmit={submit} noValidate><Field label={SITE_CONFIG.form.studentName} error={errors["studentName"]}><input name="studentName" placeholder={SITE_CONFIG.form.studentPlaceholder} maxLength={80} aria-invalid={Boolean(errors["studentName"])} /></Field><div className="form-row"><Field label={SITE_CONFIG.form.classLabel} error={errors["studentClass"]}><select name="studentClass" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.classPlaceholder}</option>{SITE_CONFIG.form.classes.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label={SITE_CONFIG.form.boardLabel} error={errors["board"]}><select name="board" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.boardPlaceholder}</option>{SITE_CONFIG.form.boards.map((item) => <option key={item}>{item}</option>)}</select></Field></div><Field label={SITE_CONFIG.form.phoneLabel} error={errors["phone"]}><input name="phone" type="tel" inputMode="numeric" maxLength={10} placeholder={SITE_CONFIG.form.phonePlaceholder} aria-invalid={Boolean(errors["phone"])} /></Field><button className="button button-light" type="submit">{SITE_CONFIG.form.submit}<ArrowDownRight /></button></form>}</div></div></section>;
+  return <section id="demo" className="final-cta section-dark"><div className="container final-grid"><div><span className="eyebrow inverse">{SITE_CONFIG.form.kicker}</span><h2>{SITE_CONFIG.form.headline}</h2><AntFlagScene success={success} /></div><div className="form-wrap"><OfferBadge />{success ? <motion.div className="success" role="status" aria-live="polite" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}><Logo variant="mark" tone="dark" animate="blink" /><h3>{SITE_CONFIG.form.success}</h3></motion.div> : <form onSubmit={submit} noValidate><Field label={SITE_CONFIG.form.studentName} error={errors["studentName"]}><input name="studentName" placeholder={SITE_CONFIG.form.studentPlaceholder} maxLength={80} aria-invalid={Boolean(errors["studentName"])} /></Field><div className="form-row"><Field label={SITE_CONFIG.form.classLabel} error={errors["studentClass"]}><select name="studentClass" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.classPlaceholder}</option>{SITE_CONFIG.form.classes.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label={SITE_CONFIG.form.boardLabel} error={errors["board"]}><select name="board" defaultValue=""><option value="" disabled>{SITE_CONFIG.form.boardPlaceholder}</option>{SITE_CONFIG.form.boards.map((item) => <option key={item}>{item}</option>)}</select></Field></div><Field label={SITE_CONFIG.form.phoneLabel} error={errors["phone"]}><input name="phone" type="tel" inputMode="numeric" maxLength={10} placeholder={SITE_CONFIG.form.phonePlaceholder} aria-invalid={Boolean(errors["phone"])} /></Field><button className="button button-light" type="submit">{SITE_CONFIG.form.submit}<ArrowDownRight /></button></form>}</div></div></section>;
 }
 function Field({ label, error, children }: { label: string; error: string | undefined; children: ReactNode }) { return <label className="field"><span>{label}</span>{children}{error && <small role="alert">{error}</small>}</label>; }
 

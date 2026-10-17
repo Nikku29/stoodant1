@@ -1,5 +1,14 @@
 export const SITE_CONFIG = {
   brand: { name: "Stoodant", tagline: "Your Class. Your Pace. Your Tutor." },
+
+  // ---- MASCOT (the ant) ----
+  // TODO(owner): choose the mascot's name.
+  // TODO(owner): approve these lines before launch. Used once, as the caption under the Final CTA ant.
+  // Keep them about learning; make no factual claims about ants.
+  mascot: {
+    name: "",
+    lines: ["Small steps. Big journeys.", "Every big learner starts small.", "One step at a time. Always ahead."],
+  },
   contact: { phone: "+91 XXXXX XXXXX", whatsapp: "91XXXXXXXXXX", email: "hello@stoodant.com" },
 
   // ---- OFFER / DISCOUNT ----
