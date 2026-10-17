@@ -7,6 +7,9 @@ export const ANT_SYMBOL_ID = "stoodant-ant";
 export type AntPose = "walk" | "wave" | "celebrate" | "static";
 
 const { amber, white, pupilOnDark } = BRAND_COLORS;
+// Eye and antenna-tip colours can be overridden per instance (e.g. the grey "School pace" ant) via --ant-eye.
+const EYE = { fill: `var(--ant-eye, ${amber})` };
+const TIP = { fill: `var(--ant-eye, ${amber})` };
 
 /** Render once per page (it draws nothing). */
 export function AntSprite() {
@@ -31,11 +34,11 @@ export function AntSprite() {
             <circle cx="50" cy="19" r="9.5" />
             <path d="M46 10l-4-7M53 10l3-7" />
             <path d="M47.5 19h2" />
-            <circle cx="42" cy="3" r="1.8" fill={amber} stroke="none" />
-            <circle cx="56" cy="3" r="1.8" fill={amber} stroke="none" />
+            <circle cx="42" cy="3" r="1.8" stroke="none" style={TIP} />
+            <circle cx="56" cy="3" r="1.8" stroke="none" style={TIP} />
             <g stroke="none">
-              <circle cx="45" cy="19" r="3.6" fill={amber} />
-              <circle cx="53" cy="19" r="3.6" fill={amber} />
+              <circle cx="45" cy="19" r="3.6" style={EYE} />
+              <circle cx="53" cy="19" r="3.6" style={EYE} />
               <circle cx="46" cy="18.5" r="1.6" fill={pupilOnDark} />
               <circle cx="54" cy="18.5" r="1.6" fill={pupilOnDark} />
               <circle cx="46.6" cy="17.8" r=".55" fill={white} />

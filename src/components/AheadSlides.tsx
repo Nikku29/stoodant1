@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import type { AutoSlide, StorySlideProps } from "@/components/AutoStory";
+import { AntUse } from "@/brand/Ant";
 
 const A = SITE_CONFIG.ahead;
 // Slide 1 geometry: three steps filling ~80% of the card width.
@@ -18,15 +19,14 @@ function Stairs() {
 }
 
 function ClimbGraphic() {
-  return <div className="as-3d"><svg className="ps-svg" viewBox="0 0 400 240" role="img" aria-label="The Stoodant orb hops one step ahead of school pace, up to Future">
+  return <div className="as-3d"><svg className="ps-svg" viewBox="0 0 400 240" role="img" aria-label="The Stoodant ant hops one step ahead of school pace, up to Future">
     <Stairs />
     <circle cx="312" cy="66" r="16" className="ps-line sa-ripple" />
     <text x="312" y="20" className="ps-label sa-ahead">{A.aheadLabel}</text>
-    <g className="sa-school"><circle cx="25" cy="219" r="7" className="ps-fill dim" /><text x="25" y="200" className="ps-label small">{A.schoolPace}</text></g>
+    <g className="sa-school"><AntUse x={9} y={207} width={30} className="ps-ant ps-ant-school" /><text x="25" y="200" className="ps-label small">{A.schoolPace}</text></g>
     <g className="sa-orb"><g className="sa-squash">
       <text x="102" y="144" className="ps-label small sa-orb-label">{A.stoodantPace}</text>
-      <g className="sa-spin"><circle cx="102" cy="166" r="13" className="ps-line" />
-      <circle cx="102" cy="166" r="5" className="ps-fill" /></g>
+      <g className="sa-spin"><AntUse x={80} y={153} width={40} className="ps-ant" /></g>
     </g></g>
   </svg></div>;
 }
@@ -55,7 +55,7 @@ function StickGraphic() {
       </>}
     </g>)}
     <g className="sa-flag"><path d="M44 18h16v22l-8-6l-8 6Z" className="ps-fill dim" /><text x="52" y="12" className="ps-label small">School</text></g>
-    <g className="sa-orb2"><circle cx="200" cy="176" r="10" className="ps-line" /><circle cx="200" cy="176" r="4" className="ps-fill" /></g>
+    <g className="sa-orb2"><AntUse x={182} y={165} width={32} className="ps-ant" /></g>
     <g className="sa-legend">
       <Tick cx={110} cy={216} /><text x="124" y="220" className="ps-label small ps-start">Previewed</text>
       <Tick cx={230} cy={216} filled /><text x="244" y="220" className="ps-label small ps-start">Revised</text>

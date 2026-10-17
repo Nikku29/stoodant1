@@ -28,7 +28,25 @@ d.setAttribute("data-perf",low?"low":"high");
 try{if(sessionStorage.getItem("${SPLASH_STORAGE_KEY}"))d.setAttribute("data-splash","off");else sessionStorage.setItem("${SPLASH_STORAGE_KEY}","1")}catch(e){}
 var skip=function(){var el=document.getElementById("splash");if(el)el.classList.add("is-skip")};addEventListener("pointerdown",function(e){if(e.target&&e.target.closest&&e.target.closest("#splash"))skip()});addEventListener("keydown",skip,{once:true})})()`;
 
-const letterDelay = (base: number, stagger: number) => `calc(${s(base)} + var(--i, 0) * ${s(stagger)})`;
+/**
+ * Story-slide ants: a walking copy (.aw-*) and a resting copy (.ar-*) of the same <use>, swapped by opacity
+ * so legs move only while the slide moves the ant. Plays with the slide's own keyframes.
+ */
+function slideAntSwaps() {
+  return Object.entries(TIMING.slideAnts)
+    .map(([name, { length, walk: [from, to] }]) => {
+      const lead = (on: number) => (from ? `,${from - 0.1}%{opacity:${1 - on}}${from}%` : "");
+      return (
+        `.ass:not(.is-reduced) .is-active .aw-${name}{animation:ant-walk-${name} ${s(length)} infinite}` +
+        `.ass:not(.is-reduced) .is-active .ar-${name}{animation:ant-rest-${name} ${s(length)} infinite}` +
+        `@keyframes ant-walk-${name}{0%${lead(1)},${to - 0.1}%{opacity:1}${to}%,100%{opacity:0}}` +
+        `@keyframes ant-rest-${name}{0%${lead(0)},${to - 0.1}%{opacity:0}${to}%,100%{opacity:1}}`
+      );
+    })
+    .join("\n");
+}
+
+const letterDelay =(base: number, stagger: number) => `calc(${s(base)} + var(--i, 0) * ${s(stagger)})`;
 const blinkPct = (L.blink / L.blinkEvery) * 100;
 
 export const BRAND_CSS = `
@@ -120,6 +138,12 @@ html:not([data-perf=high]) .ant-celebrate{animation:none}
 @keyframes flag-wave{0%{transform:none}100%{transform:skewY(-8deg) scaleX(.9)}}
 @media (max-width:1199px){.cta-scene{width:min(100%,480px)}}
 @media (max-width:767px){.cta-scene{width:100%;margin:24px auto 0}}
+
+.ps-ant{color:var(--ass-1, #f5f5f5)}
+.ps-ant-dim{color:#737373;--ant-eye:#737373}
+.ps-ant-school{color:#737373;--ant-eye:#737373}
+.aw{opacity:0}
+${slideAntSwaps()}
 
 .hl{position:relative;display:inline-block;isolation:isolate;white-space:nowrap}
 .hl-swoosh{position:absolute;z-index:-1;left:-.08em;width:calc(100% + .16em);top:.4em;height:.6em;overflow:visible}

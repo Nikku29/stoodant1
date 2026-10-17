@@ -53,6 +53,13 @@ export const TIMING = {
     heroDelay: 0.3,
     ctaDelay: 0.2,
   },
+  // Story slides with ant characters: slide length and the stretch (start %, end %) in which the ant walks.
+  // Lengths match the slide keyframes in styles.css.
+  slideAnts: {
+    pace: { length: 6, walk: [0, 80] },
+    shift: { length: 8, walk: [42, 58] },
+    path: { length: 9, walk: [6, 58] },
+  },
   // The ant mascot (src/brand/Ant.tsx).
   ant: {
     step: 0.3,
