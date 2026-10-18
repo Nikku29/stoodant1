@@ -6,3 +6,4 @@
 - No WebGL or Three.js. The logo lives only in `src/brand/logoMarkup.ts` (rendered by `<Logo />`); the ant mascot is one SVG `<symbol>` in `src/brand/Ant.tsx`, reused with `<use>`.
 - Route ordinary reveal and counter entry behavior through `src/lib/directional-reveal.tsx`, which uses IntersectionObserver so visual progress never depends on scroll position.
 - Story sections (Problem, Stay Ahead) use the shared AutoStory component: slides report onDone after one play-through, AutoStory owns holds, watchdog, pausing and looping, so timing never depends on fixed timers.
+- Parent dashboard (`/parent`) and teacher page (`/teacher`) labels and insight thresholds live in `src/config/dashboardConfig.ts`, not siteConfig, so they never ship with the landing page. Insight formulas live only in `src/lib/progress/insights.ts`; WhatsApp report text only in `src/lib/progress/reportText.ts`. See PROGRESS_PLAN.md.
