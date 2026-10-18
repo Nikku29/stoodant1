@@ -52,7 +52,7 @@ export const SITE_CONFIG = {
       ],
     },
   },
-  contact: { phone: "+91 XXXXX XXXXX", whatsapp: "91XXXXXXXXXX", email: "hello@stoodant.com" },
+  contact: { phone: "+91 79763 14141", whatsapp: "917976314141", email: "info@stoodant.com" },
 
   // ---- OFFER / DISCOUNT ----
   // Set discountPercent above 0 and add an offerLabel to switch the offer on.

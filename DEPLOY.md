@@ -56,9 +56,9 @@ Create `functions/.env.<projectId>` (committed) with:
 ```
 ALLOWED_ORIGINS=https://stoodant.com,https://www.stoodant.com          # prod
 # ALLOWED_ORIGINS=https://stoodant-staging.web.app,https://stoodant-staging--*.web.app   # staging
-OWNER_EMAIL_TO=you@example.com
+OWNER_EMAIL_TO=info@stoodant.com
 EMAIL_FROM=Stoodant <leads@stoodant.com>
-OWNER_WHATSAPP_TO=+91XXXXXXXXXX
+OWNER_WHATSAPP_TO=+917976314141
 WHATSAPP_PHONE_NUMBER_ID=
 ```
 Defaults live in `functions/src/config.ts` (rate limits 5 per 10 min and 20 per day per address, 3 s minimum fill time, 90-day retention, App Check enforced).
