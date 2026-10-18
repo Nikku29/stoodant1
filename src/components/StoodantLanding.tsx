@@ -1,14 +1,17 @@
-import { AnimatePresence, LazyMotion, m, useReducedMotion } from "framer-motion";
+import { AnimatePresence, LazyMotion, m } from "framer-motion";
 import { ArrowDownRight, Menu, MessageCircle, X } from "lucide-react";
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { getOfferText, isOfferActive } from "@/lib/pricing";
 import { HeroSubjectDeck } from "@/components/HeroSubjectDeck";
-import { EASE, Logo } from "@/components/sections/shared";
+import { BrandLink, EASE } from "@/components/sections/shared";
 import { LazySection, onSectionsChanged, whenAllSectionsMounted, type LazySectionDef } from "@/components/sections/LazySection";
-import { detectPerfTier } from "@/lib/perf";
 import { TIMING } from "@/config/timing";
+import { AntSprite } from "@/brand/Ant";
+import { Highlight } from "@/brand/Highlight";
 
+// The roaming ant only pops up a while after load, so its code loads after the page is up.
+const RoamingAnt = lazy(() => import("@/brand/RoamingAnt").then((mod) => ({ default: mod.RoamingAnt })));
 const loadMotionFeatures = () => import("@/lib/motion-features").then((mod) => mod.default);
 
 // Everything below the hero loads when it nears the viewport. Heights are measured from the real
@@ -32,13 +35,12 @@ const FOOTER: LazySectionDef = { load: () => import("@/components/sections/Foote
 const ALL_SECTIONS = [...MAIN_SECTIONS, FOOTER];
 
 export function StoodantLanding() {
-  const reduceMotion = useReducedMotion();
   useLazyAnchors();
 
   return (
     <LazyMotion features={loadMotionFeatures} strict>
     <div className="site-shell">
-      <Loader disabled={Boolean(reduceMotion)} />
+      <AntSprite />
       <CustomCursor />
       <Header />
       <main>
@@ -47,9 +49,16 @@ export function StoodantLanding() {
       </main>
       <LazySection def={FOOTER} />
       <WhatsappButton />
+      <LaterRoamingAnt />
     </div>
     </LazyMotion>
   );
+}
+
+function LaterRoamingAnt() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  return ready ? <Suspense fallback={null}><RoamingAnt /></Suspense> : null;
 }
 
 /** In-page links (#batches, #faq, #demo...) and a hash in the URL: load every section first, then jump. */
@@ -76,28 +85,6 @@ function useLazyAnchors() {
     window.addEventListener("hashchange", onHashChange);
     return () => { document.removeEventListener("click", onClick, true); window.removeEventListener("hashchange", onHashChange); };
   }, []);
-}
-
-function Loader({ disabled }: { disabled: boolean }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    // Never on the low tier (phones, weak devices, reduced motion); first visit only elsewhere. It mounts
-    // after hydration, so the hero has already painted underneath it.
-    if (disabled || detectPerfTier() === "low" || sessionStorage.getItem("stoodant-loaded")) return;
-    setVisible(true);
-    const timeout = window.setTimeout(() => { setVisible(false); sessionStorage.setItem("stoodant-loaded", "1"); }, 1900);
-    return () => window.clearTimeout(timeout);
-  }, [disabled]);
-  return (
-    <AnimatePresence>
-      {visible && (
-        <m.div className="loader" initial={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
-          <svg viewBox="0 0 130 62" aria-hidden="true"><path d="M8 31C22 3 45 3 65 31s43 28 57 0C108 3 85 3 65 31S22 59 8 31Z" /></svg>
-          <m.strong initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.05, duration: 0.5 }}>{SITE_CONFIG.brand.name.toUpperCase()}</m.strong>
-        </m.div>
-      )}
-    </AnimatePresence>
-  );
 }
 
 function CustomCursor() {
@@ -168,7 +155,7 @@ function Header() {
       {showOffer && <div className="announcement"><span>{getOfferText()}</span><button onClick={closeOffer} aria-label="Dismiss offer"><X size={16} /></button></div>}
       <header ref={navRef} className={`navbar${overDark ? " navbar-dark" : ""}`}>
         <div className="nav-inner">
-          <Logo inverse={overDark} />
+          <BrandLink nav dark={overDark} />
           <nav className="desktop-nav" aria-label="Main navigation">
             {SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
           </nav>
@@ -179,7 +166,7 @@ function Header() {
       <AnimatePresence>
         {menu && <m.div className="mobile-menu" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
           <button aria-label={SITE_CONFIG.navigation.menuClose} onClick={() => setMenu(false)}><X /></button>
-          <Logo inverse />
+          <BrandLink dark />
           <nav>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href} onClick={() => setMenu(false)}>{link.label}</a>)}</nav>
           <a href="#demo" onClick={() => setMenu(false)}>{SITE_CONFIG.navigation.cta}<ArrowDownRight /></a>
         </m.div>}
@@ -208,7 +195,7 @@ function Hero() {
       <div className="container hero-grid">
         <div className="hero-copy">
           {/* Entrance runs in CSS from the first paint, so the hero never waits for JavaScript. */}
-          <h1>{SITE_CONFIG.hero.headline.map((line, index) => <span className="line-mask" key={line}><span className="hero-line" style={{ animationDuration: `${TIMING.heroEntrance}s`, animationDelay: `${TIMING.heroLineDelay + index * TIMING.heroLineStagger}s` }}>{line}</span></span>)}</h1>
+          <h1>{SITE_CONFIG.hero.headline.map((line, index) => <span className="line-mask" key={line}><span className="hero-line" style={{ animationDuration: `${TIMING.heroEntrance}s`, animationDelay: `${TIMING.heroLineDelay + index * TIMING.heroLineStagger}s` }}><Highlight text={line} phrase={SITE_CONFIG.hero.highlight} delay={TIMING.highlight.heroDelay} /></span></span>)}</h1>
           <p className="hero-rise" style={heroRise}>{SITE_CONFIG.hero.subhead}</p>
           <div className="hero-actions hero-rise" style={heroRise}><MagneticLink href="#demo">{SITE_CONFIG.hero.primaryCta}</MagneticLink><MagneticLink href="#batches" outline>{SITE_CONFIG.hero.secondaryCta}</MagneticLink></div>
           <small className="hero-rise" style={heroRise}>{SITE_CONFIG.hero.trust}</small>

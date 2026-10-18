@@ -3,6 +3,9 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -11,7 +14,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "brand:assets": "node scripts/build-brand-assets.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1",
@@ -20,8 +24,6 @@
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
     "@fontsource/sora": "^5.3.0",
-    "@react-three/drei": "^10",
-    "@react-three/fiber": "^9",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-router": "1.170.41",
     "@tanstack/react-start": "1.168.60",
@@ -31,8 +33,7 @@
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.2.1",
-    "three": "^0.186.1"
+    "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -42,7 +43,6 @@
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",

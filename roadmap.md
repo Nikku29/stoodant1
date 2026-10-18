@@ -5,7 +5,8 @@
 - [x] Make the sticky navbar contrast appropriately over light and dark sections.
 - [x] Keep the custom cursor attached to the pointer and hide it on exit/coarse pointers.
 - [x] Keep the hero headline to three lines at 1280px.
-- [x] Replace only the final CTA loop with a lazy, viewport-gated 3D infinity ribbon and retain all required fallbacks.
+- [x] Replace only the final CTA loop with a lazy, viewport-gated 3D ribbon and retain all required fallbacks (since removed).
 - [x] Replace pinned and scroll-driven stories with native-scroll, accessible auto-playing slideshows.
 - [x] Upgrade every slideshow with playback controls, timer dots, swipe, keyboard support, and reduced-motion behavior.
 - [x] Remove Lenis and all remaining pin, scrub, and scroll-driven storytelling behavior.
+- [x] Retire the old loop motif everywhere; replace the 3D ribbon and dividers with the ant motif and remove Three.js.

@@ -1,4 +1,11 @@
 import type { ReactNode } from "react";
+import { AntUse } from "@/brand/Ant";
+import { buildLogo, logoViewBox } from "@/brand/logoMarkup";
+import { SITE_CONFIG } from "@/config/siteConfig";
+
+const MOOD = SITE_CONFIG.problem.shiftMood;
+// Small Stoodant wordmark at the top of the "Now" lesson (white letters on the dark slide).
+const NOW_LOGO = buildLogo("wordmark", "dark", "nwlg");
 
 const wide = Array.from({ length: 40 }, (_, i) => ({ x: 56 + (i % 10) * 32, y: 96 + Math.floor(i / 10) * 30 }));
 const narrow = Array.from({ length: 40 }, (_, i) => ({ x: 88 + (i % 8) * 32, y: 88 + Math.floor(i / 8) * 28 }));
@@ -16,7 +23,7 @@ function Crowd({ dots, focus, cls }: { dots: { x: number; y: number }[]; focus: 
 
 export function TeacherGraphic() {
   return <svg className="ps-svg ps-teacher" viewBox="0 0 400 240" role="img" aria-label="One teacher facing forty students; one student's question goes unanswered">
-    <circle cx="200" cy="30" r="16" className="ps-line" /><circle cx="200" cy="30" r="7" className="ps-fill" />
+    <AntUse cx={200} base={46} h={44} className="ps-ant" />
     <text x="200" y="64" className="ps-label">Teacher</text>
     <Crowd dots={wide} focus={25} cls="ps-wide" />
     <Crowd dots={narrow} focus={21} cls="ps-narrow" />
@@ -30,7 +37,10 @@ export function PaceGraphic() {
       <text x="30" y={l.y - 16} className="ps-label ps-start">{l.label}</text>
       <line x1="30" y1={l.y} x2="362" y2={l.y} className="ps-track" />
       {l.cls === "behind" && <line x1="30" y1={l.y} x2="230" y2={l.y} className="ps-trail" />}
-      <g className={`ps-orb ps-${l.cls}`}><circle cx="30" cy={l.y} r="11" className="ps-line ps-ring" /><circle cx="30" cy={l.y} r="5" className={l.cls === "even" ? "ps-fill" : "ps-fill dim"} /></g>
+      <g className={`ps-orb ps-${l.cls}`}>
+        <AntUse cx={30} base={l.y} h={20} pose="walk" className={`ps-ant aw aw-${l.cls === "ahead" ? "paceAhead" : "pace"}`} />
+        <AntUse cx={30} base={l.y} h={20} pose={l.cls === "ahead" ? "wave" : "static"} className={`ps-ant ar ar-${l.cls === "ahead" ? "paceAhead" : "pace"}`} />
+      </g>
     </g>)}
     <line x1="362" y1="34" x2="362" y2="212" className="ps-line" /><path d="M362 34 L382 40 L362 46 Z" className="ps-fill" />
     <text x="392" y="232" className="ps-label ps-end">End of chapter</text>
@@ -46,6 +56,7 @@ export function ShiftGraphic() {
     {[0, 1, 2, 3, 4, 5].map((i) => <line key={i} x1="56" y1={62 + i * 20} x2={i % 2 ? 128 : 144} y2={62 + i * 20} className="ps-track" />)}
     <rect x="50" y="54" width="100" height="16" rx="3" className="pv nw-hl" />
     <rect x="225" y="36" width="150" height="146" rx="14" className="ps-line" />
+    <g className="nw-logo"><svg x="262" y="44" width="76" height="13" viewBox={logoViewBox("wordmark")} aria-hidden="true" dangerouslySetInnerHTML={{ __html: NOW_LOGO }} /></g>
     <g className="nw-tri"><path d="M245 120 L305 120 L245 76 Z" pathLength="1" className="ps-line nw-draw" /><path d="M291 120 A14 14 0 0 0 294 112" pathLength="1" className="ps-line thin nw-draw nw-d2" /></g>
     <line x1="245" y1="140" x2="355" y2="140" className="ps-track" />
     <circle cx="255" cy="140" r="6" className="ps-fill pv nw-knob" />
@@ -55,9 +66,17 @@ export function ShiftGraphic() {
     <path d="M322 163 l5 5 l9 -10" pathLength="1" className="sa-tick-dark nw-draw nw-d3" />
     <g className="nw-dots">{[0, 1, 2].map((i) => <circle key={i} cx={120 + i * 8} cy="210" r="2" className={`ps-fill dim nw-dot nw-dot${i}`} />)}</g>
     <g className="pv nw-orb">
-      <circle cx="100" cy="210" r="13" className="ps-line thin nw-ring" />
-      <circle cx="100" cy="210" r="6" className="nw-dim" />
-      <circle cx="100" cy="210" r="6" className="ps-fill nw-bright" />
+      <g className="nw-dim">
+        <text x="82" y="216" className="ps-label small ps-end nw-bored">{MOOD.before}</text>
+        <AntUse cx={100} base={222} h={30} className="ps-ant ps-ant-dim ar ar-shift" /><AntUse cx={100} base={222} h={30} pose="walk" className="ps-ant ps-ant-dim aw aw-shift" />
+      </g>
+      <g className="nw-bright">
+        <g className="nw-hop">
+          <AntUse cx={100} base={222} h={30} pose="walk" className="ps-ant aw aw-shift" /><AntUse cx={100} base={222} h={30} className="ps-ant ar ar-shift" />
+          <path d="M107 193l3-5M112 197l5-2" className="nw-spark" />
+        </g>
+        <text x="120" y="216" className="ps-label small ps-start nw-happy">{MOOD.after}</text>
+      </g>
     </g>
   </svg>;
 }
@@ -84,7 +103,7 @@ export function PathGraphic() {
       <path d="M200 222 L168 150 L232 150 Z" className="rd-cone" />
       <g className="rd-lantern"><rect x="194" y="194" width="12" height="14" rx="3" className="ps-line thin" /><path d="M196 194 q4 -6 8 0" className="ps-line thin" /></g>
       <g className="rd-ask"><text x="200" y="200" className="ps-q">?</text></g>
-      <circle cx="200" cy="222" r="10" className="ps-line thin" /><circle cx="200" cy="222" r="5" className="ps-fill" />
+      <AntUse cx={200} base={230} h={22} pose="walk" className="ps-ant aw aw-path" /><AntUse cx={200} base={230} h={22} className="ps-ant ar ar-path" />
     </g>
     <g className="pv rd-mist" filter="url(#ps-blur)" opacity="0.5">
       <circle cx="175" cy="78" r="30" fill="#404040" /><circle cx="215" cy="70" r="34" fill="#525252" /><circle cx="250" cy="86" r="28" fill="#737373" /><circle cx="150" cy="92" r="26" fill="#5c5c5c" />

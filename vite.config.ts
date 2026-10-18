@@ -4,14 +4,13 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 
 // Keep large libraries in their own long-cached chunks. A group only bundles what is already
-// reachable from where it is used, so three.js stays lazy (Final CTA only). Shared dependencies are not
-// pulled into a group (includeDependenciesRecursively: false), otherwise the initial chunk would import three.
+// reachable from where it is used. Shared dependencies are not pulled into a group
+// (includeDependenciesRecursively: false), so a lazy chunk never drags its dependencies into the initial load.
 const vendorChunks = [
   { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
   // The animation features that <LazyMotion> loads later are left out, so they stay out of the initial load.
   { name: "framer-motion", test: /node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/](?!.*(features|gestures))/ },
   { name: "gsap", test: /node_modules[\\/]gsap[\\/]/ },
-  { name: "three", test: /node_modules[\\/](three|three-stdlib|@react-three|@monogrid)[\\/]/ },
 ];
 
 export default defineConfig({

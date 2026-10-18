@@ -11,6 +11,9 @@ import type { ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import heroFont from "@fontsource/sora/files/sora-latin-800-normal.woff2?url";
+import { BRAND_CSS, HEAD_SCRIPT } from "../brand/brandCss";
+import { Splash } from "../brand/Splash";
+import { SITE_CONFIG } from "../config/siteConfig";
 
 export function NotFoundComponent() {
   return (
@@ -73,8 +76,14 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#ffffff" },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: `${SITE_CONFIG.siteUrl}/og-image.png` },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "Stoodant, your class, your pace, your tutor" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_CONFIG.siteUrl}/og-image.png` },
     ],
     links: [
       {
@@ -97,8 +106,12 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Runs before first paint: perf tier and once-per-session splash (see brand/brandCss.ts).
+            Both are only in the prerendered HTML; the browser bundle leaves them out and hydration keeps them as they are. */}
+        <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: import.meta.env.SSR ? HEAD_SCRIPT : "" }} />
+        <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: import.meta.env.SSR ? BRAND_CSS : "" }} />
         <HeadContent />
       </head>
       <body>
@@ -110,6 +123,11 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  // Required: nested routes render here. Removing <Outlet /> breaks all child routes.
-  return <Outlet />;
+  return (
+    <>
+      <Splash />
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
+    </>
+  );
 }

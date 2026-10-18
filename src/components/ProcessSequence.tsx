@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
+import { TIMING } from "@/config/timing";
 
-// Wave timing (ms): dwell on each step, travel between steps, pause before restart (~3s per step).
-const DWELL = 1200;
-const TRAVEL = 1800;
-const PAUSE = 1000;
-const DRAW = 1400;
+// Wave timing (ms): dwell on each step, travel between steps, pause before restart.
+const DWELL = TIMING.process.dwell * 1000;
+const TRAVEL = TIMING.process.travel * 1000;
+const PAUSE = TIMING.process.pause * 1000;
+const DRAW = TIMING.process.draw * 1000;
 const PATH_D = "M40 230C190 40 305 40 440 200s250 145 370-15 230-125 350-55";
 const VB_W = 1200;
 const VB_H = 340;

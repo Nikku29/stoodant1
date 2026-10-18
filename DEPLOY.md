@@ -117,6 +117,8 @@ gcloud firestore databases update --project stoodant-prod --database '(default)'
 Cloud Monitoring → Uptime checks: `https://stoodant.com/` (expect 200, every 5 min) and `https://stoodant.com/api/lead` with POST and empty body (expect 403). Alert to your email. Error Reporting picks up function errors automatically; turn on its email notifications.
 
 ### 9. Moving the domain from Vercel
+
+Until this step is done, Vercel builds `main` using `vercel.json` (static build in `dist/client`). The demo form only works once the Firebase backend is deployed, because `/api/lead` exists only on Firebase Hosting.
 1. Let `main` deploy to staging and production; check `https://stoodant-prod.web.app`.
 2. Firebase console → Hosting → Add custom domain `stoodant.com` and `www.stoodant.com` (redirect www → apex).
 3. In GoDaddy DNS replace the Vercel A/CNAME records with the ones Firebase shows. Keep Vercel running until the Firebase certificate is issued (can take a few hours), then remove the domain from Vercel.
