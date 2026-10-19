@@ -60,6 +60,13 @@ html[data-perf=high] .lg-anim-blink .lg-eyeball{animation:lg-blink ${s(L.blinkEv
 
 #splash{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:24px;background:#fff;cursor:pointer;animation:splash-lift ${s(S.lift)} ${s(S.liftAt)} cubic-bezier(.7,0,.3,1) forwards}
 #splash .brand-logo{width:min(80vw,520px)}
+#splash .sp-center{position:relative;display:grid;justify-items:center;gap:clamp(18px,4vmin,32px)}
+#splash .sp-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+#splash .sp-blob,#splash .sp-drop{position:absolute;left:50%;top:50%;background:#FBB308;opacity:.22;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y)));animation:sp-burst ${s(S.burst)} ${letterDelay(S.burstAt, S.burstStagger)} cubic-bezier(.2,1.3,.4,1) both}
+#splash .sp-drop{border-radius:50%;opacity:.7}
+#splash .sp-drop-ink{background:#0A1026;opacity:.5}
+#splash .sp-doodle{position:absolute;width:clamp(28px,5vmin,44px);fill:none;stroke:#0A1026;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.16;animation:sp-faint ${s(S.quoteFade)} ${letterDelay(S.burstAt, S.burstStagger * 2)} ease-out both,sp-float ${s(S.liftAt)} ease-in-out both}
+#splash .sp-quote{margin:0;color:#4b5563;font:500 clamp(14px,2.2vmin,18px)/1.4 Inter,system-ui,sans-serif;text-align:center;animation:sp-rise ${s(S.quoteFade)} ${s(S.quoteAt)} ease-out both}
 #splash.is-skip{animation:splash-lift ${s(S.skipLift)} cubic-bezier(.7,0,.3,1) forwards}
 html[data-splash=off] #splash{display:none}
 @keyframes splash-lift{to{transform:translateY(-100%);opacity:0}}
@@ -74,18 +81,25 @@ html[data-splash=off] #splash{display:none}
 @keyframes sp-pop{0%{transform:scale(0)}100%{transform:none}}
 @keyframes sp-wipe{0%{transform:scaleX(0)}100%{transform:none}}
 @keyframes sp-fade{0%{opacity:0}100%{opacity:1}}
+@keyframes sp-burst{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}}
+@keyframes sp-faint{0%{opacity:0}}
+@keyframes sp-float{0%{translate:0 10px}100%{translate:0 -10px}}
+@keyframes sp-rise{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
 @keyframes lg-blink-once{0%,100%{transform:none}50%{transform:scaleY(.1)}}
 @keyframes sp-glance{0%,100%{transform:none}30%,40%{transform:translateX(-13px)}65%,75%{transform:translateX(13px)}}
 
 html[data-perf=low] #splash{animation-duration:${s(S.lowLift)};animation-delay:${s(S.lowLiftAt)}}
 html[data-perf=low] #splash.is-skip{animation-duration:${s(S.skipLift)};animation-delay:0s}
 html[data-perf=low] #splash .brand-logo{animation:sp-fade ${s(S.lowFade)} ease-out both}
+html[data-perf=low] #splash :is(.sp-blob,.sp-drop,.sp-quote){animation:sp-faint ${s(S.lowFade)} ease-out both}
+html[data-perf=low] #splash .sp-doodle{display:none}
 html[data-perf=low] .lg-anim-intro :is(.lg-letter,.lg-look,.lg-spark,.lg-stripe,.lg-triangle,.lg-phrase){animation:none;opacity:1}
 html[data-perf=low] .lg-anim-intro .lg-eyeball{animation:lg-blink-once ${s(S.blink)} ${s(S.lowBlinkAt)}}
 
 @media (prefers-reduced-motion: reduce){
 #splash,html[data-perf] #splash{animation:sp-gone 1ms ${s(S.reducedHold)} forwards}
-#splash .brand-logo,.lg-anim-intro *,.lg-anim-blink .lg-eyeball{animation:none!important;opacity:1!important}
+#splash .brand-logo,.lg-anim-intro *,.lg-anim-blink .lg-eyeball,#splash .sp-quote{animation:none!important;opacity:1!important}
+#splash .sp-bg>*{animation:none!important}
 .brand-logo .lg-look{transition:none}
 }
 @keyframes sp-gone{to{opacity:0;visibility:hidden}}

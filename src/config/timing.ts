@@ -50,6 +50,12 @@ export const TIMING = {
     accentStagger: 0.06,
     stripeAt: 1.06,
     triangleAt: 1.12,
+    // Background: amber splashes burst from behind the eyes, then a short quote fades in under the logo.
+    burstAt: 0.5,
+    burst: 0.7,
+    burstStagger: 0.05,
+    quoteAt: 0.95,
+    quoteFade: 0.35,
     taglineAt: 1.2,
     phraseStagger: 0.15,
     phraseFade: 0.3,

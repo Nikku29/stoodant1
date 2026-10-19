@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, type RefObject } from "react";
-import { buildLogo, LOGO_LABEL, logoViewBox, type LogoTone, type LogoVariant } from "./logoMarkup";
+import { buildLogo, LOGO_LABEL, logoViewBox, PUPIL_OFFSET, type LogoTone, type LogoVariant } from "./logoMarkup";
 
 type LogoProps = {
   variant?: LogoVariant;
@@ -41,8 +41,8 @@ function usePauseOffscreen(ref: RefObject<SVGSVGElement | null>, on: boolean) {
 }
 
 // Resting pupil offset from the eye centre and how far a pupil may travel (SVG units).
-const PUPIL_REST = { x: 8.5, y: -9.5 };
-const PUPIL_REACH = 20;
+const PUPIL_REST = PUPIL_OFFSET;
+const PUPIL_REACH = 24;
 
 function usePupilFollow(ref: RefObject<SVGSVGElement | null>, on: boolean) {
   useEffect(() => {

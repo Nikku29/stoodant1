@@ -1,4 +1,5 @@
-// The one source of the Stoodant logo, traced from brand-assets/stoodant-logo-original.jpeg.
+// The one source of the Stoodant logo, traced from the official brand-assets/stoodant-logo-official.jpeg
+// (coordinates are that image's pixels, so the viewBoxes start where the artwork does).
 // Logo.tsx (navbar, menu, footer, form success, splash) and the dev-only favicon/OG script all
 // render from buildLogo(). Imports carry explicit .ts extensions so plain Node can run it too.
 import { SITE_CONFIG } from "../config/siteConfig.ts";
@@ -17,24 +18,27 @@ export const BRAND_COLORS = {
 export const LOGO_LABEL = "Stoodant, your class, your pace, your tutor";
 
 const VIEWBOX: Record<LogoVariant, string> = {
-  wordmark: "0 0 1110 190",
-  full: "0 0 1110 262",
-  mark: "234 43 298 145",
+  wordmark: "132 248 1346 222",
+  full: "132 248 1346 286",
+  mark: "436 307 360 168",
 };
 
-// Letter strokes are 29 units wide with round caps and joins, as in the original.
+// Letter strokes are 36 units wide with round caps and joins, as in the official artwork.
+const STROKE = 36;
 const STROKED: Record<string, string> = {
-  s: "M97 58.5H42.5A28 28 0 0 0 42.5 114.5H69A28 28 0 0 1 69 170.5H14.5",
-  t1: "M134.5 59.5H213.5M174.5 59.5V171.5",
-  a: "M736 172L793 62L851 172M752 141H835",
-  n: "M888 172.5V60.5L972.5 172.5V60.5",
-  t2: "M1013.5 60.5H1094.5M1053.5 60.5V172.5",
+  s: "M274 328H186A26 26 0 0 0 186 380H249.5A31.5 31.5 0 0 1 249.5 443H158",
+  t1: "M315 330H441M370.5 330V440",
+  // A and N are one zigzag: the A has no crossbar (the amber triangle sits inside) and runs straight into the N.
+  an: "M970 444L1045 331L1135 444L1179 331L1310 444",
+  t2: "M1269 330H1452M1379.5 330V440",
 };
-const D_PATH = "M555 44H596A71.5 71.5 0 0 1 596 187H555Q544 187 544 176V55Q544 44 555 44ZM572 73H597A42 42 0 0 1 597 157H572Z";
-const EYES = [306.5, 460];
-const EYE_CY = 115.5;
+const D_PATH = "M813 312H888A73 73 0 0 1 888 458H813Q801 458 801 446V324Q801 312 813 312ZM840 345H882A40 40 0 0 1 882 425H840Z";
+const EYES = [523.5, 708];
+const EYE_CY = 391;
+/** Pupil offset from the eye centre, shared with Logo.tsx so the pointer-follow starts from rest. */
+export const PUPIL_OFFSET = { x: 19.5, y: -16 };
 // Tagline phrases sit side by side across the wordmark width (x, width), one <text> each so they can fade in turn.
-const PHRASE_BOXES = [[3, 354], [390, 322], [748, 359]] as const;
+const PHRASE_BOXES = [[289, 321], [645, 294], [974, 335]] as const;
 
 export function logoViewBox(variant: LogoVariant) {
   return VIEWBOX[variant];
@@ -48,20 +52,20 @@ export function buildLogo(variant: LogoVariant, tone: LogoTone, prefix = "lg"): 
   const id = (part: string) => `id="${prefix}-${part}"`;
   const letter = (key: string, i: number, body: string) => `<path ${id(`letter-${key}`)} class="lg-letter" style="--i:${i}" ${body}/>`;
   const stroked = (key: string, i: number) =>
-    letter(key, i, `d="${STROKED[key]}" fill="none" stroke="${ink}" stroke-width="29" stroke-linecap="round" stroke-linejoin="round"`);
+    letter(key, i, `d="${STROKED[key]}" fill="none" stroke="${ink}" stroke-width="${STROKE}" stroke-linecap="round" stroke-linejoin="round"`);
 
   // Each O is a group: the amber eye (blinks), pupil + glint (look around), and the ring on top.
-  const bridge = `<rect ${id("bridge")} class="lg-bridge" x="372" y="101.5" width="22" height="10" fill="${ink}"/>`;
+  const bridge = `<rect ${id("bridge")} class="lg-bridge" x="598" y="353" width="36" height="10" fill="${ink}"/>`;
   const eyes =
     bridge +
     EYES.map((cx, n) => {
       const side = n ? "r" : "l";
       return (
         `<g ${id(`letter-o${n + 1}`)} class="lg-letter" style="--i:${n + 2}">` +
-        `<g ${id(`eyeball-${side}`)} class="lg-eyeball"><circle ${id(`eye-${side}`)} class="lg-eye" cx="${cx}" cy="${EYE_CY}" r="43" fill="${amber}"/>` +
-        `<g ${id(`look-${side}`)} class="lg-look"><circle ${id(`pupil-${side}`)} cx="${cx + 8.5}" cy="106" r="17" fill="${pupil}"/>` +
-        `<circle ${id(`glint-${side}`)} cx="${cx + 15.5}" cy="99" r="5.5" fill="${white}"/></g></g>` +
-        `<circle ${id(`ring-o${n + 1}`)} cx="${cx}" cy="${EYE_CY}" r="56" fill="none" stroke="${ink}" stroke-width="29"/></g>`
+        `<g ${id(`eyeball-${side}`)} class="lg-eyeball"><circle ${id(`eye-${side}`)} class="lg-eye" cx="${cx}" cy="${EYE_CY}" r="50" fill="${amber}"/>` +
+        `<g ${id(`look-${side}`)} class="lg-look"><circle ${id(`pupil-${side}`)} cx="${cx + PUPIL_OFFSET.x}" cy="${EYE_CY + PUPIL_OFFSET.y}" r="26" fill="${pupil}"/>` +
+        `<circle ${id(`glint-${side}`)} cx="${cx + 31}" cy="${EYE_CY - 31}" r="9.5" fill="${white}"/></g></g>` +
+        `<circle ${id(`ring-o${n + 1}`)} cx="${cx}" cy="${EYE_CY}" r="64" fill="none" stroke="${ink}" stroke-width="31"/></g>`
       );
     }).join("");
 
@@ -72,28 +76,29 @@ export function buildLogo(variant: LogoVariant, tone: LogoTone, prefix = "lg"): 
     stroked("t1", 1) +
     eyes +
     letter("d", 4, `d="${D_PATH}" fill="${ink}" fill-rule="evenodd"`) +
-    stroked("a", 5) +
-    stroked("n", 6) +
-    stroked("t2", 7);
+    stroked("an", 5) +
+    stroked("t2", 6);
+  // The N's amber edge sits under the ink (drawn first), offset up and right along its diagonal, like the artwork's bevel.
+  const edge = `<path ${id("edge-n")} class="lg-stripe" d="M1209 328L1324 427" stroke="${amber}" stroke-width="22" stroke-linecap="round"/>`;
   const accents =
-    `<g ${id("sparks")} fill="none" stroke="${amber}" stroke-width="7" stroke-linecap="round">` +
-    `<path ${id("spark-1")} class="lg-spark" d="M280 6.5L285 34"/><path ${id("spark-2")} class="lg-spark" style="--i:1" d="M254 21L270 33"/></g>` +
-    `<path ${id("stripe-s")} class="lg-stripe" d="M44.5 82H83.5M44 92H72" stroke="${amber}" stroke-width="4.5" stroke-linecap="round"/>` +
-    `<path ${id("triangle-a")} class="lg-triangle" d="M793.5 102.5L805 123.5H782Z" fill="${amber}" stroke="${amber}" stroke-width="2" stroke-linejoin="round"/>`;
+    `<g ${id("sparks")} fill="none" stroke="${amber}" stroke-width="12" stroke-linecap="round">` +
+    `<path ${id("spark-1")} class="lg-spark" d="M506 260L514 290"/><path ${id("spark-2")} class="lg-spark" style="--i:1" d="M467 283L488 298"/></g>` +
+    `<path ${id("stripe-s")} class="lg-stripe" d="M197 348H256M197 362H260" stroke="${amber}" stroke-width="6" stroke-linecap="round"/>` +
+    `<path ${id("triangle-a")} class="lg-triangle" d="M1045 406L1068 449H1022Z" fill="${amber}" stroke="${amber}" stroke-width="6" stroke-linejoin="round"/>`;
 
-  if (variant === "wordmark") return letters + accents;
+  if (variant === "wordmark") return edge + letters + accents;
 
   const phrases = SITE_CONFIG.brand.tagline.toUpperCase().split(/(?<=\.)\s+/);
   const tagline =
-    `<g ${id("tagline")} class="lg-tagline" fill="${ink}" font-family="Inter,system-ui,sans-serif" font-size="38">` +
+    `<g ${id("tagline")} class="lg-tagline" fill="${ink}" font-family="Inter,system-ui,sans-serif" font-size="37">` +
     phrases
       .map((p, i) => {
         const [x, w] = PHRASE_BOXES[i] ?? PHRASE_BOXES[0];
-        return `<text ${id(`tagline-${i + 1}`)} class="lg-phrase" style="--i:${i}" x="${x}" y="250" textLength="${w}" lengthAdjust="spacing">${p}</text>`;
+        return `<text ${id(`tagline-${i + 1}`)} class="lg-phrase" style="--i:${i}" x="${x}" y="521" textLength="${w}" lengthAdjust="spacing">${p}</text>`;
       })
       .join("") +
     `</g>`;
-  return letters + accents + tagline;
+  return edge + letters + accents + tagline;
 }
 
 /** A standalone SVG document (favicon and the raster script). */
