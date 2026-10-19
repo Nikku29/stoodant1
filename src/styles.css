@@ -81,6 +81,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .mobile-menu nav { display: grid; gap: 16px; margin: auto 0; }
 .mobile-menu nav a { font: 700 8vw var(--font-display); }
 .mobile-menu>a:last-child { display: flex; justify-content: space-between; border-top: 1px solid var(--grey-5); padding-top: 24px; font-weight: 700; }
+.team-banner { display: block; width: 100%; background: #0b0b0c; }
+.team-banner img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
 .hero { min-height: calc(100svh - 84px); position: relative; display: flex; align-items: center; padding: 72px 0 100px; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, .85fr); gap: 64px; align-items: center; position: relative; z-index: 2; }
 .hero h1 { margin: 0; font: 800 clamp(2.5rem,6.5vw,6rem)/.94 var(--font-display); letter-spacing: 0; }

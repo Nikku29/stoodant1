@@ -44,6 +44,7 @@ export function StoodantLanding() {
       <CustomCursor />
       <Header />
       <main>
+        <TeamBanner />
         <Hero />
         {MAIN_SECTIONS.map((def, index) => <LazySection key={index} def={def} />)}
       </main>
@@ -184,6 +185,21 @@ function MagneticLink({ href, children, outline = false }: { href: string; child
     ref.current?.style.setProperty("transform", `translate(${x}px,${y}px)`);
   };
   return <a ref={ref} href={href} onMouseMove={move} onMouseLeave={() => ref.current?.style.setProperty("transform", "translate(0,0)")} className={`button ${outline ? "button-outline" : "button-dark"}`}>{children}<ArrowDownRight size={18} /></a>;
+}
+
+// Full-bleed team photo under the header; the whole 16:9 image stays visible at every width.
+function TeamBanner() {
+  const { alt, src, widths, width, height } = SITE_CONFIG.teamBanner;
+  const srcSet = (ext: string) => widths.map((w) => `${src}-${w}.${ext} ${w}w`).join(", ");
+  return (
+    <section className="team-banner" aria-label="Meet the team">
+      <picture>
+        <source type="image/avif" srcSet={srcSet("avif")} sizes="100vw" />
+        <source type="image/webp" srcSet={srcSet("webp")} sizes="100vw" />
+        <img src={`${src}-${width}.jpg`} alt={alt} width={width} height={height} fetchPriority="high" decoding="async" />
+      </picture>
+    </section>
+  );
 }
 
 const heroRise = { animationDuration: `${TIMING.heroEntrance}s` };
