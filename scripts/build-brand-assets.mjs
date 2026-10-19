@@ -13,7 +13,7 @@ const out = (name) => join(root, "public", name);
 
 // Favicon: the eyes ("mark") centred in a square; rings and bridge turn white on dark browser chrome.
 const favicon =
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="234 -33.5 298 298">` +
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="425.75 201 380 380">` +
   `<style>@media (prefers-color-scheme:dark){[id$=ring-o1],[id$=ring-o2]{stroke:#fff}[id$=bridge]{fill:#fff}}</style>` +
   buildLogo("mark", "light", "f") +
   `</svg>`;
@@ -38,9 +38,9 @@ function shoot(name, width, height, body) {
 }
 
 // Apple touch icon: white square, eyes centred with breathing room (iOS rounds the corners).
-shoot("apple-touch-icon.png", 180, 180, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="234 43 298 145" width="136">${buildLogo("mark", "light", "a")}</svg>`);
+shoot("apple-touch-icon.png", 180, 180, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="436 307 360 168" width="140">${buildLogo("mark", "light", "a")}</svg>`);
 // OG image: full logo with tagline centred on white.
-shoot("og-image.png", 1200, 630, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1110 262" width="840">${buildLogo("full", "light", "o")}</svg>`);
+shoot("og-image.png", 1200, 630, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="132 248 1346 286" width="900">${buildLogo("full", "light", "o")}</svg>`);
 
 rmSync(tmp, { recursive: true, force: true });
 console.log("favicon.svg written");

@@ -83,6 +83,8 @@ export const SITE_CONFIG = {
     menuOpen: "Open menu",
     menuClose: "Close menu",
   },
+  // One short line shown under the logo on the loading screen.
+  splash: { quote: "Every child learns at their own pace." },
   // Team photo shown full width directly under the header. Files live in public/team/ at each width below.
   teamBanner: {
     alt: "The Stoodant team smiling in black Stoodant polos on a yellow background, under a Meet the Team label, with the tagline Your Class. Your Pace. Your Tutor.",
