@@ -52,7 +52,7 @@ export const SITE_CONFIG = {
       ],
     },
   },
-  contact: { phone: "+91 79763 14141", whatsapp: "917976314141", email: "info@stoodant.com" },
+  contact: { phone: "+91 83060 18141", whatsapp: "918306018141", email: "info@stoodant.com" },
 
   // ---- OFFER / DISCOUNT ----
   // Set discountPercent above 0 and add an offerLabel to switch the offer on.
@@ -200,21 +200,25 @@ export const SITE_CONFIG = {
   teachers: {
     kicker: "Teachers",
     headline: "The right teacher changes everything.",
-    labels: ["Trained", "Vetted", "Student-friendly", "Clear explainers"], // TODO: Replace with real teacher profiles.
-    placeholder: "Teacher profile coming soon",
+    labels: ["Trained", "Vetted", "Student-friendly", "Clear explainers"],
+    teaches: "Teaches",
     ringLabel: "Our teachers",
-    profileTag: "Profile coming soon",
     pausedLabel: "Paused · tap to resume",
-    // TODO: Owner — replace with real teacher photo (photo URL), name and details.
+    // Photos live in public/teachers/<photo>-360.webp and <photo>-720.webp (portrait, 4:5).
     // The ring needs at least 6 slides; if fewer are supplied they are repeated visually (repeats are aria-hidden).
     slides: [
-      { id: "t1", label: "Teacher 01", trait: "Trained", description: "Profile details coming soon.", photo: null }, // TODO
-      { id: "t2", label: "Teacher 02", trait: "Vetted", description: "Profile details coming soon.", photo: null }, // TODO
-      { id: "t3", label: "Teacher 03", trait: "Student-friendly", description: "Profile details coming soon.", photo: null }, // TODO
-      { id: "t4", label: "Teacher 04", trait: "Clear explainers", description: "Profile details coming soon.", photo: null }, // TODO
-      { id: "t5", label: "Teacher 05", trait: "Trained", description: "Profile details coming soon.", photo: null }, // TODO
-      { id: "t6", label: "Teacher 06", trait: "Vetted", description: "Profile details coming soon.", photo: null }, // TODO
-    ] as { id: string; label: string; trait: string; description: string; photo: string | null }[],
+      { id: "jitesh-sain", name: "Jitesh Sain", role: "Founder", highlights: ["Medico", "5+ years teaching", "Students' favourite"], quote: "I don't want a child's potential to be limited by their circumstances. I want every student to discover what they're truly capable of.", photo: "jitesh-sain" },
+      { id: "dhanya-nalina", name: "Dr. Dhanya Nalina", subject: "Science", highlights: ["MBBS '21", "4+ years teaching", "99% in Class 10", "State topper"], photo: "dhanya-nalina" },
+      { id: "akash-meena", name: "Akash Meena", subject: "Social Science", highlights: ["UPSC Prelims cleared", "Class 10 & 12 topper"], photo: "akash-meena" },
+      { id: "umasree-gummala", name: "Umasree Gummala", subject: "Science", highlights: ["Medico", "Best explainer"], photo: "umasree-gummala" },
+      { id: "ansh-sharma", name: "Ansh Sharma", subject: "Maths", highlights: ["3+ years teaching", "Top scorer in Maths"], photo: "ansh-sharma" },
+      { id: "ankit-choudhary", name: "Ankit Choudhary", subject: "Maths", highlights: ["4+ years teaching", "Top scorer in Maths"], photo: "ankit-choudhary" },
+      { id: "mahi-agarwal", name: "Mahi Agarwal", subject: "Maths", highlights: ["100/100 in Maths", "CAT qualified"], photo: "mahi-agarwal" },
+      { id: "sanjay-jakhar", name: "Dr. Sanjay Jakhar", subject: "Science", highlights: ["MBBS '19", "5+ years teaching", "Class 10 & 12 top scorer"], photo: "sanjay-jakhar" },
+      { id: "manjeet-shekhawat", name: "Manjeet Shekhawat", subject: "Science", highlights: ["Medico", "Best explainer"], photo: "manjeet-shekhawat" },
+      { id: "jaanya-arora", name: "Jaanya Arora", subject: "Social Science", highlights: ["Psychology undergraduate", "Young talent"], photo: "jaanya-arora" },
+      { id: "nikita-sharma", name: "Nikita Sharma", subject: "Social Science", highlights: ["4+ years teaching", "Best explainer"], photo: "nikita-sharma" },
+    ] as { id: string; name: string; role?: string; subject?: string; highlights: string[]; quote?: string; photo: string | null }[],
   },
   progress: {
     kicker: "Parent progress",
