@@ -83,6 +83,14 @@ export const SITE_CONFIG = {
     menuOpen: "Open menu",
     menuClose: "Close menu",
   },
+  // Team photo shown full width directly under the header. Files live in public/team/ at each width below.
+  teamBanner: {
+    alt: "The Stoodant team smiling in black Stoodant polos on a yellow background, under a Meet the Team label, with the tagline Your Class. Your Pace. Your Tutor.",
+    src: "/team/team-banner",
+    widths: [640, 960, 1280],
+    width: 1280,
+    height: 720,
+  },
   hero: {
     headline: ["Learning that moves", "at your pace."],
     highlight: "your pace", // amber highlighter swoosh behind this phrase
