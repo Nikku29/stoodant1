@@ -13,12 +13,12 @@ const SPRING = { type: "spring" as const, stiffness: 120, damping: 20 };
 const wrap = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
 
 type Geo = { w: number; h: number; persp: number; r: number };
-function geoFor(vw: number): Geo {
+function geoFor(vw: number, n: number): Geo {
   let w: number, h: number, persp: number;
   if (vw < 768) { w = Math.min(vw * 0.68, 270); h = 440; persp = 900; }
   else if (vw < 1100) { w = 340; h = 460; persp = 1200; }
   else { w = 380; h = 480; persp = 1500; }
-  const r = (w / 2 / Math.tan(Math.PI / 6)) * 1.1;
+  const r = (w / 2 / Math.tan(Math.PI / n)) * 1.1;
   return { w, h, persp, r };
 }
 
@@ -37,20 +37,22 @@ function Silhouette({ variant }: { variant: number }) {
 }
 
 const PERFS = Array.from({ length: 12 });
-function SlideCard({ slide, offset }: { slide: Slide; offset: number }) {
+function SlideCard({ slide, offset, w }: { slide: Slide; offset: number; w: number }) {
   const t = SITE_CONFIG.teachers;
+  const src = (size: number) => `/teachers/${slide.photo}-${size}.webp`;
   return (
-    <div className="tr-card">
+    <div className={`tr-card ${slide.quote ? "has-quote" : ""}`}>
       <div className="tr-perf top" aria-hidden="true">{PERFS.map((_, k) => <i key={k} />)}</div>
       <div className="tr-photo">
-        {/* TODO: replace silhouette with real teacher photo via slide.photo */}
-        {slide.photo ? <img src={slide.photo} alt={slide.label} loading="lazy" /> : <Silhouette variant={offset} />}
+        {slide.photo
+          ? <img src={src(360)} srcSet={`${src(360)} 360w, ${src(720)} 720w`} sizes={`${Math.round(w)}px`} width={360} height={450} alt={slide.name} loading="lazy" decoding="async" draggable={false} />
+          : <Silhouette variant={offset} />}
       </div>
       <div className="tr-text">
-        <span className="tr-label">{slide.label}</span>
-        <h3 className="tr-trait">{slide.trait}</h3>
-        <p className="tr-desc">{slide.description}</p>
-        {!slide.photo && <span><span className="tr-tag">{t.profileTag}</span></span>}
+        <span className="tr-label">{slide.role ?? `${t.teaches} ${slide.subject}`}</span>
+        <h3 className="tr-trait">{slide.name}</h3>
+        <p className="tr-desc">{slide.highlights.join(" · ")}</p>
+        {slide.quote && <blockquote className="tr-quote">“{slide.quote}”</blockquote>}
       </div>
       <div className="tr-perf bottom" aria-hidden="true">{PERFS.map((_, k) => <i key={k} />)}</div>
     </div>
@@ -103,7 +105,7 @@ export function TeachersRing() {
   const step = 360 / n;
 
   const [reduced, setReduced] = useState(false);
-  const [geo, setGeo] = useState<Geo>(() => geoFor(1280));
+  const [geo, setGeo] = useState<Geo>(() => geoFor(1280, n));
   const angle = useMotionValue(0);
   const [front, setFront] = useState(0);
   useMotionValueEvent(angle, "change", (a) => {
@@ -114,7 +116,6 @@ export function TeachersRing() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const anim = useRef<ReturnType<typeof animate> | null>(null);
   const lastInteraction = useRef(0);
-  const [hover, setHover] = useState(false);
   const [focusWithin, setFocusWithin] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [onscreen, setOnscreen] = useState(false);
@@ -126,13 +127,13 @@ export function TeachersRing() {
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setReduced(rm.matches);
     const vis = () => setTabHidden(document.hidden);
-    const resize = () => setGeo(geoFor(window.innerWidth));
+    const resize = () => setGeo(geoFor(window.innerWidth, n));
     sync(); vis(); resize();
     rm.addEventListener("change", sync);
     document.addEventListener("visibilitychange", vis);
     window.addEventListener("resize", resize);
     return () => { rm.removeEventListener("change", sync); document.removeEventListener("visibilitychange", vis); window.removeEventListener("resize", resize); };
-  }, []);
+  }, [n]);
 
   const goTo = useCallback((target: number, spring = false) => {
     anim.current?.stop();
@@ -150,7 +151,8 @@ export function TeachersRing() {
     return () => io.disconnect();
   }, [reduced]);
 
-  const paused = reduced || userPaused || hover || focusWithin || dragging || !onscreen || tabHidden;
+  // Keeps turning under the pointer; a swipe, tap or key press holds it for RESUME_AFTER_MS, keyboard focus holds it until focus leaves.
+  const paused = reduced || userPaused || focusWithin || dragging || !onscreen || tabHidden;
   useEffect(() => {
     if (paused) return;
     let last = Date.now();
@@ -220,7 +222,7 @@ export function TeachersRing() {
     return (
       <div className="tr-wrap is-reduced" style={vars}>
         <div className="tr-row" role="region" aria-roledescription="carousel" aria-label={t.ringLabel} tabIndex={0}>
-          {real.map((s, i) => <div className="tr-row-slide" key={s.id} role="group" aria-label={`${i + 1} / ${real.length}`}><SlideCard slide={s} offset={i} /></div>)}
+          {real.map((s, i) => <div className="tr-row-slide" key={s.id} role="group" aria-label={`${i + 1} / ${real.length}`}><SlideCard slide={s} offset={i} w={geo.w} /></div>)}
         </div>
       </div>
     );
@@ -230,8 +232,7 @@ export function TeachersRing() {
     <m.div className="tr-wrap" style={vars}
       initial={{ opacity: 0, y: 40 }} animate={entered ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
       transition={{ duration: TIMING.reveal, ease: EASE }}
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      onFocus={() => setFocusWithin(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocusWithin(false); }}>
+      onFocus={(e) => { if (e.target.matches(":focus-visible")) setFocusWithin(true); }} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocusWithin(false); }}>
       <div className="tr-specks" aria-hidden="true">
         {SPECKS.map((s, k) => (
           <i key={k} style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, animationDuration: `${s.dur}s`, animationDelay: `${s.delay}s` }} />
@@ -249,7 +250,7 @@ export function TeachersRing() {
                 if (i === front) { setUserPaused((p) => !p); return; }
                 touch(); goToVisual(i);
               }}>
-              <SlideCard slide={v.slide} offset={i} />
+              <SlideCard slide={v.slide} offset={i} w={geo.w} />
             </RingSlide>
           ))}
         </div>
