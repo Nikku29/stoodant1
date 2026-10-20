@@ -43,6 +43,15 @@
         ]
       },
       {
+        "source": "/@(parent|teacher|login|admin)*",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex"
+          }
+        ]
+      },
+      {
         "source": "/assets/**",
         "headers": [
           {

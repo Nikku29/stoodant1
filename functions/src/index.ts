@@ -1,10 +1,14 @@
 import { initializeApp } from "firebase-admin/app";
 import { setGlobalOptions } from "firebase-functions/v2";
-import { onRequest } from "firebase-functions/v2/https";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onCall, onRequest } from "firebase-functions/v2/https";
+import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
 import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./config.js";
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
+import { handleClaimAdmin } from "./school/admin.js";
+import {
+  handleBatchWritten, handleNoteWritten, handleSheetWritten, handleStudentWritten, handleTeacherWritten, logged,
+} from "./school/triggers.js";
 
 initializeApp();
 
@@ -19,4 +23,34 @@ export const submitLead = onRequest(
 export const onLeadCreated = onDocumentCreated(
   { document: "leads/{leadId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
   handleLeadCreated,
+);
+
+// Log-ins and progress (PROGRESS_PLAN.md). Rebuilding a child's page reads a few small collections.
+const school = { timeoutSeconds: 60 };
+
+export const claimAdmin = onCall({ cors: true }, handleClaimAdmin);
+
+export const onStudentWritten = onDocumentWritten(
+  { ...school, document: "students/{studentId}" },
+  logged("onStudentWritten", handleStudentWritten),
+);
+export const onTeacherWritten = onDocumentWritten(
+  { ...school, document: "teachers/{teacherId}" },
+  logged("onTeacherWritten", handleTeacherWritten),
+);
+export const onBatchWritten = onDocumentWritten(
+  { ...school, document: "batches/{batchId}" },
+  logged("onBatchWritten", handleBatchWritten),
+);
+export const onSessionWritten = onDocumentWritten(
+  { ...school, document: "sessions/{sessionId}" },
+  logged("onSessionWritten", handleSheetWritten("attendance")),
+);
+export const onAssessmentWritten = onDocumentWritten(
+  { ...school, document: "assessments/{assessmentId}" },
+  logged("onAssessmentWritten", handleSheetWritten("scores")),
+);
+export const onNoteWritten = onDocumentWritten(
+  { ...school, document: "notes/{noteId}" },
+  logged("onNoteWritten", handleNoteWritten),
 );

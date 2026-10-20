@@ -276,6 +276,6 @@ export const SITE_CONFIG = {
     success: "Thank you! We'll call you shortly.",
     errors: { name: "Please enter your name.", className: "Please select a class.", board: "Please select a board.", phone: "Enter a valid 10-digit Indian mobile number.", consent: "Please tick the box so we can contact you.", rateLimited: "You've sent a few requests already. We'll be in touch soon, or message us on WhatsApp.", network: "We couldn't send your request. Please try again, or message us on WhatsApp." },
   },
-  footer: { quickLinks: "Quick links", contact: "Contact", rights: "All rights reserved." },
+  footer: { quickLinks: "Quick links", login: "Parent & teacher log-in", contact: "Contact", rights: "All rights reserved." },
   whatsapp: { label: "Chat on WhatsApp", message: "Hi Stoodant, I'd like to book a demo class." },
 } as const;

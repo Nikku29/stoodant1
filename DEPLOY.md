@@ -100,13 +100,21 @@ Finally add the **repository** variable `DEPLOY_ENABLED` = `true`. Until then th
 
 Branch protection on `main`: require the CI checks, one review, no direct pushes.
 
-### 7. Admin access
-```bash
-gcloud auth application-default login
-# sign in once on the site's Firebase project (e.g. via the Firebase console's Authentication → Add user), then:
-cd functions && node scripts/set-admin.mjs stoodant-prod you@gmail.com
-```
-Leads are visible in Firebase console → Firestore → `leads`. Change `status` there as you call parents. For an enrolled family, clear `retainUntil` on the lead and its `consentLog` entries so the 90-day TTL does not delete them.
+### 7. Log-ins and admin access
+Everyone signs in on **/login** (linked from the site footer):
+- **Parents and teachers**: their mobile number and a 6-digit SMS code. The number decides the page: a teacher's number (on a
+  `teachers` record linked to a running batch) opens /teacher, a parent's number (on a `students` record) opens /parent.
+- **The Stoodant team**: "Continue with Google". Addresses listed in `ADMIN_EMAILS` (functions/.env.<project>) get the admin
+  claim through the `claimAdmin` function and land on /admin, where they manage demo requests, students, teachers and batches.
+
+One-time Firebase console setup per project (Authentication):
+- Sign-in method: enable **Phone** and **Google**. Under Settings → SMS region policy, allow only India.
+- Settings → Authorized domains: add stoodant.com, www.stoodant.com and stoodant1.vercel.app.
+
+Each SMS code is billed by Firebase on the Blaze plan; the Rs 500 budget alert covers it. `scripts/set-admin.mjs` still works
+to grant the claim by hand. Previews without log-in: /parent?sample=1 and /teacher?sample=1.
+
+For an enrolled family, clear `retainUntil` on the lead and its `consentLog` entries so the 90-day TTL does not delete them.
 
 ### 8. Backups, monitoring
 ```bash

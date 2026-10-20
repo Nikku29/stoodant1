@@ -109,5 +109,5 @@ export const SAMPLE_RECORDS: StudentRecords = {
 export const SAMPLE_BATCH = {
   name: "Class 7 CBSE · Maths",
   schedule: "Mon, Wed, Fri · 5:00 pm",
-  students: ["Aarav Mehta", "Diya Nair", "Kabir Singh", "Meera Iyer", "Rohan Das"],
+  students: ["Aarav Mehta", "Diya Nair", "Kabir Singh", "Meera Iyer", "Rohan Das"].map((name, i) => ({ id: `sample-${i + 1}`, name })),
 };

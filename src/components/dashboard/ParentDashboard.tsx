@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
-import { Logo } from "@/brand/Logo";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import {
@@ -15,21 +14,25 @@ import {
   type Trend,
 } from "@/lib/progress/insights";
 import { monthlyReport, weeklyReport } from "@/lib/progress/reportText";
-import "./dashboard.css";
+import { Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.parent;
 const { attendanceGood, attendanceWatch } = DASHBOARD_CONFIG.insights;
 type PeriodKind = "week" | "month";
 
-/** The parent's view of one child. Today it renders sample records; later the same props come from Firestore. */
+/** The parent's view of one child: the signed-in parent's progress page, or sample records as a preview. */
 export function ParentDashboard({
   records,
   today,
   sample = false,
+  picker,
+  onSignOut,
 }: {
   records: StudentRecords;
   today: string;
   sample?: boolean;
+  picker?: ReactNode | undefined;
+  onSignOut?: (() => void) | undefined;
 }) {
   const [kind, setKind] = useState<PeriodKind>("week");
   const period = kind === "week" ? weekOf(today) : monthOf(today);
@@ -45,130 +48,122 @@ export function ParentDashboard({
   );
 
   return (
-    <div className="pd">
-      <header className="pd-top">
-        <a href="/" className="pd-logo" aria-label="Stoodant home">
-          <Logo variant="full" />
-        </a>
-        <span className="pd-role">Parent</span>
-      </header>
+    <Shell role="Parent" onSignOut={onSignOut}>
+      {sample && <p className="pd-banner">{copy.sampleBanner}</p>}
+      {picker}
 
-      <main className="pd-main">
-        {sample && <p className="pd-banner">{copy.sampleBanner}</p>}
+      <section className="pd-child" aria-labelledby="pd-child-name">
+        <h1 id="pd-child-name">{student.name}</h1>
+        <p>
+          Class {student.classLevel} · {student.board} · {student.batch}
+        </p>
+      </section>
 
-        <section className="pd-child" aria-labelledby="pd-child-name">
-          <h1 id="pd-child-name">{student.name}</h1>
-          <p>
-            Class {student.classLevel} · {student.board} · {student.batch}
-          </p>
-        </section>
+      <div className="pd-toggle" role="group" aria-label="Period">
+        {(["week", "month"] as const).map((k) => (
+          <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
+            {k === "week" ? copy.periodWeek : copy.periodMonth}
+          </button>
+        ))}
+      </div>
+      <p className="pd-period">{periodLabel}</p>
 
-        <div className="pd-toggle" role="group" aria-label="Period">
-          {(["week", "month"] as const).map((k) => (
-            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
-              {k === "week" ? copy.periodWeek : copy.periodMonth}
-            </button>
+      <section className="pd-stats" aria-label="Summary">
+        <Stat
+          label={copy.attendance}
+          value={data.attendance.percent == null ? "–" : `${data.attendance.percent}%`}
+          hint={attendanceHint(data)}
+          tone={attendanceTone(data.attendance.percent)}
+        />
+        <Stat
+          label={copy.average}
+          value={data.average == null ? "–" : `${data.average}%`}
+          hint={
+            data.tests.length
+              ? `${data.tests.filter((t) => t.percent != null).length} tests`
+              : copy.noTests
+          }
+        />
+        <Stat
+          label={copy.improvement}
+          value={data.delta == null ? "–" : `${data.delta > 0 ? "+" : ""}${data.delta}`}
+          hint={
+            data.delta == null ? DASHBOARD_CONFIG.trendLabels.unknown : "points vs earlier tests"
+          }
+          tone={data.trend === "up" ? "good" : undefined}
+        />
+      </section>
+
+      <p className="pd-summary">{summarySentence(student.name, data)}</p>
+
+      <section className="pd-section" aria-labelledby="pd-subjects">
+        <h2 id="pd-subjects">{copy.subjects}</h2>
+        <ul className="pd-subjects">
+          {data.subjects.map((s) => (
+            <SubjectRow key={s.subject} s={s} focus={data.focus?.subject === s.subject} />
           ))}
-        </div>
-        <p className="pd-period">{periodLabel}</p>
+        </ul>
+      </section>
 
-        <section className="pd-stats" aria-label="Summary">
-          <Stat
-            label={copy.attendance}
-            value={data.attendance.percent == null ? "–" : `${data.attendance.percent}%`}
-            hint={attendanceHint(data)}
-            tone={attendanceTone(data.attendance.percent)}
-          />
-          <Stat
-            label={copy.average}
-            value={data.average == null ? "–" : `${data.average}%`}
-            hint={
-              data.tests.length
-                ? `${data.tests.filter((t) => t.percent != null).length} tests`
-                : copy.noTests
-            }
-          />
-          <Stat
-            label={copy.improvement}
-            value={data.delta == null ? "–" : `${data.delta > 0 ? "+" : ""}${data.delta}`}
-            hint={
-              data.delta == null ? DASHBOARD_CONFIG.trendLabels.unknown : "points vs earlier tests"
-            }
-            tone={data.trend === "up" ? "good" : undefined}
-          />
-        </section>
+      <section className="pd-section" aria-labelledby="pd-classes">
+        <h2 id="pd-classes">{copy.classes}</h2>
+        <ClassStrip records={records} from={period.from} to={period.to} />
+      </section>
 
-        <p className="pd-summary">{summarySentence(student.name, data)}</p>
-
-        <section className="pd-section" aria-labelledby="pd-subjects">
-          <h2 id="pd-subjects">{copy.subjects}</h2>
-          <ul className="pd-subjects">
-            {data.subjects.map((s) => (
-              <SubjectRow key={s.subject} s={s} focus={data.focus?.subject === s.subject} />
+      <section className="pd-section" aria-labelledby="pd-tests">
+        <h2 id="pd-tests">{copy.tests}</h2>
+        {data.tests.length ? (
+          <ul className="pd-tests">
+            {data.tests.map((t) => (
+              <li key={`${t.date}-${t.subject}-${t.title}`}>
+                <span>
+                  <strong>{t.title}</strong>
+                  <small>
+                    {t.subject} · {formatDay(t.date)}
+                  </small>
+                </span>
+                <span className="pd-score">
+                  {t.score == null ? copy.absent : `${t.score}/${t.max}`}
+                </span>
+              </li>
             ))}
           </ul>
-        </section>
-
-        <section className="pd-section" aria-labelledby="pd-classes">
-          <h2 id="pd-classes">{copy.classes}</h2>
-          <ClassStrip records={records} from={period.from} to={period.to} />
-        </section>
-
-        <section className="pd-section" aria-labelledby="pd-tests">
-          <h2 id="pd-tests">{copy.tests}</h2>
-          {data.tests.length ? (
-            <ul className="pd-tests">
-              {data.tests.map((t) => (
-                <li key={`${t.date}-${t.subject}-${t.title}`}>
-                  <span>
-                    <strong>{t.title}</strong>
-                    <small>
-                      {t.subject} · {formatDay(t.date)}
-                    </small>
-                  </span>
-                  <span className="pd-score">
-                    {t.score == null ? copy.absent : `${t.score}/${t.max}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="pd-empty">{copy.noTests}</p>
-          )}
-        </section>
-
-        {data.notes.length > 0 && (
-          <section className="pd-section" aria-labelledby="pd-notes">
-            <h2 id="pd-notes">{copy.teacherNote}</h2>
-            {data.notes.map((n) => (
-              <blockquote key={`${n.date}-${n.subject}`} className="pd-note">
-                <p>{n.lines.join(". ")}.</p>
-                <p className="pd-note-by">
-                  {n.teacher}, {n.subject} · {formatDay(n.date)}
-                </p>
-              </blockquote>
-            ))}
-          </section>
+        ) : (
+          <p className="pd-empty">{copy.noTests}</p>
         )}
+      </section>
 
-        <section className="pd-section" aria-labelledby="pd-report">
-          <h2 id="pd-report">{copy.reportTitle}</h2>
-          <p className="pd-muted">{kind === "week" ? copy.reportWeekNote : copy.reportMonthNote}</p>
-          <div className="pd-chat">
-            <WhatsAppText text={report} />
-          </div>
+      {data.notes.length > 0 && (
+        <section className="pd-section" aria-labelledby="pd-notes">
+          <h2 id="pd-notes">{copy.teacherNote}</h2>
+          {data.notes.map((n) => (
+            <blockquote key={`${n.date}-${n.subject}`} className="pd-note">
+              <p>{n.lines.join(". ")}.</p>
+              <p className="pd-note-by">
+                {n.teacher}, {n.subject} · {formatDay(n.date)}
+              </p>
+            </blockquote>
+          ))}
         </section>
+      )}
 
-        <a
-          className="pd-cta"
-          href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${waText}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {copy.askTeacher}
-        </a>
-      </main>
-    </div>
+      <section className="pd-section" aria-labelledby="pd-report">
+        <h2 id="pd-report">{copy.reportTitle}</h2>
+        <p className="pd-muted">{kind === "week" ? copy.reportWeekNote : copy.reportMonthNote}</p>
+        <div className="pd-chat">
+          <WhatsAppText text={report} />
+        </div>
+      </section>
+
+      <a
+        className="pd-cta"
+        href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${waText}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {copy.askTeacher}
+      </a>
+    </Shell>
   );
 }
 

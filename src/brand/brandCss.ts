@@ -4,7 +4,6 @@
 import { TIMING } from "@/config/timing";
 import { sceneAt } from "./antScene";
 import { STORY_CSS } from "./storyBeats";
-import { SPLASH_STORAGE_KEY } from "./splashTiming";
 
 const S = TIMING.splash;
 const A = TIMING.ant;
@@ -14,13 +13,13 @@ const L = TIMING.logo;
 const s = (n: number) => `${+n.toFixed(3)}s`;
 
 /**
- * Runs before first paint: picks the perf tier (?perf=low|high overrides), and marks repeat
- * loads in this session so the splash never flashes again. Tap or any key skips the splash.
+ * Runs before first paint: picks the perf tier (?perf=low|high overrides). The splash plays on every load
+ * of the home page (owner, 2026-10-20) and never on the login or dashboard pages. Tap or any key skips it.
  */
 export const HEAD_SCRIPT = `(function(){var d=document.documentElement,m=function(q){return matchMedia(q).matches},n=navigator,p=null;try{p=new URLSearchParams(location.search).get("perf")}catch(e){}
 var low=p?p==="low":m("(pointer: coarse)")||innerWidth<1024||(n.hardwareConcurrency||8)<=4||(n.deviceMemory||8)<=4||!!(n.connection&&n.connection.saveData)||m("(prefers-reduced-motion: reduce)");
 d.setAttribute("data-perf",low?"low":"high");
-try{if(sessionStorage.getItem("${SPLASH_STORAGE_KEY}"))d.setAttribute("data-splash","off");else sessionStorage.setItem("${SPLASH_STORAGE_KEY}","1")}catch(e){}
+if(location.pathname!=="/")d.setAttribute("data-splash","off");
 var skip=function(){var el=document.getElementById("splash");if(el)el.classList.add("is-skip")};addEventListener("pointerdown",function(e){if(e.target&&e.target.closest&&e.target.closest("#splash"))skip()});addEventListener("keydown",skip,{once:true})})()`;
 
 /**

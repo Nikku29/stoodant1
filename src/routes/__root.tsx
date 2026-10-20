@@ -1,11 +1,9 @@
 import {
   Outlet,
-  Link,
   createRootRoute,
-  useRouter,
   HeadContent,
   Scripts,
-  type ErrorComponentProps,
+  lazyRouteComponent,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -15,61 +13,15 @@ import { BRAND_CSS, HEAD_SCRIPT } from "../brand/brandCss";
 import { Splash } from "../brand/Splash";
 import { SITE_CONFIG } from "../config/siteConfig";
 
-export function NotFoundComponent() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  console.error(error);
-  const router = useRouter();
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
+// The not-found and error pages load only when needed, which keeps them out of the first download.
+const NotFoundComponent = lazyRouteComponent(
+  () => import("../components/RoutePages"),
+  "NotFoundComponent",
+);
+const ErrorComponent = lazyRouteComponent(
+  () => import("../components/RoutePages"),
+  "ErrorComponent",
+);
 
 export const Route = createRootRoute({
   head: () => ({
@@ -122,7 +74,7 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Runs before first paint: perf tier and once-per-session splash (see brand/brandCss.ts).
+        {/* Runs before first paint: perf tier and splash (see brand/brandCss.ts).
             Both are only in the prerendered HTML; the browser bundle reuses the page's own copy (see headTag). */}
         <script suppressHydrationWarning {...HEAD_SCRIPT_PROPS} />
         <style suppressHydrationWarning {...BRAND_CSS_PROPS} />
