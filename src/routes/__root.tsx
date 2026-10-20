@@ -104,30 +104,28 @@ export const Route = createRootRoute({
   errorComponent: ErrorComponent,
 });
 
-// The browser bundle leaves the head script and brand CSS out (they are large) and reuses the copy already in
-// the prerendered page. Rendering "" instead would empty the <style> on the next re-render, such as an in-page link.
-function fromPage(id: string) {
-  return typeof document === "undefined" ? "" : (document.getElementById(id)?.textContent ?? "");
+// The browser bundle leaves the head script and brand CSS out (they are large) and reuses the text already in the
+// prerendered page, as plain text children. Rendering nothing instead would leave them empty if the head remounts,
+// such as after an in-page link.
+function headTag(id: string, serverHtml: string) {
+  if (import.meta.env.SSR) return { id, dangerouslySetInnerHTML: { __html: serverHtml } };
+  return {
+    id,
+    children:
+      typeof document === "undefined" ? "" : (document.getElementById(id)?.textContent ?? ""),
+  };
 }
-const HEAD_SCRIPT_HTML = import.meta.env.SSR ? HEAD_SCRIPT : fromPage("stoodant-head-script");
-const BRAND_CSS_HTML = import.meta.env.SSR ? BRAND_CSS : fromPage("stoodant-brand-css");
+const HEAD_SCRIPT_PROPS = headTag("stoodant-head-script", import.meta.env.SSR ? HEAD_SCRIPT : "");
+const BRAND_CSS_PROPS = headTag("stoodant-brand-css", import.meta.env.SSR ? BRAND_CSS : "");
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Runs before first paint: perf tier and once-per-session splash (see brand/brandCss.ts).
-            Both are only in the prerendered HTML; the browser bundle reuses the page's own copy (see fromPage). */}
-        <script
-          id="stoodant-head-script"
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: HEAD_SCRIPT_HTML }}
-        />
-        <style
-          id="stoodant-brand-css"
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: BRAND_CSS_HTML }}
-        />
+            Both are only in the prerendered HTML; the browser bundle reuses the page's own copy (see headTag). */}
+        <script suppressHydrationWarning {...HEAD_SCRIPT_PROPS} />
+        <style suppressHydrationWarning {...BRAND_CSS_PROPS} />
         <HeadContent />
       </head>
       <body>
