@@ -118,7 +118,15 @@ Cloud Monitoring → Uptime checks: `https://stoodant.com/` (expect 200, every 5
 
 ### 9. Moving the domain from Vercel
 
-Until this step is done, Vercel builds `main` using `vercel.json` (static build in `dist/client`). The demo form only works once the Firebase backend is deployed, because `/api/lead` exists only on Firebase Hosting.
+Until this step is done, Vercel builds `main` using `vercel.json` (static build in `dist/client`). `/api/lead` exists only on Firebase Hosting, so the Vercel build gets these variables in Vercel → Project → Settings → Environment Variables (Production), and the demo form posts straight to the live function:
+
+| Variable | Value |
+|---|---|
+| `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` | stoodant-prod web app (step 2.1) |
+| `VITE_RECAPTCHA_SITE_KEY` | stoodant-prod site key (step 2.2) |
+| `VITE_LEAD_ENDPOINT` | `https://asia-south1-stoodant-prod.cloudfunctions.net/submitLead` |
+
+After the move, the Vercel project and its variables can be removed.
 1. Let `main` deploy to staging and production; check `https://stoodant-prod.web.app`.
 2. Firebase console → Hosting → Add custom domain `stoodant.com` and `www.stoodant.com` (redirect www → apex).
 3. In GoDaddy DNS replace the Vercel A/CNAME records with the ones Firebase shows. Keep Vercel running until the Firebase certificate is issued (can take a few hours), then remove the domain from Vercel.
