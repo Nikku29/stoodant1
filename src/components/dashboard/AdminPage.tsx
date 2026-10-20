@@ -1,21 +1,27 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import {
   addLeadNote,
   addTeamMember,
+  allProgress,
+  deleteLead,
   deleteRecord,
+  istDay,
   listAll,
   removeTeamMember,
   saveRecord,
   setLeadStatus,
   type Batch,
   type Lead,
+  type Progress,
   type Student,
   type Teacher,
   type TeamMember,
 } from "@/lib/firebase/school";
 import { indianMobile, signOutNow, useSession, type Session } from "@/lib/firebase/session";
+import { overview } from "@/lib/progress/insights";
+import { Overview } from "./AdminReports";
 import { Loading, RequireLogin, Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.admin;
@@ -49,29 +55,31 @@ export function AdminPage() {
   return <Admin session={session} />;
 }
 
-type Data = {
+export type Data = {
   leads: Lead[];
   students: Student[];
   teachers: Teacher[];
   batches: Batch[];
   team: TeamMember[];
+  progress: Progress[];
 };
 
 function Admin({ session }: { session: Session }) {
-  const [tab, setTab] = useState<Tab>("leads");
+  const [tab, setTab] = useState<Tab>("overview");
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const [leads, students, teachers, batches, team] = await Promise.all([
+      const [leads, students, teachers, batches, team, progress] = await Promise.all([
         listAll.leads(),
         listAll.students(),
         listAll.teachers(),
         listAll.batches(),
         listAll.team(),
+        allProgress(),
       ]);
-      setData({ leads, students, teachers, batches, team });
+      setData({ leads, students, teachers, batches, team, progress });
       setError(null);
     } catch {
       setError("Couldn't load the records. Please check the internet connection and refresh.");
@@ -120,6 +128,7 @@ function Admin({ session }: { session: Session }) {
         <Loading />
       ) : (
         <div role="tabpanel">
+          {tab === "overview" && <Overview data={data} />}
           {tab === "leads" && <Leads leads={data.leads} act={act} uid={session.user.uid} />}
           {tab === "students" && <Students data={data} act={act} />}
           {tab === "teachers" && <Teachers data={data} act={act} />}
@@ -205,6 +214,16 @@ function LeadItem({ lead, act, uid }: { lead: Lead; act: Act; uid: string }) {
         <a className="pd-link" href={wa} target="_blank" rel="noopener noreferrer">
           WhatsApp
         </a>
+        <button
+          type="button"
+          className="pd-link"
+          onClick={() =>
+            confirmDelete(`the demo request from ${lead.parentName}`) &&
+            void act(() => deleteLead(lead.id))
+          }
+        >
+          Delete
+        </button>
       </div>
       <form
         className="pd-actions"
@@ -365,6 +384,12 @@ function PhoneCheck({ phone }: { phone: string | null }) {
   );
 }
 
+/** 15 to 300 minutes; anything else falls back to an hour. */
+const classMinutes = (text: string) => {
+  const n = Number(text);
+  return Number.isInteger(n) && n >= 15 && n <= 300 ? n : 60;
+};
+
 const confirmDelete = (what: string) => window.confirm(`Delete ${what}? This can't be undone.`);
 
 // ---- Students ----
@@ -381,8 +406,65 @@ const blankStudent: StudentForm = {
   active: true,
 };
 
+type StudentFilter = {
+  q: string;
+  classLevel: string;
+  batch: string;
+  show: "active" | "inactive" | "all";
+};
+type Numbers = { attendance: number | null; held: number; average: number | null; tests: number };
+
+/** Attendance and test average over the last 30 days, from each child's progress page. */
+function usePerformance(progress: Progress[]) {
+  return useMemo(() => {
+    const period = { from: istDay(-29), to: istDay() };
+    return new Map<string, Numbers>(
+      progress.map((p) => {
+        const o = overview(p, period);
+        return [
+          p.student.id,
+          {
+            attendance: o.attendance.percent,
+            held: o.attendance.held,
+            average: o.average,
+            tests: o.tests.filter((t) => t.percent != null).length,
+          },
+        ];
+      }),
+    );
+  }, [progress]);
+}
+
+function Performance({ numbers }: { numbers: Numbers | undefined }) {
+  if (!numbers || (!numbers.held && !numbers.tests))
+    return <span className="pd-muted">No classes or tests in the last 30 days.</span>;
+  return (
+    <dl className="pd-class-nums">
+      <div>
+        <dt>Attendance</dt>
+        <dd>{numbers.attendance == null ? "–" : `${numbers.attendance}%`}</dd>
+      </div>
+      <div>
+        <dt>Classes</dt>
+        <dd>{numbers.held}</dd>
+      </div>
+      <div>
+        <dt>Test average</dt>
+        <dd>{numbers.average == null ? "–" : `${numbers.average}%`}</dd>
+      </div>
+    </dl>
+  );
+}
+
 function Students({ data, act }: { data: Data; act: Act }) {
   const [editing, setEditing] = useState<{ id: string | null; form: StudentForm } | null>(null);
+  const [filter, setFilter] = useState<StudentFilter>({
+    q: "",
+    classLevel: "",
+    batch: "",
+    show: "active",
+  });
+  const performance = usePerformance(data.progress);
   const batchName = (id: string) => data.batches.find((b) => b.id === id)?.name ?? "Removed batch";
   if (editing) {
     const { form } = editing;
@@ -473,6 +555,13 @@ function Students({ data, act }: { data: Data; act: Act }) {
       </Editor>
     );
   }
+  const shown = data.students.filter(
+    (s) =>
+      (!filter.q || s.name.toLowerCase().includes(filter.q.trim().toLowerCase())) &&
+      (!filter.classLevel || s.classLevel === filter.classLevel) &&
+      (!filter.batch || s.batchIds.includes(filter.batch)) &&
+      (filter.show === "all" || s.active === (filter.show === "active")),
+  );
   return (
     <>
       <button
@@ -482,9 +571,57 @@ function Students({ data, act }: { data: Data; act: Act }) {
       >
         Add a student
       </button>
+      {data.students.length > 0 && (
+        <div className="pd-filters" role="search" aria-label="Find students">
+          <Text
+            label="Search by name"
+            type="search"
+            value={filter.q}
+            onChange={(q) => setFilter({ ...filter, q })}
+            placeholder="Child's name"
+          />
+          <div className="pd-grid pd-grid-3">
+            <Choice
+              label="Class"
+              value={filter.classLevel}
+              options={[
+                ["", "All classes"],
+                ...CLASSES.map((c): [string, string] => [c, `Class ${c}`]),
+              ]}
+              onChange={(classLevel) => setFilter({ ...filter, classLevel })}
+            />
+            <Choice
+              label="Batch"
+              value={filter.batch}
+              options={[
+                ["", "All batches"],
+                ...data.batches.map((b): [string, string] => [b.id, b.name]),
+              ]}
+              onChange={(batch) => setFilter({ ...filter, batch })}
+            />
+            <Choice
+              label="Show"
+              value={filter.show}
+              options={[
+                ["active", "Studying now"],
+                ["inactive", "Left"],
+                ["all", "Everyone"],
+              ]}
+              onChange={(show) => setFilter({ ...filter, show: show as StudentFilter["show"] })}
+            />
+          </div>
+          <p className="pd-muted" aria-live="polite">
+            {shown.length} of {data.students.length} students · attendance and marks from the last
+            30 days
+          </p>
+        </div>
+      )}
       {!data.students.length && <p className="pd-empty">No students yet.</p>}
+      {data.students.length > 0 && !shown.length && (
+        <p className="pd-empty">No students match. Try clearing the search or filters.</p>
+      )}
       <ul className="pd-list">
-        {data.students.map((s) => (
+        {shown.map((s) => (
           <li key={s.id} className={`pd-item${s.active ? "" : " is-off"}`}>
             <div className="pd-item-head">
               <strong>{s.name}</strong>
@@ -498,6 +635,7 @@ function Students({ data, act }: { data: Data; act: Act }) {
             <span className="pd-muted">
               {s.batchIds.length ? s.batchIds.map(batchName).join(", ") : "Not in a batch yet"}
             </span>
+            <Performance numbers={performance.get(s.id)} />
             <ItemActions
               onEdit={() =>
                 setEditing({
@@ -629,7 +767,7 @@ function Teachers({ data, act }: { data: Data; act: Act }) {
 type BatchForm = Pick<
   Batch,
   "name" | "classLevel" | "board" | "subject" | "teacherId" | "schedule" | "active"
->;
+> & { minutes: string };
 
 function Batches({ data, act }: { data: Data; act: Act }) {
   const [editing, setEditing] = useState<{ id: string | null; form: BatchForm } | null>(null);
@@ -645,11 +783,13 @@ function Batches({ data, act }: { data: Data; act: Act }) {
         valid={Boolean(form.name.trim() && form.subject.trim())}
         onCancel={() => setEditing(null)}
         onSave={async () => {
+          const { minutes, ...rest } = form;
           const fields = {
-            ...form,
+            ...rest,
             name: form.name.trim(),
             subject: form.subject.trim(),
             schedule: form.schedule.trim().slice(0, 120),
+            durationMinutes: classMinutes(minutes),
           };
           if (await act(() => saveRecord("batches", editing.id, fields))) setEditing(null);
         }}
@@ -698,6 +838,13 @@ function Batches({ data, act }: { data: Data; act: Act }) {
           onChange={(schedule) => set({ schedule })}
           placeholder="Mon, Wed, Fri · 5:00 pm"
         />
+        <Text
+          label="Length of one class (minutes, for the hours report)"
+          inputMode="numeric"
+          value={form.minutes}
+          onChange={(m) => set({ minutes: m.replace(/\D/g, "").slice(0, 3) })}
+          placeholder="60"
+        />
         <Check label="Running now" checked={form.active} onChange={(active) => set({ active })} />
       </Editor>
     );
@@ -710,6 +857,7 @@ function Batches({ data, act }: { data: Data; act: Act }) {
     teacherId: "",
     schedule: "",
     active: true,
+    minutes: "60",
   };
   return (
     <>
@@ -729,7 +877,8 @@ function Batches({ data, act }: { data: Data; act: Act }) {
               <span>{b.subject}</span>
             </div>
             <span>
-              {teacherName(b.teacherId)} · {b.schedule || "No schedule yet"}
+              {teacherName(b.teacherId)} · {b.schedule || "No schedule yet"} ·{" "}
+              {b.durationMinutes ?? 60} min
             </span>
             <span className="pd-muted">
               {b.roster?.length ? b.roster.map((s) => s.name).join(", ") : "No students yet"}
@@ -746,11 +895,17 @@ function Batches({ data, act }: { data: Data; act: Act }) {
                     teacherId: b.teacherId,
                     schedule: b.schedule,
                     active: b.active,
+                    minutes: String(b.durationMinutes ?? 60),
                   },
                 })
               }
               onDelete={() =>
                 confirmDelete(b.name) && void act(() => deleteRecord("batches", b.id))
+              }
+              extra={
+                <a className="pd-link" href={`/teacher?batch=${b.id}`}>
+                  Teacher's page
+                </a>
               }
             />
           </li>
