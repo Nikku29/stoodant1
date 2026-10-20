@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import { Fragment, lazy, memo, Suspense, useEffect, useRef, type ComponentType, type CSSProperties, type ReactNode } from "react";
 
 type SectionModule = { default: ComponentType };
 export type LazySectionDef = {
@@ -58,7 +58,7 @@ export function preloadSections(defs: readonly LazySectionDef[]) {
 }
 
 /** Renders the section (server HTML first), and loads its code when it nears the viewport. */
-export function LazySection({ def }: { def: LazySectionDef }) {
+export const LazySection = memo(function LazySection({ def, wrapper: Wrapper = Fragment }: { def: LazySectionDef; wrapper?: ComponentType<{ children: ReactNode }> }) {
   const mark = useRef<HTMLSpanElement>(null);
   const gated = gatedComponent(def.load);
 
@@ -74,8 +74,8 @@ export function LazySection({ def }: { def: LazySectionDef }) {
   const style = { "--slot-m": `${def.heights[0]}px`, "--slot-t": `${def.heights[1]}px`, "--slot-d": `${def.heights[2]}px` } as CSSProperties;
   const placeholder = <div id={def.id} className={`lazy-slot ${def.tone}`} style={style} aria-hidden="true" />;
   const Section = (import.meta.env.SSR && preloaded.get(def.load)) || gated.component;
-  return <><span ref={mark} className="lazy-mark" aria-hidden="true" /><Suspense fallback={placeholder}><Mounted><Section /></Mounted></Suspense></>;
-}
+  return <><span ref={mark} className="lazy-mark" aria-hidden="true" /><Suspense fallback={placeholder}><Wrapper><Mounted><Section /></Mounted></Wrapper></Suspense></>;
+});
 
 function Mounted({ children }: { children: ReactNode }) {
   useEffect(() => { window.dispatchEvent(new Event(CHANGED_EVENT)); }, []);

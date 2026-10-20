@@ -42,23 +42,32 @@ export function preloadLandingSections() {
 export function StoodantLanding() {
   useLazyAnchors();
 
+  // Each part gets its own <LazyMotion>. When the motion features finish loading, LazyMotion re-renders with a new
+  // context value; under one shared provider that update would reach the sections still waiting to hydrate, and
+  // React would throw away their prerendered HTML and show the placeholders instead.
   return (
-    <LazyMotion features={loadMotionFeatures} strict>
     <div className="site-shell">
       <AntSprite />
       <CustomCursor />
-      <Header />
+      <MotionScope><Header /></MotionScope>
       <main>
-        <TeamBanner />
-        <Hero />
-        {MAIN_SECTIONS.map((def, index) => <LazySection key={index} def={def} />)}
+        <MotionScope>
+          <TeamBanner />
+          <Hero />
+        </MotionScope>
+        {MAIN_SECTIONS.map((def, index) => <LazySection key={index} def={def} wrapper={MotionScope} />)}
       </main>
-      <LazySection def={FOOTER} />
-      <WhatsappButton />
-      <LaterRoamingAnt />
+      <LazySection def={FOOTER} wrapper={MotionScope} />
+      <MotionScope>
+        <WhatsappButton />
+        <LaterRoamingAnt />
+      </MotionScope>
     </div>
-    </LazyMotion>
   );
+}
+
+function MotionScope({ children }: { children: ReactNode }) {
+  return <LazyMotion features={loadMotionFeatures} strict>{children}</LazyMotion>;
 }
 
 function LaterRoamingAnt() {
