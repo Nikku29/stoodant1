@@ -14,7 +14,7 @@ export function AboutPage() {
         <h2 className="font-[family-name:var(--font-display)] text-xl font-bold sm:text-2xl">{about.foundersHeading}</h2>
         <ul className="mt-4 grid gap-4 sm:grid-cols-2">
           {SITE_CONFIG.founders.map((founder) => {
-            const teacher = teacherById.get(founder.id);
+            const teacher = teacherById.get(founder.id) ?? about.founderNotes[founder.id];
             return (
               <li key={founder.id} className="rounded-2xl border border-neutral-200 p-5">
                 <p className="font-[family-name:var(--font-display)] text-lg font-bold">{founder.name}</p>

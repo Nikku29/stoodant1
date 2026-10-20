@@ -34,6 +34,13 @@ export const PAGES_CONFIG = {
       },
     ],
     foundersHeading: "Founders",
+    // Founder details for founders who aren't in the teacher list (teachers' highlights and quotes come from siteConfig).
+    founderNotes: {
+      "nikhil-sharma": {
+        highlights: ["Leads technology", "Built the Stoodant website, parent dashboard and teacher tools"],
+        quote: "Parents shouldn't have to guess how their child is doing. I build the tools that keep families, teachers and students on the same page.",
+      },
+    } as Record<string, { highlights: readonly string[]; quote: string } | undefined>,
     teachersHeading: "Our teachers",
     teachersLead: "Every Stoodant teacher teaches the subject they know best. You meet your child's teacher in the free demo before you decide.",
     howHeading: "How classes work",
