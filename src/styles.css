@@ -1,6 +1,9 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "./fonts.css";
+/* In the main sheet, not the section chunk: the prerendered ring must be styled before its code loads,
+   or a visitor who lands low on the page (back button, /#demo) sees 11 unstyled cards and the page jumps. */
+@import "./components/teachers-ring.css";
 
 @theme inline {
   --font-display: "Sora", sans-serif;

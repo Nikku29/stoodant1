@@ -2,7 +2,6 @@ import { animate, m, useMotionValue, useMotionValueEvent, useTransform, type Mot
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { TIMING } from "@/config/timing";
-import "./teachers-ring.css";
 
 type Slide = (typeof SITE_CONFIG.teachers.slides)[number];
 const MIN_SLIDES = 6;
