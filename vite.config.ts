@@ -1,7 +1,21 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
+import { llmsTxt, robotsTxt, sitemapXml } from "./src/seo/files";
+
+// robots.txt, sitemap.xml and llms.txt are generated from siteConfig, so they never drift from the page.
+function seoFiles(): Plugin {
+  return {
+    name: "stoodant-seo-files",
+    generateBundle() {
+      if (this.environment.name !== "client") return;
+      this.emitFile({ type: "asset", fileName: "robots.txt", source: robotsTxt() });
+      this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemapXml() });
+      this.emitFile({ type: "asset", fileName: "llms.txt", source: llmsTxt() });
+    },
+  };
+}
 
 // Keep large libraries in their own long-cached chunks. A group only bundles what is already
 // reachable from where it is used. Shared dependencies are not pulled into a group
@@ -30,6 +44,7 @@ export default defineConfig({
       pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }],
     }),
     viteReact(),
+    seoFiles(),
   ],
   css: { transformer: "lightningcss" },
   resolve: {

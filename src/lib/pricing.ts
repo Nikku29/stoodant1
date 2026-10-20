@@ -1,4 +1,4 @@
-import { SITE_CONFIG } from "@/config/siteConfig";
+import { SITE_CONFIG } from "../config/siteConfig";
 
 export function isOfferActive(today = new Date()): boolean {
   const { discountPercent, offerLabel, offerEndsOn } = SITE_CONFIG.offer;

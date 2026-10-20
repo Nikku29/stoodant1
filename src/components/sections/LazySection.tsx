@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import { Fragment, lazy, memo, Suspense, useEffect, useRef, type ComponentType, type CSSProperties, type ReactNode } from "react";
 
 type SectionModule = { default: ComponentType };
 export type LazySectionDef = {
@@ -29,37 +29,53 @@ export function requestAllSections() {
   loadAllListeners.forEach((listener) => listener());
 }
 
-const lazyComponents = new Map<LazySectionDef["load"], ComponentType>();
-function lazyComponent(load: LazySectionDef["load"]) {
-  let component = lazyComponents.get(load);
-  if (!component) {
-    component = lazy(load);
-    lazyComponents.set(load, component);
+// Each section's code waits behind a gate that opens when the section nears the viewport.
+// The prerendered page already holds every section's HTML, so crawlers and visitors without JS see the full page;
+// while a gate is shut React keeps that server HTML as it is and hydrates it once the code arrives.
+// After an in-app navigation there is no server HTML, so the placeholder shows until the gate opens.
+type Gated = { component: ComponentType; open: () => void };
+const gatedComponents = new Map<LazySectionDef["load"], Gated>();
+function gatedComponent(load: LazySectionDef["load"]) {
+  let gated = gatedComponents.get(load);
+  if (!gated) {
+    if (import.meta.env.SSR) {
+      gated = { component: lazy(load), open: () => {} };
+    } else {
+      let open = () => {};
+      const gate = new Promise<void>((resolve) => { open = resolve; });
+      gated = { component: lazy(() => gate.then(load)), open };
+    }
+    gatedComponents.set(load, gated);
   }
-  return component;
+  return gated;
 }
 
-/** Renders a same-size placeholder until the section nears the viewport, then loads and mounts it. */
-export function LazySection({ def }: { def: LazySectionDef }) {
-  const slot = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(false);
+// On the server the route loader loads every section first (preloadSections), so the page renders them in order,
+// without suspending. A suspended section would be streamed to the end of the HTML and moved into place by a script.
+const preloaded = new Map<LazySectionDef["load"], ComponentType>();
+export function preloadSections(defs: readonly LazySectionDef[]) {
+  return Promise.all(defs.map((def) => def.load().then((mod) => { preloaded.set(def.load, mod.default); })));
+}
+
+/** Renders the section (server HTML first), and loads its code when it nears the viewport. */
+export const LazySection = memo(function LazySection({ def, wrapper: Wrapper = Fragment }: { def: LazySectionDef; wrapper?: ComponentType<{ children: ReactNode }> }) {
+  const mark = useRef<HTMLSpanElement>(null);
+  const gated = gatedComponent(def.load);
 
   useEffect(() => {
-    if (near) return;
-    const show = () => setNear(true);
+    const show = gated.open;
     if (loadAll || typeof IntersectionObserver === "undefined") { show(); return; }
     loadAllListeners.add(show);
     const observer = new IntersectionObserver(([entry]) => { if (entry?.isIntersecting) show(); }, { rootMargin: NEAR_VIEWPORT });
-    if (slot.current) observer.observe(slot.current);
+    if (mark.current) observer.observe(mark.current);
     return () => { loadAllListeners.delete(show); observer.disconnect(); };
-  }, [near]);
+  }, [gated]);
 
   const style = { "--slot-m": `${def.heights[0]}px`, "--slot-t": `${def.heights[1]}px`, "--slot-d": `${def.heights[2]}px` } as CSSProperties;
-  const placeholder = <div ref={slot} id={def.id} className={`lazy-slot ${def.tone}`} style={style} aria-hidden="true" />;
-  if (!near) return placeholder;
-  const Section = lazyComponent(def.load);
-  return <Suspense fallback={placeholder}><Mounted><Section /></Mounted></Suspense>;
-}
+  const placeholder = <div id={def.id} className={`lazy-slot ${def.tone}`} style={style} aria-hidden="true" />;
+  const Section = (import.meta.env.SSR && preloaded.get(def.load)) || gated.component;
+  return <><span ref={mark} className="lazy-mark" aria-hidden="true" /><Suspense fallback={placeholder}><Wrapper><Mounted><Section /></Mounted></Wrapper></Suspense></>;
+});
 
 function Mounted({ children }: { children: ReactNode }) {
   useEffect(() => { window.dispatchEvent(new Event(CHANGED_EVENT)); }, []);

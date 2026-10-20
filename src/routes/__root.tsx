@@ -30,6 +30,8 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "theme-color", content: "#ffffff" },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: SITE_CONFIG.brand.name },
+      { property: "og:locale", content: "en_IN" },
       { property: "og:image", content: `${SITE_CONFIG.siteUrl}/og-image.png` },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
@@ -72,7 +74,7 @@ const BRAND_CSS_PROPS = headTag("stoodant-brand-css", import.meta.env.SSR ? BRAN
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en-IN" suppressHydrationWarning>
       <head>
         {/* Runs before first paint: perf tier and splash (see brand/brandCss.ts).
             Both are only in the prerendered HTML; the browser bundle reuses the page's own copy (see headTag). */}
