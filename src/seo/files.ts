@@ -41,6 +41,10 @@ Tagline: ${SITE_CONFIG.brand.tagline}
 Website: ${site}/
 Phone and WhatsApp: ${SITE_CONFIG.contact.phone}
 Email: ${SITE_CONFIG.contact.email}
+${SITE_CONFIG.social.map((profile) => `${profile.label}: ${profile.href}`).join("\n")}
+
+## Founders
+${SITE_CONFIG.founders.map((founder) => `- ${founder.name}, ${founder.jobTitle} (LinkedIn: ${founder.linkedin})`).join("\n")}
 
 ## Key facts
 - Classes: ${SITE_CONFIG.form.classes[0]} to ${SITE_CONFIG.form.classes.at(-1)}
