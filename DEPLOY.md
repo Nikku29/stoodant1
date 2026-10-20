@@ -101,11 +101,13 @@ Finally add the **repository** variable `DEPLOY_ENABLED` = `true`. Until then th
 Branch protection on `main`: require the CI checks, one review, no direct pushes.
 
 ### 7. Log-ins and admin access
-Everyone signs in on **/login** (linked from the site footer):
-- **Parents and teachers**: their mobile number and a 6-digit SMS code. The number decides the page: a teacher's number (on a
-  `teachers` record linked to a running batch) opens /teacher, a parent's number (on a `students` record) opens /parent.
-- **The Stoodant team**: "Continue with Google". Addresses listed in `ADMIN_EMAILS` (functions/.env.<project>) get the admin
-  claim through the `claimAdmin` function and land on /admin, where they manage demo requests, students, teachers and batches.
+Everyone signs in on **/login** (linked from the site header and footer):
+- **Parents and teachers**: their mobile number and a 6-digit SMS code. The number decides the page: a teacher's number (on an
+  active `teachers` record) opens /teacher, a parent's number (on a `students` record) opens /parent.
+- **The Stoodant team**: "Continue with Google". The owners in `ADMIN_EMAILS` (functions/.env.<project>) and anyone added on
+  /admin → Team access (a `team/{email}` document) get the admin claim through the `claimAdmin` function and land on /admin,
+  where they manage demo requests, students, teachers, batches and the team list. Removing someone there clears their claim
+  and signs them out everywhere (`onTeamRemoved`). Owners can't be removed from the page.
 
 One-time Firebase console setup per project (Authentication):
 - Sign-in method: enable **Phone** and **Google**. Under Settings → SMS region policy, allow only India.

@@ -49,6 +49,18 @@ service cloud.firestore {
 
     // ---- Set up by the team on /admin ----
 
+    // Google addresses that may open /admin, one document per address (id = the address, lower case).
+    // The owners in ADMIN_EMAILS always have access on top of these. Nobody can remove themselves.
+    match /team/{email} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && email.matches('^[a-z0-9._%+-]+@[a-z0-9-]+([.][a-z0-9-]+)*[.][a-z]{2,}$')
+        && request.resource.data.keys().hasOnly(['addedBy', 'createdAt'])
+        && request.resource.data.addedBy == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow delete: if isAdmin() && email != request.auth.token.get('email', '');
+    }
+
     match /teachers/{teacherId} {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.phone == phone());
       allow create, update: if isAdmin()
