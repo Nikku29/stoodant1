@@ -1,6 +1,9 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "./fonts.css";
+/* In the main sheet, not the section chunk: the prerendered ring must be styled before its code loads,
+   or a visitor who lands low on the page (back button, /#demo) sees 11 unstyled cards and the page jumps. */
+@import "./components/teachers-ring.css";
 
 @theme inline {
   --font-display: "Sora", sans-serif;
@@ -351,7 +354,7 @@ html,body{overflow-x:clip}
 /* Below-the-fold sections: the browser skips rendering them until they are near the viewport.
  * None of them has sticky or fixed children. Sizes match the lazy placeholders (measured). */
 .story-section.problem-slides,.gap-section,.process-section,.story-section.ahead-slides,.pricing-section,.comparison-section,.subjects-section,.teachers-section,.progress-section,.testimonials-section,.faq-section,.final-cta,.site-shell>footer{content-visibility:auto}
-.story-section.problem-slides{contain-intrinsic-size:auto 595px}.gap-section{contain-intrinsic-size:auto 733px}.process-section{contain-intrinsic-size:auto 1056px}.story-section.ahead-slides{contain-intrinsic-size:auto 595px}.pricing-section{contain-intrinsic-size:auto 1033px}.comparison-section{contain-intrinsic-size:auto 643px}.subjects-section{contain-intrinsic-size:auto 417px}.teachers-section{contain-intrinsic-size:auto 839px}.progress-section{contain-intrinsic-size:auto 1192px}.testimonials-section{contain-intrinsic-size:auto 975px}.faq-section{contain-intrinsic-size:auto 771px}.final-cta{contain-intrinsic-size:auto 1090px}.site-shell>footer{contain-intrinsic-size:auto 660px}
+.story-section.problem-slides{contain-intrinsic-size:auto 595px}.gap-section{contain-intrinsic-size:auto 733px}.process-section{contain-intrinsic-size:auto 1056px}.story-section.ahead-slides{contain-intrinsic-size:auto 595px}.pricing-section{contain-intrinsic-size:auto 1033px}.comparison-section{contain-intrinsic-size:auto 643px}.subjects-section{contain-intrinsic-size:auto 417px}.teachers-section{contain-intrinsic-size:auto 839px}.progress-section{contain-intrinsic-size:auto 1192px}.testimonials-section{contain-intrinsic-size:auto 975px}.faq-section{contain-intrinsic-size:auto 771px}.final-cta{contain-intrinsic-size:auto 1090px}.site-shell>footer{contain-intrinsic-size:auto 730px}
 @media(min-width:768px){.story-section.problem-slides{contain-intrinsic-size:auto 727px}.gap-section{contain-intrinsic-size:auto 469px}.process-section{contain-intrinsic-size:auto 916px}.story-section.ahead-slides{contain-intrinsic-size:auto 727px}.pricing-section{contain-intrinsic-size:auto 1545px}.comparison-section{contain-intrinsic-size:auto 497px}.subjects-section{contain-intrinsic-size:auto 328px}.teachers-section{contain-intrinsic-size:auto 759px}.progress-section{contain-intrinsic-size:auto 1007px}.testimonials-section{contain-intrinsic-size:auto 393px}.faq-section{contain-intrinsic-size:auto 661px}.final-cta{contain-intrinsic-size:auto 983px}.site-shell>footer{contain-intrinsic-size:auto 400px}}
 @media(min-width:1024px){.story-section.problem-slides{contain-intrinsic-size:auto 409px}.gap-section{contain-intrinsic-size:auto 441px}.process-section{contain-intrinsic-size:auto 626px}.story-section.ahead-slides{contain-intrinsic-size:auto 409px}.pricing-section{contain-intrinsic-size:auto 993px}.comparison-section{contain-intrinsic-size:auto 633px}.subjects-section{contain-intrinsic-size:auto 474px}.teachers-section{contain-intrinsic-size:auto 833px}.progress-section{contain-intrinsic-size:auto 1101px}.testimonials-section{contain-intrinsic-size:auto 420px}.faq-section{contain-intrinsic-size:auto 502px}.final-cta{contain-intrinsic-size:auto 604px}.site-shell>footer{contain-intrinsic-size:auto 400px}}
 
@@ -389,3 +392,14 @@ html,body{overflow-x:clip}
  .pricing-grid::-webkit-scrollbar{display:none}
  .pricing-card{flex:0 0 84%;scroll-snap-align:center;min-height:auto}
 }
+
+/* Compact footer (owner feedback): quick links in two columns, tighter spacing; tap targets stay 44px. */
+footer{padding-top:48px}
+.footer-grid{grid-template-columns:1.3fr 2fr 1fr;gap:32px}
+.footer-grid>div{gap:4px}
+.footer-grid strong{margin-bottom:4px}
+.footer-grid>.footer-links{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px}
+.footer-links>strong{grid-column:1/-1}
+.copyright{margin-top:32px;padding-top:18px}
+@media(max-width:767px){footer{padding-top:40px}.footer-grid{grid-template-columns:1fr;gap:24px}.footer-grid>div:last-child{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px}.footer-grid>div:last-child>strong{grid-column:1/-1}.copyright{margin-top:24px}}
+footer.info-footer{padding:28px 0}

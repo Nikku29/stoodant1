@@ -52,7 +52,7 @@ export function InfoPage({ page, path, showUpdated = false, children }: { page: 
           </p>
         </section>
       </main>
-      <footer className="bg-[var(--ink)] py-8 text-white">
+      <footer className="info-footer bg-[var(--ink)] text-white">
         <nav className="mx-auto flex max-w-3xl flex-wrap gap-x-6 gap-y-3 px-4 text-sm" aria-label="Stoodant pages">
           <a href="/">{SITE_CONFIG.brand.name}</a>
           {links.map((link) => <a key={link.href} href={link.href} aria-current={link.href === path ? "page" : undefined}>{link.label}</a>)}
