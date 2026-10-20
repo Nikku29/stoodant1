@@ -157,6 +157,24 @@ test("the team sets up students, teachers and batches, but not the fields functi
   }
 });
 
+test("the team list: the team adds and removes addresses, never themselves, and nobody else sees it", async () => {
+  const db = admin();
+  const entry = { addedBy: "owner@example.com", createdAt: serverTimestamp() };
+  await assertSucceeds(setDoc(doc(db, "team/helper@gmail.com"), entry));
+  await assertSucceeds(getDocs(collection(db, "team")));
+  await assertFails(setDoc(doc(db, "team/Helper@Gmail.com"), entry));
+  await assertFails(setDoc(doc(db, "team/not-an-address"), entry));
+  await assertFails(setDoc(doc(db, "team/someone@gmail.com"), { addedBy: "someone-else@example.com", createdAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(db, "team/someone@gmail.com"), { ...entry, role: "owner" }));
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "team/owner@example.com"), { addedBy: "x" }));
+  await assertFails(deleteDoc(doc(db, "team/owner@example.com")));
+  await assertSucceeds(deleteDoc(doc(db, "team/helper@gmail.com")));
+  for (const other of [teacher(), parent(), stranger()]) {
+    await assertFails(getDocs(collection(other, "team")));
+    await assertFails(setDoc(doc(other, "team/me@gmail.com"), entry));
+  }
+});
+
 // ---- Triggers (functions emulator) ----
 
 test("progress pages and rosters follow what teachers and the team enter", async () => {

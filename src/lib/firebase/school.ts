@@ -17,6 +17,7 @@ import {
   type DocumentData,
 } from "firebase/firestore/lite";
 
+import type { BatchHistory, ClassDay } from "@/lib/progress/classSummary";
 import type { StudentRecords } from "@/lib/progress/insights";
 import { firebase } from "./session";
 
@@ -62,6 +63,8 @@ export type Lead = {
   createdAt?: { toDate(): Date };
 };
 export type Progress = StudentRecords & { parentPhone: string };
+/** A Google address that may open /admin. The id is the address itself. */
+export type TeamMember = { id: string; addedBy: string; createdAt?: { toDate(): Date } };
 
 const db = () => firebase().db;
 const rows = <T>(snap: { docs: { id: string; data(): DocumentData }[] }) =>
@@ -144,6 +147,38 @@ export async function saveSession(
   else await setDoc(ref, { ...fields, batchId: batch.id, date, createdAt: serverTimestamp() });
 }
 
+/** Every class day and test saved for a batch, for the teacher's class overview and recent entries. */
+export async function batchHistory(batchId: string): Promise<BatchHistory> {
+  const [days, tests] = await Promise.all([
+    getDocs(query(collection(db(), "sessions"), where("batchId", "==", batchId))),
+    getDocs(query(collection(db(), "assessments"), where("batchId", "==", batchId))),
+  ]);
+  return {
+    days: days.docs.map((d) => {
+      const x = d.data();
+      return {
+        date: x["date"],
+        status: x["status"],
+        attendance: x["attendance"] ?? {},
+      } as ClassDay;
+    }),
+    tests: tests.docs.map((d) => {
+      const x = d.data();
+      return {
+        id: d.id,
+        title: x["title"],
+        date: x["date"],
+        max: x["max"],
+        scores: x["scores"] ?? {},
+        createdAt: x["createdAt"]?.toMillis?.(),
+      };
+    }),
+  };
+}
+
+/** A teacher can take back a test for two days after saving it, then enter it again. */
+export const deleteAssessment = (id: string) => deleteDoc(doc(db(), "assessments", id));
+
 export async function saveAssessment(
   batch: Batch,
   test: { title: string; date: string; max: number; scores: Record<string, number | null> },
@@ -199,6 +234,10 @@ export const listAll = {
     rows<Batch>(await getDocs(collection(db(), "batches"))).sort((a, b) =>
       a.name.localeCompare(b.name),
     ),
+  team: async () =>
+    rows<TeamMember>(await getDocs(collection(db(), "team"))).sort((a, b) =>
+      a.id.localeCompare(b.id),
+    ),
   leads: async () =>
     rows<Lead>(
       await getDocs(query(collection(db(), "leads"), orderBy("createdAt", "desc"), limit(100))),
@@ -229,3 +268,13 @@ export const setLeadStatus = (id: string, status: string) =>
 
 export const addLeadNote = (id: string, text: string, uid: string) =>
   addDoc(collection(db(), "leads", id, "notes"), { text, by: uid, createdAt: serverTimestamp() });
+
+/** Gives a Google address access to /admin. They sign in with "Continue with Google" on /login. */
+export const addTeamMember = (email: string, by: string) =>
+  setDoc(doc(db(), "team", email.trim().toLowerCase()), {
+    addedBy: by,
+    createdAt: serverTimestamp(),
+  });
+
+/** Takes access away; a Cloud Function signs them out everywhere. */
+export const removeTeamMember = (email: string) => deleteDoc(doc(db(), "team", email));

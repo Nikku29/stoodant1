@@ -1,11 +1,11 @@
 import { initializeApp } from "firebase-admin/app";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, onRequest } from "firebase-functions/v2/https";
-import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted, onDocumentWritten } from "firebase-functions/v2/firestore";
 import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./config.js";
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
-import { handleClaimAdmin } from "./school/admin.js";
+import { handleClaimAdmin, handleTeamRemoved } from "./school/admin.js";
 import {
   handleBatchWritten, handleNoteWritten, handleSheetWritten, handleStudentWritten, handleTeacherWritten, logged,
 } from "./school/triggers.js";
@@ -29,6 +29,10 @@ export const onLeadCreated = onDocumentCreated(
 const school = { timeoutSeconds: 60 };
 
 export const claimAdmin = onCall({ cors: true }, handleClaimAdmin);
+export const onTeamRemoved = onDocumentDeleted(
+  { ...school, document: "team/{email}" },
+  handleTeamRemoved,
+);
 
 export const onStudentWritten = onDocumentWritten(
   { ...school, document: "students/{studentId}" },

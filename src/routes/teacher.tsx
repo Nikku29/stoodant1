@@ -9,6 +9,8 @@ import {
   istDay,
   listAll,
   loadSession,
+  batchHistory,
+  deleteAssessment,
   myBatches,
   myTeacherRecord,
   saveAssessment,
@@ -85,6 +87,8 @@ function Batches({ session }: { session: Session }) {
           saveSession(batch, date, status, attendance, uid),
         saveMarks: (test) => saveAssessment(batch, test, uid),
         saveNotes: (date, notes) => saveNotes(batch, date, notes, uid),
+        loadHistory: () => batchHistory(batch.id),
+        deleteTest: (id) => deleteAssessment(id),
       },
     [batch, uid],
   );

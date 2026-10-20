@@ -219,3 +219,46 @@ export const formatDay = (iso: string) =>
   toDate(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
 export const formatMonth = (iso: string) =>
   toDate(iso).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+
+const dayBefore = (iso: string) => {
+  const d = toDate(iso);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return toIso(d);
+};
+
+/** The period of the same kind just before `period` (the week or month before). */
+export function previousPeriod(period: Period, kind: "week" | "month"): Period {
+  return kind === "week" ? weekOf(dayBefore(period.from)) : monthOf(dayBefore(period.from));
+}
+
+export type WeekAttendance = Period & ReturnType<typeof attendanceSummary>;
+
+/** Attendance for each of the last `weeks` weeks up to the week containing `today`, oldest first. */
+export function weeklyAttendance(
+  records: StudentRecords,
+  today: string,
+  weeks = 8,
+): WeekAttendance[] {
+  const out: WeekAttendance[] = [];
+  let week = weekOf(today);
+  for (let i = 0; i < weeks; i++) {
+    out.unshift({ ...week, ...attendanceSummary(records.attendance, week) });
+    week = weekOf(dayBefore(week.from));
+  }
+  return out;
+}
+
+export type TestPoint = { date: string; subject: string; title: string; percent: number };
+
+/** Every marked test up to `upTo`, oldest first, as a percentage. Missed tests are left out. */
+export function testTimeline(records: StudentRecords, upTo: string): TestPoint[] {
+  return records.tests
+    .filter((t) => t.date <= upTo && testPercent(t) != null)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((t) => ({
+      date: t.date,
+      subject: t.subject,
+      title: t.title,
+      percent: round(testPercent(t) as number),
+    }));
+}

@@ -1,7 +1,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
+import { SITE_CONFIG } from "@/config/siteConfig";
 import type { Mark, RosterEntry } from "@/lib/firebase/school";
+import {
+  classSummary,
+  testAverage,
+  type BatchHistory,
+  type StudentRow,
+} from "@/lib/progress/classSummary";
+import { formatDay } from "@/lib/progress/insights";
+import { SAMPLE_HISTORY } from "@/lib/progress/sampleData";
 import { Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.teacher;
@@ -25,6 +34,8 @@ export type TeacherStore = {
     scores: Record<string, number | null>;
   }): Promise<void>;
   saveNotes(date: string, notes: Record<string, string[]>): Promise<void>;
+  loadHistory(): Promise<BatchHistory>;
+  deleteTest(id: string): Promise<void>;
 };
 type Save = (task: () => Promise<void>, message: string) => void;
 
@@ -49,6 +60,7 @@ export function TeacherEntry({
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openDate, setOpenDate] = useState(today);
   const show = (t: Tab) => {
     setTab(t);
     setSaved(null);
@@ -65,6 +77,10 @@ export function TeacherEntry({
       .finally(() => setBusy(false));
   };
   const props = { students: batch.students, store, today, save, busy };
+  const openDay = (date: string) => {
+    setOpenDate(date);
+    show("attendance");
+  };
 
   return (
     <Shell role="Teacher" onSignOut={onSignOut}>
@@ -92,9 +108,11 @@ export function TeacherEntry({
       </div>
 
       <div role="tabpanel" id={`pd-panel-${tab}`} aria-labelledby={`pd-tab-${tab}`}>
-        {tab === "attendance" && <AttendanceForm {...props} />}
+        {tab === "attendance" && <AttendanceForm key={openDate} {...props} start={openDate} />}
         {tab === "marks" && <MarksForm {...props} />}
         {tab === "notes" && <NotesForm {...props} />}
+        {tab === "overview" && <ClassOverview {...props} />}
+        {tab === "recent" && <Recent {...props} openDay={openDay} />}
       </div>
       {saved && (
         <p className="pd-toast" role="status">
@@ -106,6 +124,16 @@ export function TeacherEntry({
           {error}
         </p>
       )}
+      <p className="pd-help">
+        {copy.help}{" "}
+        <a
+          href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${encodeURIComponent(`Hi Stoodant, I need help with ${batch.name}.`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {copy.helpLink}
+        </a>
+      </p>
     </Shell>
   );
 }
@@ -150,8 +178,15 @@ const longDay = (date: string) =>
     month: "long",
   });
 
-function AttendanceForm({ students, store, today, save, busy }: FormProps) {
-  const [date, setDate] = useState(today);
+function AttendanceForm({
+  students,
+  store,
+  today,
+  save,
+  busy,
+  start,
+}: FormProps & { start: string }) {
+  const [date, setDate] = useState(start);
   const [absent, setAbsent] = useState<Set<string>>(new Set());
   const [cancelled, setCancelled] = useState(false);
   const [loaded, setLoaded] = useState(!store);
@@ -383,6 +418,210 @@ function NotesForm({ students, store, today, save, busy }: FormProps) {
       >
         {copy.save}
       </button>
+    </>
+  );
+}
+
+/** Saved days and tests for the batch, from the store, or the sample history in practice mode. */
+function useHistory(store: TeacherStore | undefined) {
+  const [history, setHistory] = useState<BatchHistory | null>(store ? null : SAMPLE_HISTORY);
+  const [failed, setFailed] = useState(false);
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    if (!store) return;
+    let live = true;
+    store
+      .loadHistory()
+      .then((h) => live && setHistory(h))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [store, version]);
+  return { history, failed, reload: () => setVersion((v) => v + 1) };
+}
+
+const LOAD_FAILED =
+  "Couldn't load the saved records. Please check the internet connection and try again.";
+
+function ClassOverview({ students, store, today }: FormProps) {
+  const { history, failed } = useHistory(store);
+  if (failed) return <p className="pd-alert">{LOAD_FAILED}</p>;
+  if (!history) return <p className="pd-muted">Loading…</p>;
+  if (!history.days.length && !history.tests.length)
+    return <p className="pd-empty">{copy.noHistory}</p>;
+  const summary = classSummary(students, history, today);
+  const rows = [...summary.rows].sort(
+    (a, b) => b.flags.length - a.flags.length || a.name.localeCompare(b.name),
+  );
+  return (
+    <>
+      <p className="pd-hint">{copy.overviewHint}</p>
+      <section className="pd-stats" aria-label="Class summary">
+        <div className="pd-stat">
+          <span className="pd-stat-label">Attendance</span>
+          <strong className="pd-stat-value">
+            {summary.attendance == null ? "–" : `${summary.attendance}%`}
+          </strong>
+          <span className="pd-stat-hint">{summary.classesHeld} classes, last 30 days</span>
+        </div>
+        <div className="pd-stat">
+          <span className="pd-stat-label">Class average</span>
+          <strong className="pd-stat-value">
+            {summary.average == null ? "–" : `${summary.average}%`}
+          </strong>
+          <span className="pd-stat-hint">last {summary.testsCount} tests</span>
+        </div>
+        <div className="pd-stat">
+          <span className="pd-stat-label">Check in with</span>
+          <strong className="pd-stat-value">{summary.needAttention}</strong>
+          <span className="pd-stat-hint">
+            {summary.needAttention ? copy.needAttention : copy.allGood}
+          </span>
+        </div>
+      </section>
+      <ul className="pd-roster pd-class" style={{ marginTop: 14 }}>
+        {rows.map((r) => (
+          <ClassRow key={r.id} r={r} />
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function ClassRow({ r }: { r: StudentRow }) {
+  const arrow = r.trend === "up" ? "↑" : r.trend === "down" ? "↓" : "";
+  return (
+    <li className={`pd-class-row${r.flags.length ? " is-flagged" : ""}`}>
+      <div className="pd-class-name">
+        <strong>{r.name}</strong>
+        {r.flags.length > 0 && <span className="pd-class-flags">{r.flags.join(" · ")}</span>}
+      </div>
+      <dl className="pd-class-nums">
+        <div>
+          <dt>Classes</dt>
+          <dd>{r.held ? `${r.attended}/${r.held}` : "–"}</dd>
+        </div>
+        <div>
+          <dt>Average</dt>
+          <dd>
+            {r.average == null ? "–" : `${r.average}%`}
+            {arrow && (
+              <span className="pd-class-trend" aria-label={DASHBOARD_CONFIG.trendLabels[r.trend]}>
+                {" "}
+                {arrow}
+              </span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Last test</dt>
+          <dd>{r.latest == null ? "–" : `${r.latest}%`}</dd>
+        </div>
+      </dl>
+    </li>
+  );
+}
+
+const TWO_DAYS = 48 * 3_600_000;
+
+function Recent({
+  students,
+  store,
+  today,
+  save,
+  busy,
+  openDay,
+}: FormProps & { openDay: (date: string) => void }) {
+  const { history, failed, reload } = useHistory(store);
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  if (failed) return <p className="pd-alert">{LOAD_FAILED}</p>;
+  if (!history) return <p className="pd-muted">Loading…</p>;
+  if (!history.days.length && !history.tests.length)
+    return <p className="pd-empty">{copy.noHistory}</p>;
+  // Practice mode measures "two days" from the sample's own today.
+  const now = store ? Date.now() : Date.parse(`${today}T20:00:00+05:30`);
+  const earliest = new Date(Date.parse(today) - 2 * 86_400_000).toISOString().slice(0, 10);
+  const days = [...history.days].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+  const tests = history.tests
+    .filter((t) => !removed.has(t.id))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 10);
+  return (
+    <>
+      <p className="pd-hint">{copy.recentHint}</p>
+      <h2 className="pd-subhead">Class days</h2>
+      <ul className="pd-list">
+        {days.map((d) => {
+          const marks = Object.values(d.attendance);
+          const present = marks.filter((m) => m !== "absent").length;
+          return (
+            <li key={d.date} className="pd-item">
+              <div className="pd-item-head">
+                <strong>{formatDay(d.date)}</strong>
+                <span>
+                  {d.status === "cancelled"
+                    ? "Cancelled"
+                    : `${present} of ${marks.length || students.length} present`}
+                </span>
+              </div>
+              {d.date >= earliest && (
+                <div className="pd-actions">
+                  <button type="button" className="pd-link" onClick={() => openDay(d.date)}>
+                    Open in Attendance
+                  </button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <h2 className="pd-subhead">Tests</h2>
+      {!tests.length && <p className="pd-empty">No tests saved yet.</p>}
+      <ul className="pd-list">
+        {tests.map((t) => {
+          const sat = Object.values(t.scores).filter((v) => v != null).length;
+          const avg = testAverage(t);
+          const canRemove = t.createdAt != null && now - t.createdAt < TWO_DAYS;
+          return (
+            <li key={t.id} className="pd-item">
+              <div className="pd-item-head">
+                <strong>{t.title}</strong>
+                <span>{formatDay(t.date)}</span>
+              </div>
+              <span className="pd-muted">
+                Out of {t.max} · {sat} of {Object.keys(t.scores).length} sat it
+                {avg != null && ` · class average ${avg}%`}
+              </span>
+              {canRemove && (
+                <div className="pd-actions">
+                  <button
+                    type="button"
+                    className="pd-link"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          `Remove "${t.title}"? You can enter it again from Test marks.`,
+                        )
+                      )
+                        return;
+                      if (!store) setRemoved((r) => new Set(r).add(t.id));
+                      save(async () => {
+                        await store!.deleteTest(t.id);
+                        setRemoved((r) => new Set(r).add(t.id));
+                        reload();
+                      }, `"${t.title}" removed. Enter it again from Test marks if needed.`);
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 }
