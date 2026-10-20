@@ -96,13 +96,23 @@ export async function progressOf(studentId: string): Promise<Progress | null> {
   return snap.exists() ? (snap.data() as Progress) : null;
 }
 
-/** Where a phone number may go after log-in. */
+/** The teacher record for a signed-in number, if the team has added one and it is active. */
+export async function myTeacherRecord(phone: string): Promise<Teacher | null> {
+  const snap = await getDocs(query(collection(db(), "teachers"), where("phone", "==", phone)));
+  return rows<Teacher>(snap).find((t) => t.active !== false) ?? null;
+}
+
+/**
+ * Where a phone number may go after log-in. A teacher counts as soon as the team adds them, even before
+ * they are linked to a batch, so they never see "number not found".
+ */
 export async function rolesFor(phone: string): Promise<{ teacher: boolean; parent: boolean }> {
-  const [batches, children] = await Promise.all([
+  const [teacher, batches, children] = await Promise.all([
+    myTeacherRecord(phone).catch(() => null),
     myBatches(phone).catch(() => []),
     myChildren(phone).catch(() => []),
   ]);
-  return { teacher: batches.length > 0, parent: children.length > 0 };
+  return { teacher: Boolean(teacher) || batches.length > 0, parent: children.length > 0 };
 }
 
 export type Mark = "present" | "late" | "absent";

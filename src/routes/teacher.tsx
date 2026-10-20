@@ -10,6 +10,7 @@ import {
   listAll,
   loadSession,
   myBatches,
+  myTeacherRecord,
   saveAssessment,
   saveNotes,
   saveSession,
@@ -59,8 +60,14 @@ function Batches({ session }: { session: Session }) {
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [pick, setPick] = useState(0);
+  const [name, setName] = useState("");
 
   useEffect(() => {
+    if (!session.admin)
+      void myTeacherRecord(session.phone).then(
+        (t) => setName(t?.name ?? ""),
+        () => undefined,
+      );
     // The team can fill in for a teacher, so they see every running batch.
     const load = session.admin
       ? listAll.batches().then((all) => all.filter((b) => b.active !== false))
@@ -83,14 +90,25 @@ function Batches({ session }: { session: Session }) {
   );
 
   const signOut = () => void signOutNow().then(() => location.assign("/login"));
-  if (failed || (batches && !batches.length)) {
+  if (failed) {
     return (
       <Shell role="Teacher" onSignOut={signOut}>
         <p className="pd-alert">
-          {failed
-            ? "We couldn't load your batches. Please check the internet connection and refresh."
-            : DASHBOARD_CONFIG.teacher.noBatches}
+          We couldn't load your batches. Please check the internet connection and refresh.
         </p>
+      </Shell>
+    );
+  }
+  if (batches && !batches.length) {
+    return (
+      <Shell role="Teacher" onSignOut={signOut}>
+        <section className="pd-card pd-stack pd-welcome">
+          <h1>{name ? `Welcome, ${name.split(" ")[0]}` : "Welcome"}</h1>
+          <p>{DASHBOARD_CONFIG.teacher.noBatches}</p>
+          <a className="pd-ghost pd-ghost-link" href="/teacher?sample=1">
+            {DASHBOARD_CONFIG.teacher.tryPractice}
+          </a>
+        </section>
       </Shell>
     );
   }
