@@ -63,9 +63,12 @@ export async function handleStudentWritten(event: Written) {
 }
 
 export async function handleTeacherWritten(event: Written) {
-  const after = event.data?.after.data();
   const db = getFirestore();
-  const batches = await db.collection("batches").where("teacherId", "==", event.params.teacherId).get();
+  // Read the record as it is now, not as the event saw it: events can arrive out of order, and an old
+  // one must not undo a newer change.
+  const teacherId = event.params.teacherId as string;
+  const after = (await db.doc(`teachers/${teacherId}`).get()).data();
+  const batches = await db.collection("batches").where("teacherId", "==", teacherId).get();
   // A removed or paused teacher loses access at once: their batches stop matching their phone.
   const teacherPhone = after && after.active !== false ? String(after.phone ?? "") : "";
   const teacherName = String(after?.name ?? "");
