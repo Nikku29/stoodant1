@@ -66,19 +66,20 @@ export function indianMobile(input: string): string | null {
   return /^[6-9]\d{9}$/.test(digits) ? `+91${digits}` : null;
 }
 
-let verifier: RecaptchaVerifier | undefined;
-
-/** Sends the 6-digit code by SMS. `buttonId` is the Send button; the robot check stays invisible. */
-export async function sendCode(phone: string, buttonId: string): Promise<ConfirmationResult> {
+/**
+ * Sends the 6-digit code by SMS. The robot check stays invisible and lives in a fresh element inside
+ * `holderId` for every send, so "Resend code" works as often as Firebase allows.
+ */
+export async function sendCode(phone: string, holderId: string): Promise<ConfirmationResult> {
   const { auth } = firebase();
-  verifier ??= new RecaptchaVerifier(auth, buttonId, { size: "invisible" });
+  const holder = document.getElementById(holderId)!;
+  holder.replaceChildren();
+  const slot = holder.appendChild(document.createElement("div"));
+  const verifier = new RecaptchaVerifier(auth, slot, { size: "invisible" });
   try {
     return await signInWithPhoneNumber(auth, phone, verifier);
-  } catch (error) {
-    // A used or expired check can't be reused; the next attempt makes a fresh one.
+  } finally {
     verifier.clear();
-    verifier = undefined;
-    throw error;
   }
 }
 
@@ -106,6 +107,10 @@ export function authMessage(error: unknown): string {
   if (code.includes("code-expired")) return "That code has expired. Please ask for a new one.";
   if (code.includes("too-many-requests"))
     return "Too many tries from this phone. Please wait a little and try again.";
+  if (code.includes("quota-exceeded"))
+    return "We can't send more codes right now. Please try again in a few hours, or message us on WhatsApp.";
+  if (code.includes("captcha") || code.includes("app-not-authorized"))
+    return "We couldn't confirm this browser. Please refresh the page and try again.";
   if (code.includes("invalid-phone-number")) return "Please enter a 10-digit mobile number.";
   if (code.includes("popup-closed") || code.includes("cancelled-popup"))
     return "Sign-in was closed before it finished.";
