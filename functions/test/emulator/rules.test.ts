@@ -44,15 +44,16 @@ test("visitors and ordinary signed-in users can neither read nor write anything"
   }
 });
 
-test("admin can read leads and move only the status", async () => {
+test("admin can read leads, move only the status, and delete them", async () => {
   const db = admin();
   await assertSucceeds(getDoc(doc(db, "leads/l1")));
   await assertSucceeds(updateDoc(doc(db, "leads/l1"), { status: "contacted", updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(db, "leads/l1"), { status: "hacked", updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(db, "leads/l1"), { parentPhoneE164: "+910000000000", updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(db, "leads/l1"), { status: "contacted", consent: {}, updatedAt: serverTimestamp() }));
-  await assertFails(deleteDoc(doc(db, "leads/l1")));
   await assertFails(setDoc(doc(db, "leads/l2"), { status: "new" }));
+  // Spam and duplicates can be deleted; the consent record stays in consentLog.
+  await assertSucceeds(deleteDoc(doc(db, "leads/l1")));
 });
 
 test("admin can add notes as themselves; consent log is read-only", async () => {

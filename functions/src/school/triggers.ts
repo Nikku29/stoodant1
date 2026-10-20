@@ -19,17 +19,27 @@ async function rebuildAll(studentIds: Iterable<string>) {
   for (const id of new Set(studentIds)) await rebuildProgress(db, id);
 }
 
-/** Recomputes a batch's roster from the students who list it, so teachers never read parents' details. */
+/**
+ * Recomputes a batch's roster from the students who list it, so teachers never read parents' details.
+ * The parents' numbers go to `batchAccess/{batchId}` instead, which only the rules read (study material).
+ */
 async function refreshRoster(batchId: string) {
   const db = getFirestore();
   const batchRef = db.doc(`batches/${batchId}`);
+  const accessRef = db.doc(`batchAccess/${batchId}`);
   const [batch, students] = await Promise.all([
     batchRef.get(),
     db.collection("students").where("batchIds", "array-contains", batchId).get(),
   ]);
-  if (!batch.exists) return;
-  const roster = students.docs
-    .filter((s) => s.get("active") !== false)
+  if (!batch.exists) {
+    await accessRef.delete();
+    return;
+  }
+  const enrolled = students.docs.filter((s) => s.get("active") !== false);
+  const parentPhones = [...new Set(enrolled.map((s) => String(s.get("parentPhone") ?? "")).filter(Boolean))].sort();
+  const access = await accessRef.get();
+  if (!sameList(ids(access.get("parentPhones")), parentPhones)) await accessRef.set({ parentPhones });
+  const roster = enrolled
     .map((s) => ({ id: s.id, name: String(s.get("name") ?? "") }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const studentIds = roster.map((s) => s.id);
@@ -46,6 +56,7 @@ export async function handleStudentWritten(event: Written) {
   const batchIds = new Set([...ids(before?.batchIds), ...ids(after?.batchIds)]);
   const rosterChanged =
     !before || !after || before.name !== after.name || before.active !== after.active ||
+    before.parentPhone !== after.parentPhone ||
     !sameList(ids(before.batchIds), ids(after.batchIds));
   if (rosterChanged) for (const id of batchIds) await refreshRoster(id);
   await rebuildProgress(getFirestore(), event.params.studentId as string);
@@ -81,7 +92,7 @@ export async function handleBatchWritten(event: Written) {
       return;
     }
   }
-  if (!before) await refreshRoster(batchId);
+  if (!before || !after) await refreshRoster(batchId);
   // Name and subject appear on each child's page; a deleted batch drops out of it.
   if (!after || before?.name !== after.name || before?.subject !== after.subject || before?.active !== after.active) {
     await rebuildAll([...ids(before?.studentIds), ...ids(after?.studentIds)]);

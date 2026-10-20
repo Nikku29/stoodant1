@@ -79,6 +79,8 @@ export async function rebuildProgress(db: Firestore, studentId: string): Promise
       board: str(student.board),
       batch: active.map((b) => str(b.name)).join(" · "),
       parentName: str(student.parentName),
+      // Which batches' study material this child's parent may open.
+      batchIds: batchIds.filter((id) => batches.has(id)),
       subjects: [...new Set(active.map((b) => str(b.subject)).filter(Boolean))],
     },
     attendance: attendance.sort(byDate),
