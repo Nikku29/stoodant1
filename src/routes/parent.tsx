@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ParentDashboard } from "@/components/dashboard/ParentDashboard";
 import { Loading, RequireLogin, Shell, useSearchFlag } from "@/components/dashboard/Shell";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { firebaseConfigured } from "@/lib/firebase/app";
+import { materialsFor, openUrl } from "@/lib/firebase/materials";
 import { istDay, myChildren, progressOf, type Progress } from "@/lib/firebase/school";
 import { signOutNow, useSession, type Session } from "@/lib/firebase/session";
-import { SAMPLE_RECORDS, SAMPLE_TODAY } from "@/lib/progress/sampleData";
+import { SAMPLE_MATERIALS, SAMPLE_RECORDS, SAMPLE_TODAY } from "@/lib/progress/sampleData";
 
 // Parent dashboard: the signed-in parent's child (or children). `?sample=1` shows the preview with sample
 // records. Its own route chunk, so none of this code or CSS loads with the landing page.
@@ -28,9 +29,18 @@ function ParentPage() {
       </Shell>
     );
   if (sample || !firebaseConfigured)
-    return <ParentDashboard records={SAMPLE_RECORDS} today={SAMPLE_TODAY} sample />;
+    return (
+      <ParentDashboard
+        records={SAMPLE_RECORDS}
+        today={SAMPLE_TODAY}
+        sample
+        materials={{ load: loadSampleMaterials }}
+      />
+    );
   return <LiveParent />;
 }
+
+const loadSampleMaterials = async () => SAMPLE_MATERIALS;
 
 function LiveParent() {
   const session = useSession();
@@ -92,10 +102,28 @@ function Children({ session }: { session: Session }) {
     );
 
   const child = children[Math.min(pick, children.length - 1)]!;
+  return <Child child={child} all={children} pick={pick} setPick={setPick} signOut={signOut} />;
+}
+
+function Child({
+  child,
+  all,
+  pick,
+  setPick,
+  signOut,
+}: {
+  child: Progress;
+  all: Progress[];
+  pick: number;
+  setPick: (i: number) => void;
+  signOut: () => void;
+}) {
+  const batchIds = (child.student.batchIds ?? []).join(",");
+  const load = useCallback(() => materialsFor(batchIds ? batchIds.split(",") : []), [batchIds]);
   const picker =
-    children.length > 1 ? (
+    all.length > 1 ? (
       <div className="pd-picker" role="group" aria-label="Choose a child">
-        {children.map((c, i) => (
+        {all.map((c, i) => (
           <button
             key={c.student.id}
             type="button"
@@ -114,6 +142,7 @@ function Children({ session }: { session: Session }) {
       today={istDay()}
       picker={picker}
       onSignOut={signOut}
+      materials={{ load, open: openUrl }}
     />
   );
 }

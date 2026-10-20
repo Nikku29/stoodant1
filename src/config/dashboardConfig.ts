@@ -39,6 +39,11 @@ export const DASHBOARD_CONFIG = {
     improvementsTitle: "Improvements",
     noImprovements: "Improvements show here once there are a few classes and tests to compare.",
     chartsTitle: "Progress over time",
+    materialsTitle: "Study material",
+    materialsNote: "Notes, past papers (PYQs) and homework from your child's teachers.",
+    materialsEmpty: "Nothing shared yet. New material from the teacher appears here.",
+    materialsFailed: "Couldn't load the study material. Please refresh to try again.",
+    materialsPreview: "Sample files don't open in the preview.",
     marksChart: "Test marks",
     attendanceChart: "Attendance, last 8 weeks",
     allSubjects: "All subjects",
@@ -51,7 +56,18 @@ export const DASHBOARD_CONFIG = {
       notes: "Notes",
       overview: "Class",
       recent: "Recent",
+      materials: "Study material",
     },
+    openReport: "Monthly report for PTM",
+    reportKicker: "Progress report",
+    printReport: "Print or save as PDF",
+    printHint:
+      "On a phone, tap Print, then choose Save as PDF to send it on WhatsApp. Only this report is printed.",
+    materialsHint:
+      "Share notes, past papers (PYQs), homework and worksheets. Parents of this batch see them on their page.",
+    materialsAdd: "Share study material",
+    materialsEmpty: "Nothing shared with this batch yet.",
+    materialsPractice: "Sample files don't open in practice mode.",
     overviewHint:
       "Attendance over the last 30 days and marks over the last five tests. Children who might need a word are at the top.",
     recentHint:
@@ -116,6 +132,7 @@ export const DASHBOARD_CONFIG = {
   },
   admin: {
     tabs: {
+      overview: "Overview",
       leads: "Demo requests",
       students: "Students",
       teachers: "Teachers",

@@ -7,11 +7,14 @@ import {
 import {
   collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, type DocumentSnapshot, type Firestore,
 } from "firebase/firestore";
+import { getBytes, ref, uploadBytes } from "firebase/storage";
 import { PROJECT_ID, waitFor } from "./helpers.ts";
 
 let env: RulesTestEnvironment;
 const rules = readFileSync(new URL("../../../firestore.rules", import.meta.url), "utf8");
+const storageRules = readFileSync(new URL("../../../storage.rules", import.meta.url), "utf8");
 const [fsHost, fsPort] = (process.env.FIRESTORE_EMULATOR_HOST ?? "127.0.0.1:8080").split(":");
+const [stHost, stPort] = (process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199").split(":");
 
 const TEACHER = "+919811111111";
 const OTHER_TEACHER = "+919822222222";
@@ -21,6 +24,7 @@ before(async () => {
   env = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: { rules, host: fsHost!, port: Number(fsPort) },
+    storage: { rules: storageRules, host: stHost!, port: Number(stPort) },
   });
 });
 after(() => env.cleanup());
@@ -41,6 +45,8 @@ beforeEach(async () => {
       active: true, teacherPhone: TEACHER, teacherName: "Priya Ma'am", roster: [{ id: "s1", name: "Aarav" }], studentIds: ["s1"],
     });
     await setDoc(doc(db, "progress/s1"), { parentPhone: PARENT, student: { id: "s1", name: "Aarav" }, attendance: [], tests: [], notes: [] });
+    await setDoc(doc(db, "batchAccess/b1"), { parentPhones: [PARENT] });
+    await setDoc(doc(db, "leads/l1"), { parentName: "Test", status: "new" });
   });
 });
 
@@ -175,6 +181,49 @@ test("the team list: the team adds and removes addresses, never themselves, and 
   }
 });
 
+test("study material: the batch's teacher shares it, the batch's parents read it, nobody else", async () => {
+  const link = (db: Firestore, id: string, extra: Record<string, unknown> = {}) =>
+    setDoc(doc(db, `materials/${id}`), {
+      batchId: "b1", title: "Fractions PYQs 2025", kind: "pyq", link: "https://drive.google.com/file/d/x",
+      teacherName: "Priya Ma'am", createdBy: "ut1", createdAt: serverTimestamp(), ...extra,
+    });
+  await assertSucceeds(link(teacher(), "m1"));
+  await assertSucceeds(setDoc(doc(teacher(), "materials/m2"), {
+    batchId: "b1", title: "Chapter 3 notes", kind: "notes", teacherName: "Priya Ma'am", createdBy: "ut1", createdAt: serverTimestamp(),
+    file: { path: "materials/b1/m2/notes.pdf", name: "notes.pdf", size: 1200, type: "application/pdf" },
+  }));
+  await assertFails(link(teacher(), "m3", { kind: "video" }));
+  await assertFails(link(teacher(), "m4", { link: "http://insecure.example.com" }));
+  await assertFails(link(teacher(), "m5", { file: { path: "materials/b1/m5/a.pdf", name: "a.pdf", size: 10, type: "application/pdf" } }));
+  await assertFails(link(teacher(), "m6", { createdBy: "someone-else" }));
+  await assertFails(link(otherTeacher(), "m7", { createdBy: "ut2" }));
+  await assertFails(link(parent(), "m8", { createdBy: "up1" }));
+  await assertSucceeds(getDocs(query(collection(parent(), "materials"), where("batchId", "==", "b1"))));
+  await assertSucceeds(getDoc(doc(parent(), "materials/m1")));
+  for (const other of [otherTeacher(), stranger()]) await assertFails(getDoc(doc(other, "materials/m1")));
+  await assertFails(deleteDoc(doc(parent(), "materials/m1")));
+  await assertSucceeds(deleteDoc(doc(teacher(), "materials/m1")));
+  await assertFails(getDoc(doc(parent(), "batchAccess/b1")));
+
+  const store = (uid: string, phone_number: string) => env.authenticatedContext(uid, { phone_number }).storage();
+  const pdf = { contentType: "application/pdf" };
+  await assertSucceeds(uploadBytes(ref(store("ut1", TEACHER), "materials/b1/m2/notes.pdf"), new Uint8Array([1, 2]), pdf));
+  await assertFails(uploadBytes(ref(store("ut1", TEACHER), "materials/b1/m2/run.exe"), new Uint8Array([1]), { contentType: "application/octet-stream" }));
+  await assertFails(uploadBytes(ref(store("ut2", OTHER_TEACHER), "materials/b1/m9/x.pdf"), new Uint8Array([1]), pdf));
+  await assertFails(uploadBytes(ref(store("up1", PARENT), "materials/b1/m9/x.pdf"), new Uint8Array([1]), pdf));
+  await assertSucceeds(getBytes(ref(store("up1", PARENT), "materials/b1/m2/notes.pdf")));
+  await assertFails(getBytes(ref(store("ux", "+919844444444"), "materials/b1/m2/notes.pdf")));
+});
+
+test("the team deletes demo requests and sets a class length; nobody else can", async () => {
+  await assertFails(deleteDoc(doc(teacher(), "leads/l1")));
+  await assertSucceeds(deleteDoc(doc(admin(), "leads/l1")));
+  const batch = { name: "Class 9 Maths", classLevel: "9", board: "CBSE", subject: "Maths", teacherId: "t1", schedule: "Sat 10am", active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+  await assertSucceeds(setDoc(doc(admin(), "batches/b5"), { ...batch, durationMinutes: 90 }));
+  await assertFails(setDoc(doc(admin(), "batches/b6"), { ...batch, durationMinutes: 5 }));
+  await assertFails(setDoc(doc(admin(), "batches/b7"), { ...batch, durationMinutes: 60.5 }));
+});
+
 // ---- Triggers (functions emulator) ----
 
 test("progress pages and rosters follow what teachers and the team enter", async () => {
@@ -190,6 +239,13 @@ test("progress pages and rosters follow what teachers and the team enter", async
     return ids?.length === 2 ? ids : undefined;
   });
   assert.deepEqual(roster, ["s1", "s2"]);
+  // Parents' numbers go to batchAccess (for study material), never onto the batch teachers read.
+  const phones = await waitFor(async () => {
+    const list = (await peek("batchAccess/b1")).get("parentPhones") as string[] | undefined;
+    return list?.length === 2 ? list : undefined;
+  });
+  assert.deepEqual(phones, [PARENT, "+919866666666"]);
+  assert.equal((await peek("batches/b1")).get("parentPhones"), undefined);
 
   await assertSucceeds(session(teacher(), { attendance: { s1: "present", s2: "absent" } }));
   await assertSucceeds(setDoc(doc(teacher(), "assessments/a1"), {

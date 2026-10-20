@@ -1,3 +1,4 @@
+import type { Material } from "@/lib/firebase/materials";
 import type { BatchHistory, ClassDay, TestSheet } from "./classSummary";
 import type { AttendanceRecord, StudentRecords, TeacherNote, TestRecord } from "./insights";
 
@@ -174,3 +175,51 @@ export const SAMPLE_HISTORY: BatchHistory = {
     sheet("sample-t4", "2026-10-16", "Simple equations test", 50, [41, 44, 26, 47, 30]),
   ],
 };
+
+/** Teachers' notes for the sample batch, for the monthly student report in practice mode. */
+export const SAMPLE_BATCH_NOTES = [
+  {
+    studentId: "sample-1",
+    date: "2026-10-16",
+    lines: ["Very attentive in class", "Homework done well"],
+  },
+  { studentId: "sample-1", date: "2026-10-02", lines: ["Asks good questions"] },
+  { studentId: "sample-3", date: "2026-10-14", lines: ["Needs more practice", "Homework pending"] },
+  { studentId: "sample-3", date: "2026-09-30", lines: ["Was quiet today, please check in"] },
+  { studentId: "sample-5", date: "2026-10-16", lines: ["Big improvement this week"] },
+];
+
+/** Study material for the sample batch and the sample parent page. Nothing here opens. */
+export const SAMPLE_MATERIALS: Material[] = [
+  {
+    id: "sample-m1",
+    batchId: "sample",
+    title: "Simple equations: chapter notes",
+    kind: "notes",
+    description: "Read before Monday's class.",
+    file: { path: "", name: "simple-equations.pdf", size: 412_000, type: "application/pdf" },
+    teacherName: "Ms Sharma",
+    createdBy: "sample",
+    createdAt: { toMillis: () => Date.parse("2026-10-16T18:00:00+05:30") },
+  },
+  {
+    id: "sample-m2",
+    batchId: "sample",
+    title: "Class 7 Maths: past papers 2023 to 2025",
+    kind: "pyq",
+    link: "https://example.com/past-papers",
+    teacherName: "Ms Sharma",
+    createdBy: "sample",
+    createdAt: { toMillis: () => Date.parse("2026-10-10T18:00:00+05:30") },
+  },
+  {
+    id: "sample-m3",
+    batchId: "sample",
+    title: "Worksheet 4: data handling",
+    kind: "worksheet",
+    file: { path: "", name: "worksheet-4.jpg", size: 180_000, type: "image/jpeg" },
+    teacherName: "Ms Sharma",
+    createdBy: "sample",
+    createdAt: { toMillis: () => Date.parse("2026-10-08T18:00:00+05:30") },
+  },
+];
