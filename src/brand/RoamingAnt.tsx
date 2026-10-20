@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MASCOT_MESSAGES } from "@/config/mascotConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { TIMING } from "@/config/timing";
 import { ANT_UPRIGHT_ID } from "./AntUpright";
 
-type Messages = typeof SITE_CONFIG.mascot.messages;
+type Messages = typeof MASCOT_MESSAGES;
 type Message = Messages[keyof Messages][number];
 // Which messages fit which part of the page.
 const SECTIONS: [selector: string, key: Exclude<keyof Messages, "general">][] = [
@@ -126,7 +127,7 @@ export function RoamingAnt() {
 
   const talk = () => {
     // A line for the section on screen first; once those are used up, a general one.
-    const all = SITE_CONFIG.mascot.messages;
+    const all = MASCOT_MESSAGES;
     const section = currentSection();
     let key: keyof Messages = "general";
     if (section && (decks.current[section] ??= shuffled(all[section].length)).length) key = section;
