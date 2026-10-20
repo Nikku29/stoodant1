@@ -39,9 +39,10 @@ export default defineConfig({
       // Use src/server.ts (our SSR error wrapper) as the server entry.
       server: { entry: "server" },
       // Every page is rendered to static HTML at build time; Firebase Hosting serves dist/client.
-      prerender: { enabled: true, crawlLinks: true },
+      // In-page links such as /#demo are the home page again, so the crawl skips them.
+      prerender: { enabled: true, crawlLinks: true, filter: (page) => !page.path.includes("#") },
       // /parent, /teacher, /login and /admin are not linked from the landing page, so the crawl would miss them.
-      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }],
+      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }, ...["/about", "/privacy", "/terms", "/refund-policy"].map((path) => ({ path, prerender: { enabled: true, outputPath: `${path}.html` } }))],
     }),
     viteReact(),
     seoFiles(),

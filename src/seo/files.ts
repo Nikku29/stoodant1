@@ -7,7 +7,7 @@ import { formatINR, getPrice } from "../lib/pricing";
 const site = SITE_CONFIG.siteUrl;
 
 /** Pages search engines should index. /login, /parent, /teacher and /admin are private and stay out. */
-const INDEXED_PATHS = ["/"];
+const INDEXED_PATHS = ["/", ...SITE_CONFIG.footer.pages.map((page) => page.href)];
 
 export function robotsTxt() {
   return `# Search engines and AI answer tools are welcome. The log-in pages are left crawlable on purpose:
@@ -45,6 +45,9 @@ ${SITE_CONFIG.social.map((profile) => `${profile.label}: ${profile.href}`).join(
 
 ## Founders
 ${SITE_CONFIG.founders.map((founder) => `- ${founder.name}, ${founder.jobTitle} (LinkedIn: ${founder.linkedin})`).join("\n")}
+
+## Pages
+${SITE_CONFIG.footer.pages.map((page) => `- [${page.label}](${site}${page.href})`).join("\n")}
 
 ## Key facts
 - Classes: ${SITE_CONFIG.form.classes[0]} to ${SITE_CONFIG.form.classes.at(-1)}
