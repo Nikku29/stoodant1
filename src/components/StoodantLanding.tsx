@@ -5,7 +5,7 @@ import { SITE_CONFIG } from "@/config/siteConfig";
 import { getOfferText, isOfferActive } from "@/lib/pricing";
 import { HeroSubjectDeck } from "@/components/HeroSubjectDeck";
 import { BrandLink, EASE } from "@/components/sections/shared";
-import { LazySection, onSectionsChanged, whenAllSectionsMounted, type LazySectionDef } from "@/components/sections/LazySection";
+import { LazySection, onSectionsChanged, preloadSections, whenAllSectionsMounted, type LazySectionDef } from "@/components/sections/LazySection";
 import { TIMING } from "@/config/timing";
 import { AntSprite } from "@/brand/Ant";
 import { Highlight } from "@/brand/Highlight";
@@ -33,6 +33,11 @@ const MAIN_SECTIONS: LazySectionDef[] = [
 ];
 const FOOTER: LazySectionDef = { load: () => import("@/components/sections/Footer"), tone: "section-dark", heights: [827, 499, 499] };
 const ALL_SECTIONS = [...MAIN_SECTIONS, FOOTER];
+
+/** Server only: loads every section before the page renders, so the prerendered HTML holds all of them. */
+export function preloadLandingSections() {
+  return import.meta.env.SSR ? preloadSections(ALL_SECTIONS) : undefined;
+}
 
 export function StoodantLanding() {
   useLazyAnchors();

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StoodantLanding } from "@/components/StoodantLanding";
+import { StoodantLanding, preloadLandingSections } from "@/components/StoodantLanding";
 import { SITE_CONFIG } from "@/config/siteConfig";
 
 export const Route = createFileRoute("/")({
@@ -15,6 +15,7 @@ export const Route = createFileRoute("/")({
     ],
     links: [{ rel: "canonical", href: `${SITE_CONFIG.siteUrl}/` }],
   }),
+  loader: () => preloadLandingSections(),
   component: Index,
 });
 
