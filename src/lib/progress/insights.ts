@@ -21,6 +21,8 @@ export type Student = {
   batch: string;
   parentName: string;
   subjects: string[];
+  /** The child's batches, for the study material they share. Set on live progress pages. */
+  batchIds?: string[];
 };
 
 export type StudentRecords = {

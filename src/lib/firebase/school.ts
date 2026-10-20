@@ -31,6 +31,8 @@ export type Batch = {
   teacherId: string;
   teacherName?: string;
   schedule: string;
+  /** Length of one class, for the team's hours report. 60 when not set. */
+  durationMinutes?: number;
   active: boolean;
   roster?: RosterEntry[];
   studentIds?: string[];
@@ -176,6 +178,19 @@ export async function batchHistory(batchId: string): Promise<BatchHistory> {
   };
 }
 
+/** Teachers' notes about children in a batch, for the monthly student report. */
+export async function batchNotes(batchId: string) {
+  const snap = await getDocs(query(collection(db(), "notes"), where("batchId", "==", batchId)));
+  return snap.docs.map((d) => {
+    const x = d.data();
+    return {
+      studentId: String(x["studentId"]),
+      date: String(x["date"]),
+      lines: (x["lines"] ?? []) as string[],
+    };
+  });
+}
+
 /** A teacher can take back a test for two days after saving it, then enter it again. */
 export const deleteAssessment = (id: string) => deleteDoc(doc(db(), "assessments", id));
 
@@ -220,6 +235,44 @@ export async function saveNotes(
 }
 
 // ---- The Stoodant team ----
+
+export type SessionRow = {
+  batchId: string;
+  date: string;
+  status: "held" | "cancelled";
+  present: number;
+  marked: number;
+};
+
+/** Every class day saved between two dates (inclusive), across all batches, for the team's reports. */
+export async function sessionsBetween(from: string, to: string): Promise<SessionRow[]> {
+  const snap = await getDocs(
+    query(collection(db(), "sessions"), where("date", ">=", from), where("date", "<=", to)),
+  );
+  return snap.docs.map((d) => {
+    const x = d.data();
+    const marks = Object.values((x["attendance"] ?? {}) as Record<string, string>);
+    return {
+      batchId: String(x["batchId"]),
+      date: String(x["date"]),
+      status: x["status"] === "cancelled" ? "cancelled" : "held",
+      present: marks.filter((m) => m !== "absent").length,
+      marked: marks.length,
+    };
+  });
+}
+
+/** Every child's progress page, for the team's student list. */
+export async function allProgress(): Promise<Progress[]> {
+  return rows<Progress>(await getDocs(collection(db(), "progress")));
+}
+
+/** Deletes a demo request and its team notes. The consent record stays (consentLog). */
+export async function deleteLead(id: string) {
+  const notes = await getDocs(collection(db(), "leads", id, "notes"));
+  await Promise.all(notes.docs.map((n) => deleteDoc(n.ref)));
+  await deleteDoc(doc(db(), "leads", id));
+}
 
 export const listAll = {
   teachers: async () =>

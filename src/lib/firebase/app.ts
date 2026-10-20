@@ -17,5 +17,7 @@ export function firebaseApp(): FirebaseApp {
     appId: env("VITE_FIREBASE_APP_ID") ?? "demo-app",
     // Google sign-in and the phone check run on Firebase's own page for this project.
     authDomain: `${projectId}.firebaseapp.com`,
+    // Study material files (teachers upload, parents download) live in the project's default bucket.
+    storageBucket: env("VITE_FIREBASE_STORAGE_BUCKET") ?? `${projectId}.firebasestorage.app`,
   });
 }
