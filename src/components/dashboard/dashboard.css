@@ -1078,3 +1078,222 @@
     border-radius: 20px;
   }
 }
+
+/* Admin: the number read back under a phone field */
+.pd-phone-check {
+  margin: -4px 0 0;
+  font-size: 14px;
+  color: var(--grey-4);
+}
+.pd-phone-check strong {
+  color: var(--brand-ink);
+  letter-spacing: 0.02em;
+}
+
+/* Parent: improvements list */
+.pd-improve {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pd-improve li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--grey-1);
+  border-radius: 14px;
+  background: var(--white);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.pd-improve-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brand-ink);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* Parent: charts */
+.pd-chart-card {
+  margin-top: 12px;
+  padding: 16px 14px 10px;
+}
+.pd-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.pd-chart-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.pd-picker-sm {
+  margin: 0;
+  gap: 6px;
+}
+.pd-picker-sm button {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.pd-chart {
+  margin: 8px 0 0;
+}
+.pd-chart-box {
+  position: relative;
+}
+.pd-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+.pd-chart svg:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.pd-chart-grid {
+  stroke: var(--grey-1);
+  stroke-width: 1;
+}
+.pd-chart-tick {
+  fill: var(--grey-4);
+  font-size: 12px;
+}
+.pd-chart-label {
+  fill: var(--brand-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+.pd-chart-line {
+  fill: none;
+  stroke: var(--brand-ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.pd-chart-cross {
+  stroke: var(--grey-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.pd-chart-dot {
+  fill: var(--brand-ink);
+  stroke: var(--white);
+  stroke-width: 2;
+}
+.pd-chart-dot.is-last {
+  fill: var(--amber);
+  stroke: var(--brand-ink);
+}
+.pd-chart-bar {
+  fill: var(--brand-ink);
+}
+.pd-chart-bar.is-on {
+  fill: color-mix(in srgb, var(--brand-ink) 75%, var(--amber));
+}
+.pd-chart-none {
+  fill: var(--grey-2);
+}
+.pd-chart-tip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  min-width: 140px;
+  max-width: 220px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--brand-ink);
+  color: var(--white);
+  font-size: 13px;
+  line-height: 1.35;
+  transform: translate(12px, -110%);
+  pointer-events: none;
+}
+.pd-chart-tip.is-left {
+  transform: translate(calc(-100% - 12px), -110%);
+}
+.pd-chart-tip strong {
+  font-size: 15px;
+}
+.pd-chart-tip small {
+  color: color-mix(in srgb, var(--white) 72%, transparent);
+}
+
+/* Teacher: more tabs, class overview, recent entries */
+.pd-tabs {
+  flex-wrap: wrap;
+}
+.pd-tabs button {
+  flex: 1 0 auto;
+  white-space: nowrap;
+}
+.pd-subhead {
+  margin: 20px 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+}
+.pd-class-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--grey-1);
+  border-radius: 14px;
+  background: var(--white);
+}
+.pd-class-row.is-flagged {
+  border-color: color-mix(in srgb, var(--amber) 70%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, var(--white));
+}
+.pd-class-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.pd-class-flags {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--grey-5);
+}
+.pd-class-nums {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+.pd-class-nums dt {
+  font-size: 12px;
+  color: var(--grey-4);
+}
+.pd-class-nums dd {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+.pd-help {
+  margin: 28px 0 0;
+  font-size: 14px;
+  color: var(--grey-4);
+}
+.pd-help a {
+  color: var(--brand-ink);
+  font-weight: 700;
+}

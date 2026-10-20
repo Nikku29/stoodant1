@@ -3,17 +3,23 @@ import { useState, type ReactNode } from "react";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import {
+  attendanceSummary,
   formatDay,
   formatMonth,
   monthOf,
   overview,
+  previousPeriod,
+  testTimeline,
   weekOf,
+  weeklyAttendance,
   type Overview,
+  type Period,
   type StudentRecords,
   type SubjectSummary,
   type Trend,
 } from "@/lib/progress/insights";
 import { monthlyReport, weeklyReport } from "@/lib/progress/reportText";
+import { AttendanceChart, MarksChart } from "./Charts";
 import { Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.parent;
@@ -96,6 +102,9 @@ export function ParentDashboard({
 
       <p className="pd-summary">{summarySentence(student.name, data)}</p>
 
+      <Improvements records={records} data={data} period={period} kind={kind} />
+      <Charts records={records} today={today} />
+
       <section className="pd-section" aria-labelledby="pd-subjects">
         <h2 id="pd-subjects">{copy.subjects}</h2>
         <ul className="pd-subjects">
@@ -164,6 +173,113 @@ export function ParentDashboard({
         {copy.askTeacher}
       </a>
     </Shell>
+  );
+}
+
+/** What moved, in plain words: attendance against the period before, subjects going up or down, the best test. */
+function Improvements({
+  records,
+  data,
+  period,
+  kind,
+}: {
+  records: StudentRecords;
+  data: Overview;
+  period: Period;
+  kind: PeriodKind;
+}) {
+  const items: { mark: string; text: string }[] = [];
+  const before = attendanceSummary(records.attendance, previousPeriod(period, kind)).percent;
+  const now = data.attendance.percent;
+  const last = kind === "week" ? "last week" : "last month";
+  if (now != null && before != null) {
+    if (now > before)
+      items.push({ mark: "↑", text: `Attendance ${now}%, up from ${before}% ${last}` });
+    else if (now < before)
+      items.push({ mark: "↓", text: `Attendance ${now}%, a little lower than ${before}% ${last}` });
+    else items.push({ mark: "=", text: `Attendance ${now}%, the same as ${last}` });
+  }
+  for (const s of data.subjects) {
+    if (s.trend === "up" && s.delta != null)
+      items.push({
+        mark: "↑",
+        text: `${s.subject}: up ${s.delta} points compared with earlier tests`,
+      });
+    if (s.trend === "down" && s.delta != null)
+      items.push({
+        mark: "↓",
+        text: `${s.subject} needs a little focus: ${Math.abs(s.delta)} points lower than earlier tests`,
+      });
+  }
+  const best = data.tests
+    .filter((t) => t.percent != null)
+    .sort((a, b) => (b.percent as number) - (a.percent as number))[0];
+  if (best)
+    items.push({ mark: "★", text: `Best test: ${best.title} (${best.subject}), ${best.percent}%` });
+  return (
+    <section className="pd-section" aria-labelledby="pd-improve">
+      <h2 id="pd-improve">{copy.improvementsTitle}</h2>
+      {items.length ? (
+        <ul className="pd-improve">
+          {items.map((item) => (
+            <li key={item.text}>
+              <span className="pd-improve-mark" aria-hidden="true">
+                {item.mark}
+              </span>
+              {item.text}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="pd-empty">{copy.noImprovements}</p>
+      )}
+    </section>
+  );
+}
+
+/** Marks over time (all subjects, or one) and attendance week by week. */
+function Charts({ records, today }: { records: StudentRecords; today: string }) {
+  const subjects = records.student.subjects;
+  // One subject at a time reads as a clear line; mixing subjects zig-zags between them.
+  const [subject, setSubject] = useState<string | null>(subjects.length > 1 ? subjects[0]! : null);
+  const points = testTimeline(records, today).filter((p) => !subject || p.subject === subject);
+  const name = records.student.name.split(" ")[0];
+  return (
+    <section className="pd-section" aria-labelledby="pd-charts">
+      <h2 id="pd-charts">{copy.chartsTitle}</h2>
+      <div className="pd-card pd-chart-card">
+        <div className="pd-chart-head">
+          <h3>{copy.marksChart}</h3>
+          {subjects.length > 1 && (
+            <div className="pd-picker pd-picker-sm" role="group" aria-label="Subject">
+              {[...subjects, null].map((s) => (
+                <button
+                  key={s ?? "all"}
+                  type="button"
+                  aria-pressed={subject === s}
+                  onClick={() => setSubject(s)}
+                >
+                  {s ?? copy.allSubjects}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <MarksChart
+          points={points}
+          label={`${name}'s test marks over time${subject ? ` in ${subject}` : ""}, as a percentage`}
+        />
+      </div>
+      <div className="pd-card pd-chart-card">
+        <div className="pd-chart-head">
+          <h3>{copy.attendanceChart}</h3>
+        </div>
+        <AttendanceChart
+          weeks={weeklyAttendance(records, today)}
+          label={`${name}'s attendance in each of the last 8 weeks`}
+        />
+      </div>
+    </section>
   );
 }
 

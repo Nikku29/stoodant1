@@ -3,14 +3,17 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import {
   addLeadNote,
+  addTeamMember,
   deleteRecord,
   listAll,
+  removeTeamMember,
   saveRecord,
   setLeadStatus,
   type Batch,
   type Lead,
   type Student,
   type Teacher,
+  type TeamMember,
 } from "@/lib/firebase/school";
 import { indianMobile, signOutNow, useSession, type Session } from "@/lib/firebase/session";
 import { Loading, RequireLogin, Shell } from "./Shell";
@@ -46,7 +49,13 @@ export function AdminPage() {
   return <Admin session={session} />;
 }
 
-type Data = { leads: Lead[]; students: Student[]; teachers: Teacher[]; batches: Batch[] };
+type Data = {
+  leads: Lead[];
+  students: Student[];
+  teachers: Teacher[];
+  batches: Batch[];
+  team: TeamMember[];
+};
 
 function Admin({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>("leads");
@@ -55,13 +64,14 @@ function Admin({ session }: { session: Session }) {
 
   const reload = useCallback(async () => {
     try {
-      const [leads, students, teachers, batches] = await Promise.all([
+      const [leads, students, teachers, batches, team] = await Promise.all([
         listAll.leads(),
         listAll.students(),
         listAll.teachers(),
         listAll.batches(),
+        listAll.team(),
       ]);
-      setData({ leads, students, teachers, batches });
+      setData({ leads, students, teachers, batches, team });
       setError(null);
     } catch {
       setError("Couldn't load the records. Please check the internet connection and refresh.");
@@ -114,6 +124,7 @@ function Admin({ session }: { session: Session }) {
           {tab === "students" && <Students data={data} act={act} />}
           {tab === "teachers" && <Teachers data={data} act={act} />}
           {tab === "batches" && <Batches data={data} act={act} />}
+          {tab === "team" && <Team data={data} act={act} me={session.user.email ?? ""} />}
         </div>
       )}
     </Shell>
@@ -123,14 +134,12 @@ function Admin({ session }: { session: Session }) {
 type Act = (task: () => Promise<unknown>) => Promise<boolean>;
 const local = (phone: string) => phone.replace(/^\+91/, "");
 const when = (lead: Lead) =>
-  lead.createdAt
-    ?.toDate()
-    .toLocaleString("en-IN", {
-      day: "numeric",
-      month: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    }) ?? "";
+  lead.createdAt?.toDate().toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  }) ?? "";
 
 // ---- Demo requests ----
 
@@ -343,6 +352,19 @@ function ItemActions({
   );
 }
 
+/** Reads the number back in groups, so a mistyped digit is easy to spot before saving. */
+function PhoneCheck({ phone }: { phone: string | null }) {
+  if (!phone) return null;
+  return (
+    <p className="pd-phone-check">
+      {copy.phoneCheck}{" "}
+      <strong>
+        +91 {phone.slice(3, 8)} {phone.slice(8)}
+      </strong>
+    </p>
+  );
+}
+
 const confirmDelete = (what: string) => window.confirm(`Delete ${what}? This can't be undone.`);
 
 // ---- Students ----
@@ -416,6 +438,7 @@ function Students({ data, act }: { data: Data; act: Act }) {
           onChange={(parentPhone) => set({ parentPhone })}
           placeholder="98765 43210"
         />
+        <PhoneCheck phone={phone} />
         <fieldset className="pd-stack" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="pd-field">Batches</legend>
           {data.batches.length ? (
@@ -540,6 +563,7 @@ function Teachers({ data, act }: { data: Data; act: Act }) {
           onChange={(phone) => set({ phone })}
           placeholder="98765 43210"
         />
+        <PhoneCheck phone={phone} />
         <Text
           label="Subjects, separated by commas"
           value={form.subjects}
@@ -732,6 +756,67 @@ function Batches({ data, act }: { data: Data; act: Act }) {
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+
+// ---- Team access ----
+
+function Team({ data, act, me }: { data: Data; act: Act; me: string }) {
+  const [email, setEmail] = useState("");
+  const clean = email.trim().toLowerCase();
+  const valid = /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(clean);
+  const already = data.team.some((m) => m.id === clean);
+  return (
+    <>
+      <p className="pd-hint">{copy.teamIntro}</p>
+      <form
+        className="pd-card pd-stack"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (valid && !already && (await act(() => addTeamMember(clean, me)))) setEmail("");
+        }}
+      >
+        <Text
+          label={copy.teamEmailLabel}
+          type="email"
+          autoComplete="off"
+          value={email}
+          onChange={setEmail}
+          placeholder="name@gmail.com"
+        />
+        {already && <p className="pd-muted">This address is already on the list.</p>}
+        <button type="submit" className="pd-save" disabled={!valid || already}>
+          {copy.teamAdd}
+        </button>
+      </form>
+      {!data.team.length && <p className="pd-empty">{copy.teamEmpty}</p>}
+      <ul className="pd-list">
+        {data.team.map((m) => (
+          <li key={m.id} className="pd-item">
+            <div className="pd-item-head">
+              <strong>{m.id}</strong>
+              {m.id === me.toLowerCase() && <span>{copy.teamYou}</span>}
+            </div>
+            <span className="pd-muted">Added by {m.addedBy}</span>
+            {m.id !== me.toLowerCase() && (
+              <div className="pd-actions">
+                <button
+                  type="button"
+                  className="pd-link"
+                  onClick={() =>
+                    window.confirm(`Remove ${m.id}? They lose access straight away.`) &&
+                    void act(() => removeTeamMember(m.id))
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="pd-muted">{copy.teamOwners}</p>
     </>
   );
 }
