@@ -17,21 +17,21 @@ const loadMotionFeatures = () => import("@/lib/motion-features").then((mod) => m
 // Everything below the hero loads when it nears the viewport. Heights are measured from the real
 // sections at 390px, 768px and 1280px wide and reserve the space so nothing jumps.
 const MAIN_SECTIONS: LazySectionDef[] = [
-  { load: () => import("@/components/sections/ProblemSection"), tone: "section-dark", heights: [768, 958, 649] },
-  { load: () => import("@/components/sections/GapSection"), tone: "section-off", heights: [915, 749, 721] },
-  { load: () => import("@/components/sections/ProcessSection"), id: "how-it-works", tone: "section-light", heights: [1263, 1195, 906] },
-  { load: () => import("@/components/sections/AheadSection"), tone: "section-dark", heights: [768, 958, 649] },
-  { load: () => import("@/components/sections/PricingSection"), id: "batches", tone: "section-off", heights: [3179, 1823, 1273] },
-  { load: () => import("@/components/sections/ComparisonSection"), id: "why-stoodant", tone: "section-light", heights: [921, 846, 993] },
-  { load: () => import("@/components/sections/SubjectsSection"), id: "subjects", tone: "section-dark", heights: [600, 606, 753] },
+  { load: () => import("@/components/sections/ProblemSection"), tone: "section-dark", heights: [779, 967, 649] },
+  { load: () => import("@/components/sections/GapSection"), tone: "section-off", heights: [917, 749, 721] },
+  { load: () => import("@/components/sections/ProcessSection"), id: "how-it-works", tone: "section-light", heights: [1240, 1196, 906] },
+  { load: () => import("@/components/sections/AheadSection"), tone: "section-dark", heights: [779, 967, 649] },
+  { load: () => import("@/components/sections/PricingSection"), id: "batches", tone: "section-off", heights: [1217, 1825, 1273] },
+  { load: () => import("@/components/sections/ComparisonSection"), id: "why-stoodant", tone: "section-light", heights: [827, 777, 913] },
+  { load: () => import("@/components/sections/SubjectsSection"), id: "subjects", tone: "section-dark", heights: [601, 608, 754] },
   { load: () => import("@/components/sections/TeachersSection"), tone: "lazy-slot-ink", heights: [1023, 1039, 1113] },
   // Parent progress is hidden until parent logins and real progress reports exist (owner, 2026-10-17). Uncomment to show it again.
   // { load: () => import("@/components/sections/ProgressSection"), tone: "section-light", heights: [1192, 1007, 1101] },
   { load: () => import("@/components/sections/TestimonialsSection"), tone: "section-off", heights: [1159, 673, 700] },
-  { load: () => import("@/components/sections/FaqSection"), id: "faq", tone: "section-light", heights: [983, 940, 781] },
-  { load: () => import("@/components/sections/FinalCta"), id: "demo", tone: "section-dark", heights: [1196, 1226, 847] },
+  { load: () => import("@/components/sections/FaqSection"), id: "faq", tone: "section-light", heights: [955, 941, 782] },
+  { load: () => import("@/components/sections/FinalCta"), id: "demo", tone: "section-dark", heights: [1274, 1263, 884] },
 ];
-const FOOTER: LazySectionDef = { load: () => import("@/components/sections/Footer"), tone: "section-dark", heights: [827, 498, 498] };
+const FOOTER: LazySectionDef = { load: () => import("@/components/sections/Footer"), tone: "section-dark", heights: [827, 499, 499] };
 const ALL_SECTIONS = [...MAIN_SECTIONS, FOOTER];
 
 export function StoodantLanding() {
