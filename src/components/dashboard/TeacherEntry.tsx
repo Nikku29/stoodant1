@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
+import type { Material } from "@/lib/firebase/materials";
 import type { Mark, RosterEntry } from "@/lib/firebase/school";
 import {
   classSummary,
@@ -10,12 +11,13 @@ import {
   type StudentRow,
 } from "@/lib/progress/classSummary";
 import { formatDay } from "@/lib/progress/insights";
-import { SAMPLE_HISTORY } from "@/lib/progress/sampleData";
+import { SAMPLE_BATCH_NOTES, SAMPLE_HISTORY, SAMPLE_MATERIALS } from "@/lib/progress/sampleData";
 import { Shell } from "./Shell";
+import { Materials, StudentReport, type BatchNote, type NewMaterial } from "./TeacherExtras";
 
 const copy = DASHBOARD_CONFIG.teacher;
 type Tab = keyof typeof copy.tabs;
-type Batch = { name: string; schedule: string; students: RosterEntry[] };
+type Batch = { name: string; schedule: string; subject?: string; students: RosterEntry[] };
 
 /** Where the teacher page saves. Left out, the page runs in practice mode and only shows what would be saved. */
 export type TeacherStore = {
@@ -36,6 +38,11 @@ export type TeacherStore = {
   saveNotes(date: string, notes: Record<string, string[]>): Promise<void>;
   loadHistory(): Promise<BatchHistory>;
   deleteTest(id: string): Promise<void>;
+  loadNotes(): Promise<BatchNote[]>;
+  listMaterials(): Promise<Material[]>;
+  addMaterial(m: NewMaterial): Promise<void>;
+  removeMaterial(m: Material): Promise<void>;
+  openMaterial(m: Material): Promise<string>;
 };
 type Save = (task: () => Promise<void>, message: string) => void;
 
@@ -77,6 +84,7 @@ export function TeacherEntry({
       .finally(() => setBusy(false));
   };
   const props = { students: batch.students, store, today, save, busy };
+  const materials = useMaterialStore(store);
   const openDay = (date: string) => {
     setOpenDate(date);
     show("attendance");
@@ -111,7 +119,13 @@ export function TeacherEntry({
         {tab === "attendance" && <AttendanceForm key={openDate} {...props} start={openDate} />}
         {tab === "marks" && <MarksForm {...props} />}
         {tab === "notes" && <NotesForm {...props} />}
-        {tab === "overview" && <ClassOverview {...props} />}
+        {tab === "overview" && (
+          <ClassOverview
+            {...props}
+            batch={{ name: batch.name, schedule: batch.schedule, subject: batch.subject ?? "" }}
+          />
+        )}
+        {tab === "materials" && <Materials {...materials} practice={!store} />}
         {tab === "recent" && <Recent {...props} openDay={openDay} />}
       </div>
       {saved && (
@@ -444,10 +458,32 @@ function useHistory(store: TeacherStore | undefined) {
 const LOAD_FAILED =
   "Couldn't load the saved records. Please check the internet connection and try again.";
 
-function ClassOverview({ students, store, today }: FormProps) {
+function ClassOverview({
+  students,
+  store,
+  today,
+  batch,
+}: FormProps & { batch: { name: string; schedule: string; subject: string } }) {
   const { history, failed } = useHistory(store);
+  const [child, setChild] = useState<RosterEntry | null>(null);
+  const [notes, setNotes] = useState<BatchNote[] | null>(store ? null : SAMPLE_BATCH_NOTES);
+  useEffect(() => {
+    if (!store || !child || notes) return;
+    store.loadNotes().then(setNotes, () => setNotes([]));
+  }, [store, child, notes]);
   if (failed) return <p className="pd-alert">{LOAD_FAILED}</p>;
   if (!history) return <p className="pd-muted">Loading…</p>;
+  if (child)
+    return (
+      <StudentReport
+        student={child}
+        batch={batch}
+        history={history}
+        notes={notes}
+        today={today}
+        onBack={() => setChild(null)}
+      />
+    );
   if (!history.days.length && !history.tests.length)
     return <p className="pd-empty">{copy.noHistory}</p>;
   const summary = classSummary(students, history, today);
@@ -482,14 +518,14 @@ function ClassOverview({ students, store, today }: FormProps) {
       </section>
       <ul className="pd-roster pd-class" style={{ marginTop: 14 }}>
         {rows.map((r) => (
-          <ClassRow key={r.id} r={r} />
+          <ClassRow key={r.id} r={r} onOpen={() => setChild({ id: r.id, name: r.name })} />
         ))}
       </ul>
     </>
   );
 }
 
-function ClassRow({ r }: { r: StudentRow }) {
+function ClassRow({ r, onOpen }: { r: StudentRow; onOpen: () => void }) {
   const arrow = r.trend === "up" ? "↑" : r.trend === "down" ? "↓" : "";
   return (
     <li className={`pd-class-row${r.flags.length ? " is-flagged" : ""}`}>
@@ -519,6 +555,9 @@ function ClassRow({ r }: { r: StudentRow }) {
           <dd>{r.latest == null ? "–" : `${r.latest}%`}</dd>
         </div>
       </dl>
+      <button type="button" className="pd-link pd-row-link" onClick={onOpen}>
+        {copy.openReport}
+      </button>
     </li>
   );
 }
@@ -623,5 +662,45 @@ function Recent({
         })}
       </ul>
     </>
+  );
+}
+
+/** The study material store, or an in-memory list in practice mode where nothing is saved. */
+function useMaterialStore(store: TeacherStore | undefined) {
+  const [practiceList, setPracticeList] = useState<Material[]>(SAMPLE_MATERIALS);
+  return useMemo(
+    () =>
+      store
+        ? {
+            load: () => store.listMaterials(),
+            add: (m: NewMaterial) => store.addMaterial(m),
+            remove: (m: Material) => store.removeMaterial(m),
+            open: (m: Material) => store.openMaterial(m),
+          }
+        : {
+            load: async () => practiceList,
+            add: async (m: NewMaterial) =>
+              setPracticeList((list) => [
+                {
+                  id: `practice-${list.length}`,
+                  batchId: "sample",
+                  title: m.title,
+                  kind: m.kind,
+                  ...(m.description ? { description: m.description } : {}),
+                  ...(m.file
+                    ? {
+                        file: { path: "", name: m.file.name, size: m.file.size, type: m.file.type },
+                      }
+                    : { link: m.link ?? "" }),
+                  teacherName: "You",
+                  createdBy: "practice",
+                  createdAt: { toMillis: () => Date.now() },
+                },
+                ...list,
+              ]),
+            remove: async (m: Material) =>
+              setPracticeList((list) => list.filter((x) => x.id !== m.id)),
+          },
+    [store, practiceList],
   );
 }

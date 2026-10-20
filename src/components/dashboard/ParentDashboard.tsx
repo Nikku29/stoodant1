@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
+import type { Material } from "@/lib/firebase/materials";
 import {
   attendanceSummary,
   formatDay,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/progress/insights";
 import { monthlyReport, weeklyReport } from "@/lib/progress/reportText";
 import { AttendanceChart, MarksChart } from "./Charts";
+import { MaterialList } from "./MaterialList";
 import { Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.parent;
@@ -33,12 +35,20 @@ export function ParentDashboard({
   sample = false,
   picker,
   onSignOut,
+  materials,
 }: {
   records: StudentRecords;
   today: string;
   sample?: boolean;
   picker?: ReactNode | undefined;
   onSignOut?: (() => void) | undefined;
+  /** Study material the child's teachers shared. Without `open`, the list is a preview. */
+  materials?:
+    | {
+        load: () => Promise<Material[]>;
+        open?: ((m: Material) => Promise<string>) | undefined;
+      }
+    | undefined;
 }) {
   const [kind, setKind] = useState<PeriodKind>("week");
   const period = kind === "week" ? weekOf(today) : monthOf(today);
@@ -156,6 +166,8 @@ export function ParentDashboard({
         </section>
       )}
 
+      {materials && <StudyMaterial {...materials} />}
+
       <section className="pd-section" aria-labelledby="pd-report">
         <h2 id="pd-report">{copy.reportTitle}</h2>
         <p className="pd-muted">{kind === "week" ? copy.reportWeekNote : copy.reportMonthNote}</p>
@@ -173,6 +185,42 @@ export function ParentDashboard({
         {copy.askTeacher}
       </a>
     </Shell>
+  );
+}
+
+function StudyMaterial({
+  load,
+  open,
+}: {
+  load: () => Promise<Material[]>;
+  open?: ((m: Material) => Promise<string>) | undefined;
+}) {
+  const [items, setItems] = useState<Material[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    load()
+      .then((m) => live && setItems(m))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [load]);
+  return (
+    <section className="pd-section" aria-labelledby="pd-materials">
+      <h2 id="pd-materials">{copy.materialsTitle}</h2>
+      <p className="pd-muted">{copy.materialsNote}</p>
+      {failed && <p className="pd-alert">{copy.materialsFailed}</p>}
+      {!items && !failed && <p className="pd-muted">Loading…</p>}
+      {items && !items.length && <p className="pd-empty">{copy.materialsEmpty}</p>}
+      {items && items.length > 0 && (
+        <MaterialList
+          items={items}
+          open={open}
+          openError={open ? undefined : copy.materialsPreview}
+        />
+      )}
+    </section>
   );
 }
 

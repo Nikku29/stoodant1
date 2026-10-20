@@ -5,11 +5,13 @@ import { Loading, RequireLogin, Shell, useSearchFlag } from "@/components/dashbo
 import { TeacherEntry, type TeacherStore } from "@/components/dashboard/TeacherEntry";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { firebaseConfigured } from "@/lib/firebase/app";
+import { addMaterial, materialsFor, openUrl, removeMaterial } from "@/lib/firebase/materials";
 import {
   istDay,
   listAll,
   loadSession,
   batchHistory,
+  batchNotes,
   deleteAssessment,
   myBatches,
   myTeacherRecord,
@@ -74,7 +76,15 @@ function Batches({ session }: { session: Session }) {
     const load = session.admin
       ? listAll.batches().then((all) => all.filter((b) => b.active !== false))
       : myBatches(session.phone);
-    load.then(setBatches).catch(() => setFailed(true));
+    load
+      .then((list) => {
+        // The team opens a batch's page from /admin with ?batch=<id>.
+        const wanted = new URLSearchParams(location.search).get("batch");
+        const i = wanted ? list.findIndex((b) => b.id === wanted) : -1;
+        if (i > 0) setPick(i);
+        setBatches(list);
+      })
+      .catch(() => setFailed(true));
   }, [session]);
 
   const batch = batches?.[Math.min(pick, batches.length - 1)];
@@ -89,8 +99,22 @@ function Batches({ session }: { session: Session }) {
         saveNotes: (date, notes) => saveNotes(batch, date, notes, uid),
         loadHistory: () => batchHistory(batch.id),
         deleteTest: (id) => deleteAssessment(id),
+        loadNotes: () => batchNotes(batch.id),
+        listMaterials: () => materialsFor([batch.id]),
+        addMaterial: (m) =>
+          addMaterial({
+            ...m,
+            batchId: batch.id,
+            uid,
+            teacherName: (session.admin
+              ? "Stoodant team"
+              : name || batch.teacherName || "Teacher"
+            ).slice(0, 80),
+          }),
+        removeMaterial,
+        openMaterial: openUrl,
       },
-    [batch, uid],
+    [batch, uid, name, session.admin],
   );
 
   const signOut = () => void signOutNow().then(() => location.assign("/login"));
@@ -136,7 +160,12 @@ function Batches({ session }: { session: Session }) {
   return (
     <TeacherEntry
       key={batch.id}
-      batch={{ name: batch.name, schedule: batch.schedule, students: batch.roster ?? [] }}
+      batch={{
+        name: batch.name,
+        schedule: batch.schedule,
+        subject: batch.subject,
+        students: batch.roster ?? [],
+      }}
       store={store}
       today={istDay()}
       picker={picker}
