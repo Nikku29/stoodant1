@@ -155,7 +155,7 @@ jobs:
           npx -y firebase-tools@15.32.1 hosting:channel:deploy "pr-${{ github.event.number }}" \
             --project "${{ vars.FIREBASE_PROJECT_ID }}" --expires 7d --json > deploy.json
           echo "url=$(jq -r '.result[].url' deploy.json | head -1)" >> "$GITHUB_OUTPUT"
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             const url = '${{ steps.deploy.outputs.url }}';
