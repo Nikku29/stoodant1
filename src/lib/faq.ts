@@ -1,5 +1,6 @@
-import { SITE_CONFIG } from "@/config/siteConfig";
-import { formatINR, getPrice } from "@/lib/pricing";
+// Relative imports: vite.config.ts loads this module (through src/seo/files.ts), and path aliases do not apply there.
+import { SITE_CONFIG } from "../config/siteConfig";
+import { formatINR, getPrice } from "./pricing";
 
 const listFormat = new Intl.ListFormat("en-IN", { style: "long", type: "conjunction" });
 
