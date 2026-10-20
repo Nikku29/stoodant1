@@ -4,6 +4,7 @@ import { SITE_CONFIG } from "@/config/siteConfig";
 import { getOfferText, isOfferActive } from "@/lib/pricing";
 import { Reveal } from "@/lib/directional-reveal";
 import { Logo } from "@/brand/Logo";
+import { LOGO_LABEL } from "@/brand/logoMarkup";
 
 export const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -15,7 +16,7 @@ export const GROUP = { hidden: {}, visible: {} };
 export function BrandLink({ dark = false, nav = false }: { dark?: boolean; nav?: boolean }) {
   const tone = dark ? "dark" : "light";
   return (
-    <a href="#top" className={nav ? "logo logo-nav" : "logo"} aria-label={`${SITE_CONFIG.brand.name} home`}>
+    <a href="#top" className={nav ? "logo logo-nav" : "logo"} aria-label={`${LOGO_LABEL}. Home`}>
       {nav ? (
         <>
           <Logo tone={tone} animate="blink" follow className="logo-full" />
