@@ -77,6 +77,8 @@ test("a teacher sees only their own batches, and never parents' details", async 
 });
 
 test("a teacher marks attendance for their batch only, with children from its roster", async () => {
+  await assertSucceeds(getDoc(doc(teacher(), "sessions/b1_2026-10-20")));
+  await assertFails(getDoc(doc(otherTeacher(), "sessions/b1_2026-10-20")));
   await assertSucceeds(session(teacher()));
   await assertSucceeds(updateDoc(doc(teacher(), "sessions/b1_2026-10-20"), { attendance: { s1: "absent" }, updatedAt: serverTimestamp() }));
   await assertSucceeds(getDocs(query(collection(teacher(), "sessions"), where("batchId", "==", "b1"))));

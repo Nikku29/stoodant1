@@ -113,7 +113,9 @@ service cloud.firestore {
           && d.markedBy == request.auth.uid
           && d.updatedAt == request.time;
       }
-      allow read: if isAdmin() || teachesBatch(resource.data.batchId);
+      // A single read goes by the id, so a teacher can check whether today is marked before it exists.
+      allow get: if isAdmin() || teachesBatch(sessionId.split('_')[0]);
+      allow list: if isAdmin() || teachesBatch(resource.data.batchId);
       allow create: if (isAdmin() || teachesBatch(request.resource.data.batchId))
         && validSession() && request.resource.data.createdAt == request.time;
       allow update: if (isAdmin() || (teachesBatch(resource.data.batchId) && recent()))

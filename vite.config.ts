@@ -26,8 +26,8 @@ export default defineConfig({
       server: { entry: "server" },
       // Every page is rendered to static HTML at build time; Firebase Hosting serves dist/client.
       prerender: { enabled: true, crawlLinks: true },
-      // /parent and /teacher are not linked from the landing page, so the crawl would miss them.
-      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }],
+      // /parent, /teacher, /login and /admin are not linked from the landing page, so the crawl would miss them.
+      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }],
     }),
     viteReact(),
   ],

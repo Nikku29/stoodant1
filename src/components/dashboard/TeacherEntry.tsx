@@ -1,124 +1,255 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { Logo } from "@/brand/Logo";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
-import "./dashboard.css";
+import type { Mark, RosterEntry } from "@/lib/firebase/school";
+import { Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.teacher;
 type Tab = keyof typeof copy.tabs;
-type Batch = { name: string; schedule: string; students: string[] };
+type Batch = { name: string; schedule: string; students: RosterEntry[] };
+
+/** Where the teacher page saves. Left out, the page runs in practice mode and only shows what would be saved. */
+export type TeacherStore = {
+  loadAttendance(
+    date: string,
+  ): Promise<{ status: "held" | "cancelled"; attendance: Record<string, Mark> } | null>;
+  saveAttendance(
+    date: string,
+    status: "held" | "cancelled",
+    attendance: Record<string, Mark>,
+  ): Promise<void>;
+  saveMarks(test: {
+    title: string;
+    date: string;
+    max: number;
+    scores: Record<string, number | null>;
+  }): Promise<void>;
+  saveNotes(date: string, notes: Record<string, string[]>): Promise<void>;
+};
+type Save = (task: () => Promise<void>, message: string) => void;
 
 /**
  * The teacher's whole job in three taps: attendance (everyone present unless tapped), test marks
  * (one number per child, checked as they type) and a quick note picked from ready-made lines.
- * Practice mode for now: Save only shows what would be stored.
  */
-export function TeacherEntry({ batch }: { batch: Batch }) {
+export function TeacherEntry({
+  batch,
+  store,
+  today,
+  picker,
+  onSignOut,
+}: {
+  batch: Batch;
+  store?: TeacherStore | undefined;
+  today: string;
+  picker?: ReactNode | undefined;
+  onSignOut?: (() => void) | undefined;
+}) {
   const [tab, setTab] = useState<Tab>("attendance");
   const [saved, setSaved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const show = (t: Tab) => {
     setTab(t);
     setSaved(null);
+    setError(null);
   };
+  const save: Save = (task, message) => {
+    setSaved(null);
+    setError(null);
+    if (!store) return setSaved(message);
+    setBusy(true);
+    task()
+      .then(() => setSaved(message))
+      .catch(() => setError("Couldn't save. Please check the internet connection and try again."))
+      .finally(() => setBusy(false));
+  };
+  const props = { students: batch.students, store, today, save, busy };
 
   return (
-    <div className="pd">
-      <header className="pd-top">
-        <a href="/" className="pd-logo" aria-label="Stoodant home">
-          <Logo variant="full" />
-        </a>
-        <span className="pd-role">Teacher</span>
-      </header>
-      <main className="pd-main">
-        <p className="pd-banner">{copy.sampleBanner}</p>
-        <section className="pd-child">
-          <h1>{batch.name}</h1>
-          <p>{batch.schedule}</p>
-        </section>
+    <Shell role="Teacher" onSignOut={onSignOut}>
+      <p className="pd-banner">{store ? copy.liveBanner : copy.sampleBanner}</p>
+      {picker}
+      <section className="pd-child">
+        <h1>{batch.name}</h1>
+        <p>{batch.schedule}</p>
+      </section>
 
-        <div className="pd-tabs" role="tablist" aria-label="What to enter">
-          {(Object.keys(copy.tabs) as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              id={`pd-tab-${t}`}
-              aria-selected={tab === t}
-              aria-controls={`pd-panel-${t}`}
-              onClick={() => show(t)}
-            >
-              {copy.tabs[t]}
-            </button>
-          ))}
-        </div>
+      <div className="pd-tabs" role="tablist" aria-label="What to enter">
+        {(Object.keys(copy.tabs) as Tab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            id={`pd-tab-${t}`}
+            aria-selected={tab === t}
+            aria-controls={`pd-panel-${t}`}
+            onClick={() => show(t)}
+          >
+            {copy.tabs[t]}
+          </button>
+        ))}
+      </div>
 
-        <div role="tabpanel" id={`pd-panel-${tab}`} aria-labelledby={`pd-tab-${tab}`}>
-          {tab === "attendance" && <AttendanceForm students={batch.students} onSave={setSaved} />}
-          {tab === "marks" && <MarksForm students={batch.students} onSave={setSaved} />}
-          {tab === "notes" && <NotesForm students={batch.students} onSave={setSaved} />}
-        </div>
-        {saved && (
-          <p className="pd-toast" role="status">
-            <strong>{copy.saved}.</strong> {saved}
-          </p>
-        )}
-      </main>
-    </div>
+      <div role="tabpanel" id={`pd-panel-${tab}`} aria-labelledby={`pd-tab-${tab}`}>
+        {tab === "attendance" && <AttendanceForm {...props} />}
+        {tab === "marks" && <MarksForm {...props} />}
+        {tab === "notes" && <NotesForm {...props} />}
+      </div>
+      {saved && (
+        <p className="pd-toast" role="status">
+          <strong>{copy.saved}.</strong> {saved}
+        </p>
+      )}
+      {error && (
+        <p className="pd-alert" role="alert" style={{ marginTop: 12 }}>
+          {error}
+        </p>
+      )}
+    </Shell>
   );
 }
 
-const today = () =>
-  new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+type FormProps = {
+  students: RosterEntry[];
+  store?: TeacherStore | undefined;
+  today: string;
+  save: Save;
+  busy: boolean;
+};
 
-function AttendanceForm({
-  students,
-  onSave,
+/** Today or the two days before it: a teacher can catch up on a missed entry, not rewrite history. */
+function DayField({
+  value,
+  onChange,
+  today,
 }: {
-  students: string[];
-  onSave: (msg: string) => void;
+  value: string;
+  onChange: (v: string) => void;
+  today: string;
 }) {
+  const min = new Date(Date.parse(today) - 2 * 86_400_000).toISOString().slice(0, 10);
+  return (
+    <label className="pd-field">
+      Class date
+      <input
+        type="date"
+        value={value}
+        min={min}
+        max={today}
+        onChange={(e) => e.target.value && onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
+const longDay = (date: string) =>
+  new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+function AttendanceForm({ students, store, today, save, busy }: FormProps) {
+  const [date, setDate] = useState(today);
   const [absent, setAbsent] = useState<Set<string>>(new Set());
-  const toggle = (name: string) =>
+  const [cancelled, setCancelled] = useState(false);
+  const [loaded, setLoaded] = useState(!store);
+
+  // Opening a day that was already marked shows what was saved.
+  useEffect(() => {
+    if (!store) return;
+    let live = true;
+    setLoaded(false);
+    store
+      .loadAttendance(date)
+      .then((existing) => {
+        if (!live) return;
+        setCancelled(existing?.status === "cancelled");
+        setAbsent(
+          new Set(
+            Object.entries(existing?.attendance ?? {})
+              .filter(([, m]) => m === "absent")
+              .map(([id]) => id),
+          ),
+        );
+      })
+      .catch(() => undefined)
+      .finally(() => live && setLoaded(true));
+    return () => {
+      live = false;
+    };
+  }, [store, date]);
+
+  const toggle = (id: string) =>
     setAbsent((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   const present = students.length - absent.size;
+  const attendance = Object.fromEntries(
+    students.map((s) => [s.id, absent.has(s.id) ? "absent" : "present"]),
+  ) as Record<string, Mark>;
   return (
     <>
       <p className="pd-hint">{copy.attendanceHint}</p>
+      <div className="pd-row">
+        <DayField value={date} onChange={setDate} today={today} />
+      </div>
       <p className="pd-muted" suppressHydrationWarning>
-        {today()}
+        {longDay(date)}
       </p>
-      <ul className="pd-roster">
-        {students.map((name) => (
-          <li key={name}>
-            <button
-              type="button"
-              className="pd-roster-btn"
-              aria-pressed={!absent.has(name)}
-              onClick={() => toggle(name)}
-            >
-              {name}
-              <span className="pd-mark">{absent.has(name) ? "Missed" : "Present"}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <label className="pd-check">
+        <input
+          type="checkbox"
+          checked={cancelled}
+          onChange={(e) => setCancelled(e.target.checked)}
+        />
+        {copy.cancelled}
+      </label>
+      {!cancelled && (
+        <ul className="pd-roster">
+          {students.map((s) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                className="pd-roster-btn"
+                aria-pressed={!absent.has(s.id)}
+                onClick={() => toggle(s.id)}
+              >
+                {s.name}
+                <span className="pd-mark">{absent.has(s.id) ? "Missed" : "Present"}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <button
         type="button"
         className="pd-save"
-        onClick={() => onSave(`${present} of ${students.length} present today.`)}
+        disabled={busy || !loaded || !students.length}
+        onClick={() =>
+          cancelled
+            ? save(
+                () => store!.saveAttendance(date, "cancelled", {}),
+                `Class on ${longDay(date)} marked as cancelled.`,
+              )
+            : save(
+                () => store!.saveAttendance(date, "held", attendance),
+                `${present} of ${students.length} present on ${longDay(date)}.`,
+              )
+        }
       >
-        {copy.save} · {present} of {students.length} present
+        {cancelled ? copy.save : `${copy.save} · ${present} of ${students.length} present`}
       </button>
     </>
   );
 }
 
-function MarksForm({ students, onSave }: { students: string[]; onSave: (msg: string) => void }) {
+function MarksForm({ students, store, today, save, busy }: FormProps) {
+  const [date, setDate] = useState(today);
   const [title, setTitle] = useState("");
   const [max, setMax] = useState("20");
   const [marks, setMarks] = useState<Record<string, string>>({});
@@ -130,9 +261,25 @@ function MarksForm({ students, onSave }: { students: string[]; onSave: (msg: str
     if (maxNum > 0 && n > maxNum) return `More than ${maxNum}. Please check.`;
     return null;
   };
-  const errors = students.map((s) => problem(marks[s]));
-  const entered = students.filter((s) => marks[s]).length;
-  const ready = title.trim() !== "" && maxNum > 0 && entered > 0 && errors.every((e) => !e);
+  const errors = students.map((s) => problem(marks[s.id]));
+  const entered = students.filter((s) => marks[s.id]).length;
+  const ready =
+    title.trim() !== "" && maxNum > 0 && maxNum <= 500 && entered > 0 && errors.every((e) => !e);
+  const submit = () => {
+    const name = title.trim();
+    const scores = Object.fromEntries(
+      students.map((s) => [s.id, marks[s.id] ? Number(marks[s.id]) : null]),
+    );
+    const missed = students.length - entered;
+    save(
+      async () => {
+        await store!.saveMarks({ title: name, date, max: maxNum, scores });
+        setTitle("");
+        setMarks({});
+      },
+      `${name}: marks for ${entered} of ${students.length} children.${missed ? ` ${missed} marked as missed.` : ""}`,
+    );
+  };
   return (
     <>
       <p className="pd-hint">{copy.marksHint}</p>
@@ -141,6 +288,7 @@ function MarksForm({ students, onSave }: { students: string[]; onSave: (msg: str
           Test name
           <input
             value={title}
+            maxLength={60}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Fractions quiz"
           />
@@ -150,22 +298,25 @@ function MarksForm({ students, onSave }: { students: string[]; onSave: (msg: str
           <input
             inputMode="numeric"
             value={max}
-            onChange={(e) => setMax(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) => setMax(e.target.value.replace(/[^\d]/g, "").slice(0, 3))}
           />
         </label>
       </div>
+      <div className="pd-row" style={{ marginTop: 10 }}>
+        <DayField value={date} onChange={setDate} today={today} />
+      </div>
       <ul className="pd-roster" style={{ marginTop: 14 }}>
-        {students.map((name, i) => (
-          <li key={name}>
+        {students.map((s, i) => (
+          <li key={s.id}>
             <label className="pd-mark-row">
-              {name}
+              {s.name}
               <input
                 inputMode="decimal"
-                value={marks[name] ?? ""}
+                value={marks[s.id] ?? ""}
                 aria-invalid={errors[i] ? true : undefined}
                 aria-describedby={errors[i] ? `pd-err-${i}` : undefined}
                 placeholder={`/ ${max || "?"}`}
-                onChange={(e) => setMarks((m) => ({ ...m, [name]: e.target.value.trim() }))}
+                onChange={(e) => setMarks((m) => ({ ...m, [s.id]: e.target.value.trim() }))}
               />
             </label>
             {errors[i] && (
@@ -176,30 +327,21 @@ function MarksForm({ students, onSave }: { students: string[]; onSave: (msg: str
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        className="pd-save"
-        disabled={!ready}
-        onClick={() =>
-          onSave(
-            `${title.trim()}: marks for ${entered} of ${students.length} children. ${students.length - entered ? `${students.length - entered} marked as missed.` : ""}`,
-          )
-        }
-      >
+      <button type="button" className="pd-save" disabled={!ready || busy} onClick={submit}>
         {copy.save}
       </button>
     </>
   );
 }
 
-function NotesForm({ students, onSave }: { students: string[]; onSave: (msg: string) => void }) {
+function NotesForm({ students, store, today, save, busy }: FormProps) {
   const [picked, setPicked] = useState<Record<string, string[]>>({});
-  const toggle = (name: string, chip: string) =>
+  const toggle = (id: string, chip: string) =>
     setPicked((p) => {
-      const cur = p[name] ?? [];
+      const cur = p[id] ?? [];
       return {
         ...p,
-        [name]: cur.includes(chip) ? cur.filter((c) => c !== chip) : [...cur, chip].slice(-2),
+        [id]: cur.includes(chip) ? cur.filter((c) => c !== chip) : [...cur, chip].slice(-2),
       };
     });
   const count = Object.values(picked).filter((v) => v.length).length;
@@ -207,16 +349,16 @@ function NotesForm({ students, onSave }: { students: string[]; onSave: (msg: str
     <>
       <p className="pd-hint">{copy.notesHint}</p>
       <ul className="pd-roster">
-        {students.map((name) => (
-          <li key={name} className="pd-note-card">
-            <strong>{name}</strong>
+        {students.map((s) => (
+          <li key={s.id} className="pd-note-card">
+            <strong>{s.name}</strong>
             <div className="pd-chips">
               {copy.noteChips.map((chip) => (
                 <button
                   key={chip}
                   type="button"
-                  aria-pressed={(picked[name] ?? []).includes(chip)}
-                  onClick={() => toggle(name, chip)}
+                  aria-pressed={(picked[s.id] ?? []).includes(chip)}
+                  onClick={() => toggle(s.id, chip)}
                 >
                   {chip}
                 </button>
@@ -228,8 +370,16 @@ function NotesForm({ students, onSave }: { students: string[]; onSave: (msg: str
       <button
         type="button"
         className="pd-save"
-        disabled={!count}
-        onClick={() => onSave(`Notes for ${count} children will go into Sunday's report.`)}
+        disabled={!count || busy}
+        onClick={() =>
+          save(
+            async () => {
+              await store!.saveNotes(today, picked);
+              setPicked({});
+            },
+            `Notes for ${count} ${count === 1 ? "child" : "children"} will go into Sunday's report.`,
+          )
+        }
       >
         {copy.save}
       </button>
