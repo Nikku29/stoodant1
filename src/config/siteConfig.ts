@@ -80,6 +80,8 @@ export const SITE_CONFIG = {
       { label: "FAQ", href: "#faq" },
     ],
     cta: "Book a Free Demo",
+    login: "Log in",
+    loginMenu: "Parent & teacher log-in",
     menuOpen: "Open menu",
     menuClose: "Close menu",
   },

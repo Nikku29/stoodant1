@@ -759,3 +759,322 @@
   color: var(--brand-ink);
   font-size: 14px;
 }
+
+/* ---- Log-in page: brand panel beside the form (stacked on phones) ---- */
+.lg {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+  background: var(--off-white);
+  color: var(--brand-ink);
+  font-family: var(--font-body);
+}
+.lg-brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: 40px clamp(28px, 5vw, 64px);
+  background:
+    radial-gradient(circle at 85% 12%, color-mix(in srgb, var(--amber) 28%, transparent), transparent 42%),
+    var(--brand-ink);
+  color: var(--white);
+  overflow: hidden;
+}
+.lg-logo {
+  display: block;
+  width: 168px;
+}
+.lg-logo svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.lg-pitch {
+  margin: auto 0;
+  max-width: 440px;
+}
+.lg-pitch h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+.lg-pitch > p {
+  margin: 14px 0 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--white) 78%, transparent);
+}
+.lg-points {
+  display: grid;
+  gap: 14px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lg-points li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.lg-points li::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--amber) 22%, transparent);
+}
+.lg-ant {
+  position: absolute;
+  right: clamp(12px, 4vw, 48px);
+  bottom: 24px;
+  width: 120px;
+  height: 120px;
+}
+.lg-ant-shadow {
+  fill: color-mix(in srgb, var(--black, #000) 40%, transparent);
+}
+.lg-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 40px 20px;
+}
+.lg-back {
+  align-self: flex-start;
+  margin-left: max(0px, calc(50% - 220px));
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--grey-4);
+}
+.lg-back:hover {
+  color: var(--brand-ink);
+}
+.lg-card {
+  width: min(100%, 440px);
+  display: grid;
+  gap: 16px;
+  padding: 32px 28px;
+  border: 1px solid var(--grey-1);
+  border-radius: 24px;
+  background: var(--white);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--brand-ink) 8%, transparent);
+}
+.lg-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+.lg-intro {
+  margin: -8px 0 4px;
+  color: var(--grey-4);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.lg-steps {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--grey-4);
+}
+.lg-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lg-steps li + li::before {
+  content: "";
+  width: 24px;
+  height: 1px;
+  background: var(--grey-2);
+}
+.lg-steps span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--grey-2);
+  font-size: 12px;
+}
+.lg-steps .is-on {
+  color: var(--brand-ink);
+}
+.lg-steps .is-on span {
+  border-color: var(--amber);
+  background: var(--amber);
+  color: var(--brand-ink);
+}
+.lg-steps .is-done span {
+  border-color: var(--brand-ink);
+  background: var(--brand-ink);
+  color: var(--white);
+}
+.lg-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+.lg-phone {
+  min-height: 56px;
+  border-radius: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.lg-phone:focus-within,
+.lg-code:focus {
+  border-color: var(--brand-ink);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--amber) 35%, transparent);
+  outline: none;
+}
+.lg-phone input:focus {
+  outline: none;
+}
+.lg-hint {
+  margin: -4px 0 0;
+  color: var(--grey-4);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lg-sent {
+  margin: 0;
+  font-size: 15px;
+}
+.lg-code {
+  width: 100%;
+  min-height: 60px;
+  padding: 0 12px;
+  border: 1px solid var(--grey-2);
+  border-radius: 14px;
+  background: var(--white);
+  color: var(--brand-ink);
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  text-align: center;
+}
+.lg-primary {
+  margin-top: 4px;
+  min-height: 56px;
+}
+.lg-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--brand-ink) 88%, var(--amber));
+}
+.lg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.lg-checking {
+  margin: 8px 0;
+  color: var(--grey-4);
+}
+.lg-help {
+  margin: 4px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--grey-1);
+  font-size: 14px;
+  color: var(--grey-4);
+}
+.lg-help a {
+  color: var(--brand-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lg-team {
+  width: min(100%, 440px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--grey-4);
+}
+.lg-google {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--grey-2);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--brand-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lg-google:hover {
+  border-color: var(--brand-ink);
+}
+.lg-signout {
+  font-size: 13px;
+}
+.pd-welcome h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+}
+.pd-ghost-link {
+  display: grid;
+  place-items: center;
+}
+
+@media (max-width: 820px) {
+  .lg {
+    grid-template-columns: 1fr;
+  }
+  .lg-brand {
+    gap: 18px;
+    padding: 20px 20px 28px;
+  }
+  .lg-logo {
+    width: 132px;
+  }
+  .lg-pitch h1 {
+    font-size: 28px;
+  }
+  .lg-pitch > p {
+    margin-top: 8px;
+    font-size: 15px;
+    padding-right: 90px;
+  }
+  .lg-points {
+    display: none;
+  }
+  .lg-ant {
+    width: 84px;
+    height: 84px;
+    bottom: 10px;
+    right: 14px;
+  }
+  .lg-panel {
+    justify-content: flex-start;
+    padding: 20px 16px 40px;
+  }
+  .lg-back {
+    display: none;
+  }
+  .lg-card {
+    padding: 24px 20px;
+    border-radius: 20px;
+  }
+}
