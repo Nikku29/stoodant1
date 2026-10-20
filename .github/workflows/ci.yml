@@ -31,7 +31,7 @@ jobs:
       - run: npx vitest run
       - run: npx vite build
       - run: node scripts/check-bundle.mjs --strict
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: site
           path: dist/client
