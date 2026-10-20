@@ -32,7 +32,10 @@ export async function handleLeadCreated(event: FirestoreEvent<QueryDocumentSnaps
     deliver("email", () => sendEmail(alert)),
     deliver("whatsapp", () => sendWhatsApp(alert)),
   ]);
-  await snap.ref.update({ alerts: { email, whatsapp, at: FieldValue.serverTimestamp() } });
+  // A lead erased in the meantime (an erase request, or tests clearing the emulator) has nowhere to record it.
+  await snap.ref.update({ alerts: { email, whatsapp, at: FieldValue.serverTimestamp() } }).catch((error: { code?: unknown }) => {
+    if (error.code !== 5) throw error;
+  });
   logger.info("lead_alerts", { leadId: alert.leadId, email, whatsapp });
 }
 

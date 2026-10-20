@@ -12,6 +12,9 @@ export const MIN_FILL_MS = defineInt("MIN_FILL_MS", { default: 3000 });
 /** Days a lead is kept unless it enrols (owner decision 2026-10-17: 3 months). */
 export const LEAD_RETENTION_DAYS = defineInt("LEAD_RETENTION_DAYS", { default: 90 });
 
+/** Comma-separated Google addresses that may open /admin (they sign in with Google, then claimAdmin). */
+export const ADMIN_EMAILS = defineString("ADMIN_EMAILS", { default: "" });
+
 export const PHONE_HASH_PEPPER = defineSecret("PHONE_HASH_PEPPER");
 
 // Owner alerts. Leave a value empty (or a secret as "disabled") to switch that channel off.
