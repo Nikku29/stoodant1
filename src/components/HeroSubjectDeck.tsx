@@ -220,7 +220,7 @@ function SocialLesson({ subject, reduced }: { subject: (typeof SUBJECTS)[3]; red
 }
 
 function TypeLine({ text, reduced }: { text: string; reduced: boolean }) {
-  return <p className="type-line" aria-label={text}>{text.split("").map((character, index) => <m.span key={`${character}-${index}`} aria-hidden="true" initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.035 + 0.12, duration: 0.12 }}>{character}</m.span>)}</p>;
+  return <p className="type-line"><span className="sr-only">{text}</span>{text.split("").map((character, index) => <m.span key={`${character}-${index}`} aria-hidden="true" initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.035 + 0.12, duration: 0.12 }}>{character}</m.span>)}</p>;
 }
 
 function SubjectIcon({ kind }: { kind: Subject["kind"] }) {
