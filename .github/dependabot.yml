@@ -7,6 +7,12 @@ updates:
     groups:
       web:
         patterns: ["*"]
+    # These three make up most of the home page's 150 KB first-load budget; React 19.3 and framer-motion 14.2
+    # added 11 KB. Bump them by hand after checking `node scripts/check-bundle.mjs`. Security updates still arrive.
+    ignore:
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "framer-motion"
   - package-ecosystem: npm
     directory: /functions
     schedule:

@@ -64,9 +64,9 @@ export const TIMING = {
     skipLift: 0.3,
     // Low tier: logo fades in whole, blinks once, lifts.
     lowFade: 0.3,
-    lowBlinkAt: 0.35,
-    lowLiftAt: 0.7,
-    lowLift: 0.3,
+    lowBlinkAt: 0.6,
+    lowLiftAt: 1.5,
+    lowLift: 0.4,
     // Reduced motion: static logo, then it simply disappears.
     reducedHold: 0.4,
   },

@@ -122,7 +122,7 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Runs before first paint: perf tier and once-per-session splash (see brand/brandCss.ts).
+        {/* Runs before first paint: perf tier and splash (see brand/brandCss.ts).
             Both are only in the prerendered HTML; the browser bundle reuses the page's own copy (see headTag). */}
         <script suppressHydrationWarning {...HEAD_SCRIPT_PROPS} />
         <style suppressHydrationWarning {...BRAND_CSS_PROPS} />
