@@ -7,7 +7,10 @@ const site = SITE_CONFIG.siteUrl;
 const ORG_ID = `${site}/#organization`;
 const description = SITE_CONFIG.faq.items[0]?.a ?? SITE_CONFIG.hero.subhead;
 
+const founderOf = (id: string) => SITE_CONFIG.founders.find((founder) => founder.id === id);
+
 function teacherPerson(teacher: (typeof SITE_CONFIG.teachers.slides)[number]) {
+  const founder = founderOf(teacher.id);
   return {
     "@type": "Person",
     "@id": `${site}/#${teacher.id}`,
@@ -16,12 +19,22 @@ function teacherPerson(teacher: (typeof SITE_CONFIG.teachers.slides)[number]) {
     description: teacher.highlights.join(", "),
     ...(teacher.subject ? { knowsAbout: teacher.subject } : {}),
     ...(teacher.photo ? { image: `${site}/teachers/${teacher.photo}-720.webp` } : {}),
+    ...(founder ? { sameAs: [founder.linkedin] } : {}),
     worksFor: { "@id": ORG_ID },
   };
 }
 
 export function homeJsonLd() {
-  const founder = SITE_CONFIG.teachers.slides.find((teacher) => teacher.role === "Founder");
+  const teacherIds = new Set<string>(SITE_CONFIG.teachers.slides.map((teacher) => teacher.id));
+  // Founders who are not on the teachers ring get their own Person entry.
+  const otherFounders = SITE_CONFIG.founders.filter((founder) => !teacherIds.has(founder.id)).map((founder) => ({
+    "@type": "Person",
+    "@id": `${site}/#${founder.id}`,
+    name: founder.name,
+    jobTitle: founder.jobTitle,
+    sameAs: [founder.linkedin],
+    worksFor: { "@id": ORG_ID },
+  }));
   const graph = [
     {
       "@type": "EducationalOrganization",
@@ -43,7 +56,8 @@ export function homeJsonLd() {
         email: SITE_CONFIG.contact.email,
         areaServed: "IN",
       },
-      ...(founder ? { founder: { "@id": `${site}/#${founder.id}` } } : {}),
+      founder: SITE_CONFIG.founders.map((founder) => ({ "@id": `${site}/#${founder.id}` })),
+      sameAs: SITE_CONFIG.social.map((profile) => profile.href),
       employee: SITE_CONFIG.teachers.slides.map((teacher) => ({ "@id": `${site}/#${teacher.id}` })),
       hasOfferCatalog: {
         "@type": "OfferCatalog",
@@ -66,6 +80,7 @@ export function homeJsonLd() {
       },
     },
     ...SITE_CONFIG.teachers.slides.map(teacherPerson),
+    ...otherFounders,
     {
       "@type": "WebSite",
       "@id": `${site}/#website`,

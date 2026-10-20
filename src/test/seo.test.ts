@@ -23,3 +23,11 @@ describe("SEO output", () => {
     expect(llmsTxt()).toContain(SITE_CONFIG.contact.phone);
   });
 });
+
+describe("Founders and profiles", () => {
+  it("lists every founder with their LinkedIn and the organisation's profiles", () => {
+    const json = homeJsonLd();
+    for (const founder of SITE_CONFIG.founders) expect(json).toContain(founder.linkedin);
+    for (const profile of SITE_CONFIG.social) expect(json).toContain(profile.href);
+  });
+});

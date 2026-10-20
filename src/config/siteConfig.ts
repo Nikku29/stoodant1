@@ -53,6 +53,13 @@ export const SITE_CONFIG = {
     },
   },
   contact: { phone: "+91 83060 18141", whatsapp: "918306018141", email: "info@stoodant.com" },
+  // Official profiles: shown in the footer and listed in the structured data so search engines link them to the site.
+  social: [{ label: "Instagram", href: "https://www.instagram.com/stoodant_live" }],
+  // Co-founders for the structured data. id matches a teacher slide id where the founder also teaches.
+  founders: [
+    { id: "jitesh-sain", name: "Jitesh Sain", jobTitle: "Co-founder", linkedin: "https://www.linkedin.com/in/jitesh-s-4a195a302" },
+    { id: "nikhil-sharma", name: "Nikhil Sharma", jobTitle: "Co-founder and CTO", linkedin: "https://www.linkedin.com/in/nikhil-sharma-21a184265" },
+  ],
 
   // ---- OFFER / DISCOUNT ----
   // Set discountPercent above 0 and add an offerLabel to switch the offer on.
@@ -209,7 +216,7 @@ export const SITE_CONFIG = {
     // Photos live in public/teachers/<photo>-360.webp and <photo>-720.webp (portrait, 4:5).
     // The ring needs at least 6 slides; if fewer are supplied they are repeated visually (repeats are aria-hidden).
     slides: [
-      { id: "jitesh-sain", name: "Jitesh Sain", role: "Founder", highlights: ["Medico", "5+ years teaching", "Students' favourite"], quote: "I don't want a child's potential to be limited by their circumstances. I want every student to discover what they're truly capable of.", photo: "jitesh-sain" },
+      { id: "jitesh-sain", name: "Jitesh Sain", role: "Co-founder", highlights: ["Medico", "5+ years teaching", "Students' favourite"], quote: "I don't want a child's potential to be limited by their circumstances. I want every student to discover what they're truly capable of.", photo: "jitesh-sain" },
       { id: "dhanya-nalina", name: "Dr. Dhanya Nalina", subject: "Science", highlights: ["MBBS '21", "4+ years teaching", "99% in Class 10", "State topper"], photo: "dhanya-nalina" },
       { id: "akash-meena", name: "Akash Meena", subject: "Social Science", highlights: ["UPSC Prelims cleared", "Class 10 & 12 topper"], photo: "akash-meena" },
       { id: "umasree-gummala", name: "Umasree Gummala", subject: "Science", highlights: ["Medico", "Best explainer"], photo: "umasree-gummala" },
@@ -254,7 +261,7 @@ export const SITE_CONFIG = {
       { q: "Which boards and classes do you cover?", a: "Stoodant is designed for Class 4 to 10 students studying in CBSE and ICSE schools." },
       { q: "Which subjects do you teach?", a: "Stoodant teaches {subjects} for Class 4 to 10, following the CBSE and ICSE syllabus your child's school uses." },
       { q: "Is it online or offline?", a: "Stoodant classes are online and live, on Zoom or Google Meet. Your child learns from home with a real teacher, with time to ask questions in every class." },
-      { q: "Who teaches at Stoodant?", a: "Stoodant was founded by Jitesh Sain. The teaching team includes doctors and medical students, a CAT qualifier and a UPSC Prelims qualifier, many with 3 to 5 or more years of teaching. You meet your child's teacher in the free demo." },
+      { q: "Who teaches at Stoodant?", a: "Stoodant was co-founded by Jitesh Sain and Nikhil Sharma. The teaching team includes doctors and medical students, a CAT qualifier and a UPSC Prelims qualifier, many with 3 to 5 or more years of teaching. You meet your child's teacher in the free demo." },
       { q: "Is there a free demo?", a: "Yes. Every batch starts with a free demo class, so your family can meet the teacher and understand the teaching approach before deciding." },
       { q: "How do I book a free demo?", a: "Fill in the short form on this page, or message Stoodant on WhatsApp at {phone}. The team will call you to fix a time that suits your child." },
       { q: "Can we switch batches later?", a: "Please speak with the Stoodant team about availability and the right fit before switching." },
