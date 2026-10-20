@@ -245,12 +245,19 @@ export const SITE_CONFIG = {
   faq: {
     kicker: "FAQ",
     headline: "A few things you may want to know.",
+    // Answers are written to be quoted on their own by search engines and AI assistants: each names Stoodant and states one fact.
+    // {prices}, {subjects} and {phone} are filled in from the batches, subjects and contact above (see src/lib/faq.ts).
     items: [
-      { q: "How do batches work?", a: "Choose from 1:1, 1:5, 1:10, or 1:20 based on the level of attention your child needs." },
+      { q: "What is Stoodant?", a: "Stoodant is an online tuition service for Class 4 to 10 students in CBSE and ICSE schools. Classes are taught live by a real teacher in small batches, from 1:1 to 1:20, and every family starts with a free demo class." },
+      { q: "How do batches work?", a: "Choose from 1:1, 1:5, 1:10, or 1:20 based on the level of attention your child needs. Smaller batches give more personal time with the teacher; larger batches cost less." },
+      { q: "How much does Stoodant tuition cost?", a: "Fees are per student, per month, and depend on the batch size: {prices}. Taxes, if any, are extra. Every batch starts with a free demo." },
       { q: "Which boards and classes do you cover?", a: "Stoodant is designed for Class 4 to 10 students studying in CBSE and ICSE schools." },
-      { q: "Is there a free demo?", a: "Yes. Every batch starts with a free demo so your family can understand the teaching approach." },
+      { q: "Which subjects do you teach?", a: "Stoodant teaches {subjects} for Class 4 to 10, following the CBSE and ICSE syllabus your child's school uses." },
+      { q: "Is it online or offline?", a: "Stoodant classes are online and live, on Zoom or Google Meet. Your child learns from home with a real teacher, with time to ask questions in every class." },
+      { q: "Who teaches at Stoodant?", a: "Stoodant was founded by Jitesh Sain. The teaching team includes doctors and medical students, a CAT qualifier and a UPSC Prelims qualifier, many with 3 to 5 or more years of teaching. You meet your child's teacher in the free demo." },
+      { q: "Is there a free demo?", a: "Yes. Every batch starts with a free demo class, so your family can meet the teacher and understand the teaching approach before deciding." },
+      { q: "How do I book a free demo?", a: "Fill in the short form on this page, or message Stoodant on WhatsApp at {phone}. The team will call you to fix a time that suits your child." },
       { q: "Can we switch batches later?", a: "Please speak with the Stoodant team about availability and the right fit before switching." },
-      { q: "Is it online or offline?", a: "The delivery format is being finalised. Please contact the team for the latest availability." },
       { q: "How do I pay?", a: "Payment details will be shared by the Stoodant team after your demo." },
     ], // TODO: Owner to confirm all answers.
   },
@@ -278,6 +285,9 @@ export const SITE_CONFIG = {
     success: "Thank you! We'll call you shortly.",
     errors: { name: "Please enter your name.", className: "Please select a class.", board: "Please select a board.", phone: "Enter a valid 10-digit Indian mobile number.", consent: "Please tick the box so we can contact you.", rateLimited: "You've sent a few requests already. We'll be in touch soon, or message us on WhatsApp.", network: "We couldn't send your request. Please try again, or message us on WhatsApp." },
   },
-  footer: { quickLinks: "Quick links", login: "Parent & teacher log-in", contact: "Contact", rights: "All rights reserved." },
+  footer: {
+    // One plain sentence about Stoodant, shown under the footer logo (helps search engines describe the brand).
+    about: "Stoodant offers live online tuition for Class 4 to 10, CBSE and ICSE, in small batches from 1:1 to 1:20.",
+    quickLinks: "Quick links", login: "Parent & teacher log-in", contact: "Contact", rights: "All rights reserved." },
   whatsapp: { label: "Chat on WhatsApp", message: "Hi Stoodant, I'd like to book a demo class." },
 } as const;
