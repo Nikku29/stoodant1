@@ -96,7 +96,6 @@ export async function progressOf(studentId: string): Promise<Progress | null> {
   return snap.exists() ? (snap.data() as Progress) : null;
 }
 
-/** Where a phone number may go after log-in. */
 /** The teacher record for a signed-in number, if the team has added one and it is active. */
 export async function myTeacherRecord(phone: string): Promise<Teacher | null> {
   const snap = await getDocs(query(collection(db(), "teachers"), where("phone", "==", phone)));
