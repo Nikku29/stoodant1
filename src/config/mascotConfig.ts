@@ -1,4 +1,4 @@
-// What the roaming ant says when tapped. Kept apart from siteConfig.ts because only the ant uses these lines,
+// What the roaming ant says after its dance, and when tapped. Kept apart from siteConfig.ts because only the ant uses these lines,
 // and the ant's code loads after the page is up; in siteConfig they would add weight to the first download.
 // It first picks a line for the section on screen, then general ones (shuffled, no repeats until all are used).
 // Keep lines warm and short; no factual claims about ants. TODO(owner): approve or edit these lines.
