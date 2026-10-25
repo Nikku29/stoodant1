@@ -1,0 +1,37 @@
+/* The roaming mascot (RoamingAnt.tsx). Loaded with the ant's own chunk, after the page is up.
+   Durations come from TIMING through the --step custom property set on .roamer. */
+.roamer{position:fixed;left:0;bottom:10px;z-index:85;width:70px;visibility:hidden;transform:translate(-200px,0)}
+.roamer.is-shown{visibility:visible}
+.roamer.is-low{width:96px;bottom:0}
+.roamer-ant{display:block;width:100%;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.roamer-ant img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none;pointer-events:none}
+
+/* Full figure: two legs behind the body, all three images share one canvas (178x440). */
+.roamer-fig{position:relative;aspect-ratio:178/440;transform-origin:50% 100%}
+.roamer-flip,.roamer-lean{position:absolute;inset:0;transition:transform .2s ease-out}
+.roamer-flip img{position:absolute;inset:0;height:100%}
+.roamer-leg-l{transform-origin:37% 72%}
+.roamer-leg-r{transform-origin:68% 72%}
+/* Soft ground shadow so the figure stands on the page. */
+.roamer-fig::after{content:"";position:absolute;left:8%;right:8%;bottom:-3%;height:6%;border-radius:50%;background:radial-gradient(closest-side,rgba(10,16,38,.28),transparent);z-index:-1}
+
+/* Moonwalk: heels pop one after the other while the figure glides the other way. */
+.is-moonwalk .roamer-leg-l{animation:roamer-heel var(--step) ease-in-out infinite}
+.is-moonwalk .roamer-leg-r{animation:roamer-heel var(--step) ease-in-out calc(var(--step) / -2) infinite}
+.is-moonwalk .roamer-lean{transform:rotate(var(--lean,0deg))}
+@keyframes roamer-heel{0%,55%,100%{transform:none}25%{transform:translate(1%,-4.5%) rotate(-5deg)}}
+
+/* Dancing: quick alternate kicks. */
+.is-dance .roamer-leg-l{animation:roamer-kick-l calc(var(--step) * .8) ease-in-out infinite}
+.is-dance .roamer-leg-r{animation:roamer-kick-r calc(var(--step) * .8) ease-in-out calc(var(--step) * -.4) infinite}
+@keyframes roamer-kick-l{0%,100%{transform:none}50%{transform:translate(0,-3%) rotate(9deg)}}
+@keyframes roamer-kick-r{0%,100%{transform:none}50%{transform:translate(0,-3%) rotate(-9deg)}}
+
+/* Speech bubble with a small face of the ant. */
+.roamer-bubble{position:absolute;bottom:100%;left:0;margin-bottom:6px;width:max-content;max-width:min(260px,calc(100vw - 16px))}
+.roamer.is-right .roamer-bubble{left:auto;right:0}
+.roamer-bubble:empty{display:none}
+.roamer-bubble p{display:flex;gap:10px;align-items:flex-start;margin:0;padding:10px 14px 10px 10px;border:1px solid #e5e5e5;border-radius:16px;background:#fff;color:#0a0a0a;font-size:13px;line-height:1.45;box-shadow:0 8px 24px rgba(10,10,10,.12)}
+.roamer-face{flex:none;width:40px;height:40px;object-fit:contain}
+.roamer-bubble a{display:block;margin-top:6px;font-weight:600;text-decoration:underline}
+@media (max-width:767px){.roamer{width:56px}.roamer.is-low{width:84px}}

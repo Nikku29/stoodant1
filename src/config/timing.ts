@@ -101,6 +101,12 @@ export const TIMING = {
     stay: 6,
     bubbleHold: 6,
     step: 0.36,
+    // The photo mascot (public/mascot/): moonwalk glide speed (px per second) and shortest glide, one heel-pop step,
+    // and how long one dance lasts before it shares a tip.
+    moonSpeed: 95,
+    moonMin: 2,
+    moonStep: 0.5,
+    dance: 2.4,
   },
   // The ant mascot (src/brand/Ant.tsx).
   ant: {
