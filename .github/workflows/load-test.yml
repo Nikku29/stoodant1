@@ -1,0 +1,50 @@
+# Load test, run by hand (Actions > Load test > Run workflow). GitHub's servers can reach the live site
+# and the form's function, which the development machines can't. See loadtest/README.md.
+name: Load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      peak_vus:
+        description: "Visitors at the same time on the pages"
+        default: "100"
+      form_top_rate:
+        description: "Form requests per second at the top (all refused before any write)"
+        default: "150"
+  push:
+    branches: [claude/project-thread-30u0w4]
+    paths: [loadtest/**, .github/workflows/load-test.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load-test
+  cancel-in-progress: false
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: grafana/setup-k6-action@v1
+      - name: Pages
+        id: pages
+        run: k6 run --summary-export=site.json -e BASE_URL=https://stoodant.com -e PEAK_VUS=${{ inputs.peak_vus || '100' }} loadtest/site.js
+        continue-on-error: true
+      - name: Demo form front door (no writes)
+        id: form
+        run: k6 run --summary-export=form.json -e LEAD_URL=https://asia-south1-stoodant-prod.cloudfunctions.net/submitLead -e TOP_RATE=${{ inputs.form_top_rate || '150' }} loadtest/lead-frontdoor.js
+        continue-on-error: true
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: load-test
+          path: "*.json"
+          retention-days: 30
+      - name: Thresholds
+        if: steps.pages.outcome != 'success' || steps.form.outcome != 'success'
+        run: |
+          echo "pages: ${{ steps.pages.outcome }}, form: ${{ steps.form.outcome }}"
+          exit 1
