@@ -9,7 +9,7 @@ import {
   type DocumentSnapshot, type Firestore,
 } from "firebase/firestore";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
-import { PROJECT_ID, waitFor } from "./helpers.ts";
+import { PROJECT_ID, waitFor, freshDatabase } from "./helpers.ts";
 import { keyOf } from "../../src/school/keys.ts";
 
 let env: RulesTestEnvironment;
@@ -33,9 +33,7 @@ after(() => env.cleanup());
 
 // Seeded already consistent with what the triggers derive, so they find nothing to change mid-test.
 beforeEach(async () => {
-  // Triggers from the last test may still be running; let them finish before the next seed.
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  await env.clearFirestore();
+  await freshDatabase(env);
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     const t1 = { name: "Priya Ma'am", nameKey: "priya ma'am", phone: TEACHER, subjects: ["Maths"], active: true };

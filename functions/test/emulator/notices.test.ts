@@ -6,7 +6,7 @@ import {
 import {
   collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, type DocumentData,
 } from "firebase/firestore";
-import { PROJECT_ID } from "./helpers.ts";
+import { PROJECT_ID, freshDatabase } from "./helpers.ts";
 
 // Homework and notices: the batch's teacher posts, the batch's families read, a parent ticks Done only for
 // their own child, and the teacher counts who is done.
@@ -26,8 +26,7 @@ before(async () => {
 after(() => env.cleanup());
 
 beforeEach(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  await env.clearFirestore();
+  await freshDatabase(env);
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     const batch = (id: string, over: DocumentData) => setDoc(doc(db, "batches", id), {
