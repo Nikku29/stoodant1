@@ -9,6 +9,7 @@ import { LazySection, onSectionsChanged, preloadSections, whenAllSectionsMounted
 import { TIMING } from "@/config/timing";
 import { AntSprite } from "@/brand/Ant";
 import { Highlight } from "@/brand/Highlight";
+import { appHref } from "@/lib/appUrl";
 
 // The roaming ant only pops up a while after load, so its code loads after the page is up.
 const RoamingAnt = lazy(() => import("@/brand/RoamingAnt").then((mod) => ({ default: mod.RoamingAnt })));
@@ -174,7 +175,7 @@ function Header() {
           <nav className="desktop-nav" aria-label="Main navigation">
             {SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
           </nav>
-          <a href="/login" className="nav-login"><UserRound size={16} aria-hidden="true" />{SITE_CONFIG.navigation.login}</a>
+          <a href={appHref("/login")} className="nav-login"><UserRound size={16} aria-hidden="true" />{SITE_CONFIG.navigation.login}</a>
           <a href="#demo" className={`button ${overDark ? "button-light" : "button-dark"} nav-cta`}>{SITE_CONFIG.navigation.cta}</a>
           <button className="menu-button" aria-label={SITE_CONFIG.navigation.menuOpen} aria-expanded={menu} onClick={() => setMenu(true)}><Menu /></button>
         </div>
@@ -184,7 +185,7 @@ function Header() {
           <button aria-label={SITE_CONFIG.navigation.menuClose} onClick={() => setMenu(false)}><X /></button>
           <BrandLink dark />
           <nav>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href} onClick={() => setMenu(false)}>{link.label}</a>)}</nav>
-          <a href="/login" className="mobile-login"><UserRound size={18} aria-hidden="true" />{SITE_CONFIG.navigation.loginMenu}</a>
+          <a href={appHref("/login")} className="mobile-login"><UserRound size={18} aria-hidden="true" />{SITE_CONFIG.navigation.loginMenu}</a>
           <a href="#demo" onClick={() => setMenu(false)}>{SITE_CONFIG.navigation.cta}<ArrowDownRight /></a>
         </m.div>}
       </AnimatePresence>

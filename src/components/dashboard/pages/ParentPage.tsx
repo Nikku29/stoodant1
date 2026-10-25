@@ -11,10 +11,12 @@ import { istDay, myChildren, progressOf, type Progress } from "@/lib/firebase/sc
 import { signOutNow, useSession, type Session } from "@/lib/firebase/session";
 import { SAMPLE_MATERIALS, SAMPLE_RECORDS, SAMPLE_TODAY } from "@/lib/progress/sampleData";
 import { sampleClasses } from "@/components/dashboard/practiceClasses";
+import { useMoveToApp } from "@/lib/moveToApp";
 
 // Parent dashboard: the signed-in parent's child (or children). `?sample=1` shows the preview with sample
 // records. Used by the /parent route here and by app.stoodant.com (console/), never by the landing page.
 export function ParentPage() {
+  useMoveToApp();
   const sample = useSearchFlag("sample");
   if (sample === undefined)
     return (

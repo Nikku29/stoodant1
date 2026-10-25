@@ -17,6 +17,7 @@ import {
   type Role,
 } from "@/lib/firebase/session";
 import "./dashboard.css";
+import { useMoveToApp } from "@/lib/moveToApp";
 
 const copy = DASHBOARD_CONFIG.login;
 const home: Record<Role, string> = { admin: "/admin", teacher: "/teacher", parent: "/parent" };
@@ -34,6 +35,7 @@ type Stage = "phone" | "code" | "choose" | "missing";
  * itself decides which page opens. The team signs in with Google at the bottom.
  */
 export function LoginPage() {
+  useMoveToApp();
   const session = useSession();
   const [stage, setStage] = useState<Stage>("phone");
   const [number, setNumber] = useState("");

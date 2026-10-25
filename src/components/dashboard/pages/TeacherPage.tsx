@@ -23,10 +23,12 @@ import {
 } from "@/lib/firebase/school";
 import { signOutNow, useSession, type Session } from "@/lib/firebase/session";
 import { SAMPLE_BATCH, SAMPLE_TODAY } from "@/lib/progress/sampleData";
+import { useMoveToApp } from "@/lib/moveToApp";
 
 // Teacher entry page for attendance, marks and notes. The signed-in teacher's batches; `?sample=1` is
 // practice mode with a sample batch, where nothing is saved. Used by /teacher here and by app.stoodant.com.
 export function TeacherPage() {
+  useMoveToApp();
   const sample = useSearchFlag("sample");
   if (sample === undefined)
     return (

@@ -25,6 +25,7 @@ import { indianMobile, signOutNow, useSession, type Session } from "@/lib/fireba
 import { overview } from "@/lib/progress/insights";
 import { Overview } from "./AdminReports";
 import { Loading, RequireLogin, Shell } from "./Shell";
+import { useMoveToApp } from "@/lib/moveToApp";
 
 const copy = DASHBOARD_CONFIG.admin;
 type Tab = keyof typeof copy.tabs;
@@ -34,6 +35,7 @@ const signOut = () => void signOutNow().then(() => location.assign("/login"));
 
 /** The team's page: demo requests, and the students, teachers and batches that the other pages run on. */
 export function AdminPage() {
+  useMoveToApp();
   const session = useSession();
   if (session === undefined)
     return (
