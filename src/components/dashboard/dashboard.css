@@ -2,6 +2,9 @@
    Class names carry a pd- prefix so they never collide with the landing styles. */
 .pd {
   min-height: 100vh;
+  /* Screen-reader tables (.pd-sr) keep their natural width; without this the phone page slides sideways. */
+  position: relative;
+  overflow-x: clip;
   background: var(--off-white);
   color: var(--brand-ink);
   font-family: var(--font-body);
@@ -34,6 +37,24 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--grey-4);
+}
+.pd-viewas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--amber);
+  color: var(--brand-ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+.pd-viewas a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .pd-main {
   width: min(100% - 32px, 720px);
@@ -1424,3 +1445,167 @@
     display: none;
   }
 }
+
+/* ---- Live classes (app.stoodant.com) ---- */
+.pd-lc-next {
+  margin-top: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--brand-ink);
+  color: var(--white);
+}
+.pd-lc-next h3 {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+.pd-lc-next h3 span {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.pd-lc-when {
+  margin: 0;
+  color: var(--amber);
+  font-size: 14px;
+  font-weight: 700;
+}
+.pd-lc-next[data-state="open"] .pd-lc-when::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  animation: pd-lc-pulse 1.6s ease-in-out infinite;
+}
+@keyframes pd-lc-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) {
+  .pd-lc-next[data-state="open"] .pd-lc-when::before { animation: none; }
+}
+.pd-lc-topic {
+  margin: 6px 0 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+.pd-lc-join {
+  margin-top: 16px;
+  background: var(--amber);
+  color: var(--brand-ink);
+}
+.pd-lc-wait {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--white) 20%, transparent);
+  font-size: 14px;
+  opacity: 0.85;
+}
+.pd-lc-list .pd-item {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.pd-lc-list .pd-item[data-cancelled] strong { text-decoration: line-through; }
+.pd-lc-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.pd-lc-btn { margin-top: 0; border: 0; cursor: pointer; width: 100%; }
+.pd-lc-btn:disabled { opacity: 0.5; cursor: default; }
+.pd-lc-heading {
+  margin: 24px 0 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+.pd-lc-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--grey-1);
+  border-radius: 14px;
+  background: var(--white);
+  font-size: 15px;
+}
+.pd-lc-item[data-state="cancelled"] { opacity: 0.6; }
+.pd-lc-item[data-state="open"] { border-color: var(--amber); }
+.pd-lc-status {
+  margin: 2px 0 0;
+  color: var(--grey-4);
+  font-size: 14px;
+}
+.pd-lc-item[data-state="open"] .pd-lc-status { color: var(--brand-ink); font-weight: 700; }
+.pd-lc-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+.pd-lc-start {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--amber);
+  color: var(--brand-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.pd-lc-start.is-early {
+  background: var(--off-white);
+  border: 1px solid var(--grey-2);
+}
+.pd-lc-form h2 { margin: 0; font-size: 18px; }
+.pd-lc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.pd-lc-repeat {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.pd-lc-repeat legend {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.pd-lc-repeat .pd-picker { margin-top: 8px; }
+.pd-lc-repeat .pd-field { margin-top: 10px; }
+.pd-lc-note {
+  font-size: 13px;
+  font-weight: 400;
+}
+.pd-lc-change { margin-top: 4px; padding: 14px; }
+.pd-lc-danger { background: #8a1c1c; }
+.pd-alert ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* ---- Need help? ---- */
+.pd-help .pd-link { padding: 0; font-size: inherit; font-weight: 700; text-decoration: underline; }
+.pd-help-sent { color: var(--brand-ink); font-weight: 600; }
+.pd-help-form { margin-top: 28px; }
+.pd-help-form h2 { margin: 0; font-size: 18px; }
+.pd-help-form .pd-lc-actions { margin-top: 4px; }
+.pd-help-wa {
+  justify-self: center;
+  color: var(--brand-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.pd-count {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--amber);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.pd-help-msg { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pd-item[data-done] { opacity: 0.6; }

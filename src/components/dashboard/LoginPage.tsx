@@ -17,11 +17,14 @@ import {
   type Role,
 } from "@/lib/firebase/session";
 import "./dashboard.css";
+import { useMoveToApp } from "@/lib/moveToApp";
 
 const copy = DASHBOARD_CONFIG.login;
 const home: Record<Role, string> = { admin: "/admin", teacher: "/teacher", parent: "/parent" };
 const go = (role: Role) => location.assign(home[role]);
 const RESEND_AFTER = 30;
+// In the app (app.stoodant.com) "back home" is the website; on stoodant.com it is this site's own home.
+const SITE_HOME = import.meta.env["VITE_CONSOLE"] === "1" ? SITE_CONFIG.siteUrl : "/";
 const help = (text: string) =>
   `https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${encodeURIComponent(text)}`;
 
@@ -32,6 +35,7 @@ type Stage = "phone" | "code" | "choose" | "missing";
  * itself decides which page opens. The team signs in with Google at the bottom.
  */
 export function LoginPage() {
+  useMoveToApp();
   const session = useSession();
   const [stage, setStage] = useState<Stage>("phone");
   const [number, setNumber] = useState("");
@@ -236,7 +240,7 @@ export function LoginPage() {
     <div className="lg">
       <AntSprite />
       <aside className="lg-brand">
-        <a href="/" className="lg-logo" aria-label="Stoodant home">
+        <a href={SITE_HOME} className="lg-logo" aria-label="Stoodant home">
           <Logo variant="full" tone="dark" />
         </a>
         <div className="lg-pitch">
@@ -255,7 +259,7 @@ export function LoginPage() {
       </aside>
 
       <main className="lg-panel">
-        <a href="/" className="lg-back">
+        <a href={SITE_HOME} className="lg-back">
           ← {copy.backHome}
         </a>
         <div className="lg-card">

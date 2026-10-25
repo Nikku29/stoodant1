@@ -20,7 +20,10 @@ import {
   type Trend,
 } from "@/lib/progress/insights";
 import { monthlyReport, weeklyReport } from "@/lib/progress/reportText";
+import type { LiveClass } from "@/lib/firebase/classes";
 import { AttendanceChart, MarksChart } from "./Charts";
+import { HelpBox } from "./HelpBox";
+import { ParentClasses } from "./LiveClasses";
 import { MaterialList } from "./MaterialList";
 import { Shell } from "./Shell";
 
@@ -36,6 +39,7 @@ export function ParentDashboard({
   picker,
   onSignOut,
   materials,
+  classes,
 }: {
   records: StudentRecords;
   today: string;
@@ -48,6 +52,10 @@ export function ParentDashboard({
         load: () => Promise<Material[]>;
         open?: ((m: Material) => Promise<string>) | undefined;
       }
+    | undefined;
+  /** Live classes of the child's batches, with the Join button (the app). Left out, no classes section. */
+  classes?:
+    | { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined }
     | undefined;
 }) {
   const [kind, setKind] = useState<PeriodKind>("week");
@@ -74,6 +82,8 @@ export function ParentDashboard({
           Class {student.classLevel} · {student.board} · {student.batch}
         </p>
       </section>
+
+      {classes && <ParentClasses load={classes.load} onJoin={classes.onJoin} />}
 
       <div className="pd-toggle" role="group" aria-label="Period">
         {(["week", "month"] as const).map((k) => (
@@ -184,6 +194,7 @@ export function ParentDashboard({
       >
         {copy.askTeacher}
       </a>
+      <HelpBox practice={sample} whatsappText="Hi Stoodant, I need help with the app." />
     </Shell>
   );
 }

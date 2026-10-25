@@ -2,10 +2,14 @@ import { initializeApp } from "firebase-admin/app";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentDeleted, onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./config.js";
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
+import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleClaimAdmin, handleTeamRemoved } from "./school/admin.js";
+import { sendClassReminders } from "./classes/reminders.js";
+import { handleChangeClass, handleScheduleClasses } from "./classes/schedule.js";
 import {
   handleBatchWritten, handleNoteWritten, handleSheetWritten, handleStudentWritten, handleTeacherWritten, logged,
 } from "./school/triggers.js";
@@ -57,4 +61,22 @@ export const onAssessmentWritten = onDocumentWritten(
 export const onNoteWritten = onDocumentWritten(
   { ...school, document: "notes/{noteId}" },
   logged("onNoteWritten", handleNoteWritten),
+);
+
+// Live classes (app.stoodant.com): teachers schedule, move and cancel; families get a push straight away
+// and a reminder 5 minutes before. The reminder job is one small query a minute.
+export const scheduleClasses = onCall({ cors: true, timeoutSeconds: 30 }, handleScheduleClasses);
+export const changeClass = onCall({ cors: true, timeoutSeconds: 30 }, handleChangeClass);
+export const classReminders = onSchedule(
+  { schedule: "every 1 minutes", timeZone: "Asia/Kolkata", timeoutSeconds: 50, maxInstances: 1, retryCount: 0 },
+  async () => {
+    await sendClassReminders();
+  },
+);
+
+// "Need help?" from parents and teachers: saved, then the team gets an email and a push.
+export const askForHelp = onCall({ cors: true }, handleAskForHelp);
+export const onHelpRequested = onDocumentCreated(
+  { document: "helpRequests/{requestId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
+  handleHelpRequested,
 );

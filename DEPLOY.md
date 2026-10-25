@@ -9,7 +9,9 @@ Plan and reasoning: BACKEND_PLAN.md. Nothing here deploys until step 6 switches 
 |---|---|---|
 | Website (prerendered HTML + assets) | Firebase Hosting | CI |
 | `submitLead` (demo form endpoint, `/api/lead`) | Cloud Functions, asia-south1 | CI |
-| `onLeadCreated` (email + WhatsApp alert) | Cloud Functions, asia-south1 | CI |
+| `onLeadCreated` (email + push + WhatsApp alert) | Cloud Functions, asia-south1 | CI |
+| App for parents, teachers and the team (`console/`, app.stoodant.com) | Vercel, its own project | Vercel |
+| Live classes (`scheduleClasses`, `changeClass`, `classReminders`), help (`askForHelp`, `onHelpRequested`) | Cloud Functions, asia-south1 | CI |
 | Firestore rules, indexes, TTL policies | Firestore, asia-south1 | CI |
 | Storage rules | Cloud Storage | CI |
 
@@ -66,7 +68,9 @@ Defaults live in `functions/src/config.ts` (rate limits 5 per 10 min and 20 per 
 ### 5. Lead alerts
 - **Email (Resend):** create an account, add the domain `stoodant.com`, put the SPF and DKIM records it shows into GoDaddy DNS, create an API key, then `firebase functions:secrets:set EMAIL_API_KEY`.
 - **WhatsApp (Meta Cloud API):** Meta Business account → WhatsApp → add a phone number that is not on the WhatsApp app → create a **utility** template named `new_demo_request`, language English, body with four variables, e.g. `New demo request: {{1}}, Class {{2}}, {{3}}. Call {{4}}.` → once approved, create a permanent System User token with `whatsapp_business_messaging`, then `firebase functions:secrets:set WHATSAPP_TOKEN` and set `WHATSAPP_PHONE_NUMBER_ID` in step 4.
-- A channel left as `disabled` is skipped; each lead records `alerts.email` / `alerts.whatsapp` as `sent`, `failed` or `skipped`.
+- **Push:** every phone where someone from the team is signed in to the app with notifications on gets demo requests and help requests. Nothing to set up beyond step 10.
+- `OWNER_WHATSAPP_TO` takes several numbers, comma-separated (now Jitesh and Nikhil).
+- A channel left as `disabled` is skipped; each lead and help request records `alerts.email` / `alerts.push` / `alerts.whatsapp` as `sent`, `failed` or `skipped`.
 
 ### 6. GitHub (CI and deploys)
 Workload Identity Federation lets GitHub deploy without any stored key. For **each** project (replace `PROJECT`):
@@ -140,6 +144,16 @@ After the move, the Vercel project and its variables can be removed.
 1. Let `main` deploy to staging and production; check `https://stoodant-prod.web.app`.
 2. Firebase console → Hosting → Add custom domain `stoodant.com` and `www.stoodant.com` (redirect www → apex).
 3. In GoDaddy DNS replace the Vercel A/CNAME records with the ones Firebase shows. Keep Vercel running until the Firebase certificate is issued (can take a few hours), then remove the domain from Vercel.
+
+### 10. The app (app.stoodant.com)
+
+The app is a separate build of the same repo (`console/`), on the same Firebase project and log-ins.
+
+1. Vercel → Add New → Project → import the same GitHub repo, **Root Directory `console`** (the rest comes from `console/vercel.json`). Add the same five `VITE_FIREBASE_*` / `VITE_RECAPTCHA_SITE_KEY` variables as the website (step 9), plus `VITE_FIREBASE_VAPID_KEY` from Firebase console → Project settings → Cloud Messaging → Web Push certificates → Generate key pair (the long public key).
+2. Vercel → that project → Domains → add `app.stoodant.com`; put the CNAME it shows into GoDaddy DNS.
+3. Firebase console → Authentication → Settings → Authorized domains → add `app.stoodant.com`. Google Cloud → APIs & Services → Credentials → the browser API key → add `https://app.stoodant.com/*` to its website restrictions. Add `https://app.stoodant.com` to the reCAPTCHA key's domains.
+4. Deploy rules, indexes and functions (`firebase deploy --only firestore,functions --project stoodant-prod`).
+5. Once `https://app.stoodant.com/login` works: website's Vercel project → add `VITE_APP_URL=https://app.stoodant.com` and redeploy. Log in links on stoodant.com then open the app, and old `/login`, `/parent`, `/teacher`, `/admin` links move there too. Remove the variable to undo.
 
 ## Rollback
 

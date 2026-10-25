@@ -23,7 +23,14 @@ import { firebaseApp } from "./app";
 const REGION = "asia-south1";
 const useEmulators = import.meta.env["VITE_USE_EMULATORS"] === "1";
 
-let services: { auth: Auth; db: Firestore; claimAdmin: () => Promise<unknown> } | undefined;
+let services:
+  | {
+      auth: Auth;
+      db: Firestore;
+      claimAdmin: () => Promise<unknown>;
+      call: <T>(name: string, data: unknown) => Promise<T>;
+    }
+  | undefined;
 
 export function firebase() {
   if (services) return services;
@@ -39,7 +46,9 @@ export function firebase() {
     connectFunctionsEmulator(functions, "127.0.0.1", 5001);
   }
   const claim = httpsCallable(functions, "claimAdmin");
-  services = { auth, db, claimAdmin: () => claim() };
+  const call = async <T>(name: string, data: unknown) =>
+    (await httpsCallable<unknown, T>(functions, name)(data)).data;
+  services = { auth, db, claimAdmin: () => claim(), call };
   return services;
 }
 
@@ -97,7 +106,16 @@ export async function signInTeam(): Promise<boolean> {
   return true;
 }
 
-export const signOutNow = () => signOut(firebase().auth);
+// Work to finish while still signed in, such as forgetting this phone for push notifications.
+const beforeSignOut = new Set<() => Promise<void>>();
+export function onBeforeSignOut(task: () => Promise<void>) {
+  beforeSignOut.add(task);
+}
+
+export async function signOutNow() {
+  await Promise.all([...beforeSignOut].map((task) => task().catch(() => undefined)));
+  await signOut(firebase().auth);
+}
 
 /** Plain words for the errors people actually hit. */
 export function authMessage(error: unknown): string {

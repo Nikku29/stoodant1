@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
-import { SITE_CONFIG } from "@/config/siteConfig";
 import type { Material } from "@/lib/firebase/materials";
 import type { Mark, RosterEntry } from "@/lib/firebase/school";
 import {
@@ -12,12 +11,21 @@ import {
 } from "@/lib/progress/classSummary";
 import { formatDay } from "@/lib/progress/insights";
 import { SAMPLE_BATCH_NOTES, SAMPLE_HISTORY, SAMPLE_MATERIALS } from "@/lib/progress/sampleData";
+import { TeacherClasses, type ClassStore } from "./LiveClasses";
+import { HelpBox } from "./HelpBox";
+import { practiceClassStore } from "./practiceClasses";
 import { Shell } from "./Shell";
 import { Materials, StudentReport, type BatchNote, type NewMaterial } from "./TeacherExtras";
 
 const copy = DASHBOARD_CONFIG.teacher;
 type Tab = keyof typeof copy.tabs;
-type Batch = { name: string; schedule: string; subject?: string; students: RosterEntry[] };
+type Batch = {
+  name: string;
+  schedule: string;
+  subject?: string;
+  durationMinutes?: number;
+  students: RosterEntry[];
+};
 
 /** Where the teacher page saves. Left out, the page runs in practice mode and only shows what would be saved. */
 export type TeacherStore = {
@@ -43,6 +51,10 @@ export type TeacherStore = {
   addMaterial(m: NewMaterial): Promise<void>;
   removeMaterial(m: Material): Promise<void>;
   openMaterial(m: Material): Promise<string>;
+  /** Live classes of this batch (the app). Left out on stoodant.com's own teacher page. */
+  classes?: ClassStore;
+  /** Children who tapped Join in that day's live classes, or null when there was no live class. */
+  joinedOn?(date: string): Promise<Set<string> | null>;
 };
 type Save = (task: () => Promise<void>, message: string) => void;
 
@@ -63,7 +75,13 @@ export function TeacherEntry({
   picker?: ReactNode | undefined;
   onSignOut?: (() => void) | undefined;
 }) {
-  const [tab, setTab] = useState<Tab>("attendance");
+  const hasClasses = !store || Boolean(store.classes);
+  const tabs = (Object.keys(copy.tabs) as Tab[]).filter((t) => t !== "classes" || hasClasses);
+  const [tab, setTab] = useState<Tab>(() => {
+    const wanted = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("class");
+    return wanted && hasClasses ? "classes" : "attendance";
+  });
+  const classStore = useMemo(() => store?.classes ?? practiceClassStore(), [store]);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -100,7 +118,7 @@ export function TeacherEntry({
       </section>
 
       <div className="pd-tabs" role="tablist" aria-label="What to enter">
-        {(Object.keys(copy.tabs) as Tab[]).map((t) => (
+        {tabs.map((t) => (
           <button
             key={t}
             type="button"
@@ -116,6 +134,13 @@ export function TeacherEntry({
       </div>
 
       <div role="tabpanel" id={`pd-panel-${tab}`} aria-labelledby={`pd-tab-${tab}`}>
+        {tab === "classes" && (
+          <TeacherClasses
+            store={classStore}
+            defaultMinutes={batch.durationMinutes ?? 60}
+            practice={!store}
+          />
+        )}
         {tab === "attendance" && <AttendanceForm key={openDate} {...props} start={openDate} />}
         {tab === "marks" && <MarksForm {...props} />}
         {tab === "notes" && <NotesForm {...props} />}
@@ -138,16 +163,7 @@ export function TeacherEntry({
           {error}
         </p>
       )}
-      <p className="pd-help">
-        {copy.help}{" "}
-        <a
-          href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${encodeURIComponent(`Hi Stoodant, I need help with ${batch.name}.`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {copy.helpLink}
-        </a>
-      </p>
+      <HelpBox practice={!store} intro={copy.help} whatsappText={`Hi Stoodant, I need help with ${batch.name}.`} />
     </Shell>
   );
 }
@@ -204,17 +220,26 @@ function AttendanceForm({
   const [absent, setAbsent] = useState<Set<string>>(new Set());
   const [cancelled, setCancelled] = useState(false);
   const [loaded, setLoaded] = useState(!store);
+  const [fromJoins, setFromJoins] = useState(false);
 
   // Opening a day that was already marked shows what was saved.
   useEffect(() => {
     if (!store) return;
     let live = true;
     setLoaded(false);
+    setFromJoins(false);
     store
       .loadAttendance(date)
-      .then((existing) => {
+      .then(async (existing) => {
+        // A new day after a live class starts from who tapped Join; the teacher only corrects it.
+        const joined = existing ? null : await store.joinedOn?.(date).catch(() => null);
         if (!live) return;
         setCancelled(existing?.status === "cancelled");
+        if (joined) {
+          setFromJoins(true);
+          setAbsent(new Set(students.filter((s) => !joined.has(s.id)).map((s) => s.id)));
+          return;
+        }
         setAbsent(
           new Set(
             Object.entries(existing?.attendance ?? {})
@@ -228,6 +253,8 @@ function AttendanceForm({
     return () => {
       live = false;
     };
+    // Students is the batch roster; it only changes when the batch does, which remounts this form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, date]);
 
   const toggle = (id: string) =>
@@ -244,6 +271,7 @@ function AttendanceForm({
   return (
     <>
       <p className="pd-hint">{copy.attendanceHint}</p>
+      {fromJoins && <p className="pd-banner">{DASHBOARD_CONFIG.classes.joinedHint}</p>}
       <div className="pd-row">
         <DayField value={date} onChange={setDate} today={today} />
       </div>
