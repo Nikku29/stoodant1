@@ -2042,7 +2042,7 @@
 }
 .pd-countdown {
   display: inline-block;
-  margin-left: 6px;
+  margin-left: 0.3em;
   font-variant-numeric: tabular-nums;
 }
 .pd-meter {
