@@ -128,6 +128,8 @@ export const DASHBOARD_CONFIG = {
     teamDenied: "This Google account isn't on the Stoodant team list.",
     signedInAs: "Logged in as",
     signOut: "Log out",
+    teamView: "Team view: you are seeing the {role} page.",
+    backToTeam: "Back to Team page",
     notConfigured: "Log-in isn't switched on for this version of the site yet.",
   },
   admin: {

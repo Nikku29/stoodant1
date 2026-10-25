@@ -35,6 +35,24 @@
   text-transform: uppercase;
   color: var(--grey-4);
 }
+.pd-viewas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--amber);
+  color: var(--brand-ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+.pd-viewas a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .pd-main {
   width: min(100% - 32px, 720px);
   margin: 0 auto;

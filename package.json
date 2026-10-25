@@ -15,7 +15,10 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "brand:assets": "node scripts/build-brand-assets.mjs"
+    "brand:assets": "node scripts/build-brand-assets.mjs",
+    "dev:app": "vite --config console/vite.config.ts",
+    "build:app": "vite build --config console/vite.config.ts",
+    "preview:app": "vite preview --config console/vite.config.ts"
   },
   "overrides": {
     "rolldown": "1.2.1",

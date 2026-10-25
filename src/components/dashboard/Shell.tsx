@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { Logo } from "@/brand/Logo";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
+import { useSession } from "@/lib/firebase/session";
 import "./dashboard.css";
 
 /** The frame every signed-in page shares: logo home link, who this page is for, and log-out. */
@@ -29,8 +30,24 @@ export function Shell({
           )}
         </span>
       </header>
+      {role && role !== "Team" && <TeamViewBar role={role} />}
       <main className="pd-main">{children}</main>
     </div>
+  );
+}
+
+/**
+ * The team can open any teacher's or parent's page from /admin. A bar says so, so nobody mistakes it for
+ * their own page or wonders why a teacher's page shows every batch.
+ */
+function TeamViewBar({ role }: { role: string }) {
+  const session = useSession();
+  if (!session?.admin) return null;
+  return (
+    <p className="pd-viewas" role="status">
+      <span>{DASHBOARD_CONFIG.login.teamView.replace("{role}", role.toLowerCase())}</span>
+      <a href="/admin">{DASHBOARD_CONFIG.login.backToTeam}</a>
+    </p>
   );
 }
 
