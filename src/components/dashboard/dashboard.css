@@ -2164,3 +2164,86 @@
   margin-left: 8px;
   vertical-align: middle;
 }
+
+/* Doubts: the question, then the teacher's answer as a reply bubble. */
+.pd-doubt {
+  gap: 8px;
+  border-left: 4px solid var(--amber);
+}
+.pd-doubt[data-answered] {
+  border-left-color: #15803d;
+}
+.pd-doubt-q {
+  margin: 0;
+  color: var(--brand-ink);
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.pd-doubt-a {
+  margin-left: 16px;
+  padding: 10px 14px;
+  border-radius: 4px 14px 14px 14px;
+  background: #dcfce7;
+  color: #14532d;
+}
+.pd-doubt-a small {
+  font-weight: 700;
+}
+.pd-doubt-a p {
+  margin: 4px 0 0;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.pd-doubt-status {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pd-doubt-status[data-status="answered"] {
+  background: #dcfce7;
+  color: #15803d;
+}
+.pd-doubt-form .pd-chips button {
+  height: auto;
+  padding: 8px 12px;
+  text-align: left;
+  line-height: 1.35;
+}
+.pd-toggle-wrap {
+  flex-wrap: wrap;
+  margin-top: 0;
+  border-radius: 18px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pd-doubt-a {
+    animation: pd-rise 0.35s ease-out both;
+  }
+}
+
+/* "Your doubt was answered" on the parent's Home screen. */
+.pd-newans {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #86efac;
+  border-radius: 14px;
+  background: #f0fdf4;
+  color: #14532d;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.pd-newans > span:first-child {
+  flex: 1;
+}
+.pd-newans .pd-link {
+  color: #15803d;
+}

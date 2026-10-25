@@ -22,8 +22,10 @@ import {
 } from "@/lib/progress/insights";
 import { monthlyReport, weeklyReport } from "@/lib/progress/reportText";
 import type { LiveClass } from "@/lib/firebase/classes";
+import type { Doubt } from "@/lib/firebase/doubts";
 import { Tile, useSection, type Nav } from "./AppNav";
 import { AttendanceChart, MarksChart } from "./Charts";
+import { FamilyDoubts, unseenAnswers, type FamilyDoubtStore } from "./Doubts";
 import { HelpBox } from "./HelpBox";
 import { ParentClasses } from "./LiveClasses";
 import { MaterialList } from "./MaterialList";
@@ -35,11 +37,28 @@ const home = DASHBOARD_CONFIG.home;
 const { attendanceGood, attendanceWatch } = DASHBOARD_CONFIG.insights;
 type PeriodKind = "week" | "month";
 type Section = keyof typeof DASHBOARD_CONFIG.nav.parent;
-const ICON = { home: "home", progress: "chart", classes: "video", material: "book", help: "help" } as const;
+const ICON = { home: "home", progress: "chart", classes: "video", material: "book", help: "chat" } as const;
 // A class reminder opens /parent?class=..., which is the home screen with the Join button.
 const fromQuery = () => null;
 
-/** The parent's app for one child: Home, Progress, Classes, Material and Help. Sample records make it a preview. */
+// When the family last opened their doubts, so answers since then show as new (this phone only).
+const seenKey = (studentId: string) => `stoodant.doubtsSeen.${studentId}`;
+function readSeen(studentId: string) {
+  try {
+    return Number(localStorage.getItem(seenKey(studentId))) || 0;
+  } catch {
+    return 0;
+  }
+}
+function markSeen(studentId: string) {
+  try {
+    localStorage.setItem(seenKey(studentId), String(Date.now()));
+  } catch {
+    // Private mode: the answers just show as new again next time.
+  }
+}
+
+/** The parent's app for one child: Home, Progress, Classes, Material and Ask (doubts and help). Sample records make it a preview. */
 export function ParentDashboard({
   records,
   today,
@@ -49,6 +68,7 @@ export function ParentDashboard({
   materials,
   classes,
   notices,
+  doubts,
 }: {
   records: StudentRecords;
   today: string;
@@ -68,6 +88,8 @@ export function ParentDashboard({
     | undefined;
   /** Homework and notices from the child's teachers, on Home. */
   notices?: FamilyNoticeStore | undefined;
+  /** Doubts the family asks the child's teachers, on the Ask screen. */
+  doubts?: FamilyDoubtStore | undefined;
 }) {
   const hasClasses = Boolean(classes);
   const hasMaterials = Boolean(materials);
@@ -79,8 +101,31 @@ export function ParentDashboard({
     [hasClasses, hasMaterials],
   );
   const [section, go, href] = useSection("/parent", sections, fromQuery);
+  const studentId = records.student.id;
+  const [unseen, setUnseen] = useState<Doubt[]>([]);
+  useEffect(() => {
+    if (!doubts) return;
+    let live = true;
+    doubts.list().then(
+      (list) => live && setUnseen(unseenAnswers(list, readSeen(studentId))),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [doubts, studentId]);
+  useEffect(() => {
+    if (section !== "help" || !unseen.length) return;
+    markSeen(studentId);
+    setUnseen([]);
+  }, [section, unseen.length, studentId]);
   const nav: Nav<Section> = {
-    items: sections.map((key) => ({ key, label: DASHBOARD_CONFIG.nav.parent[key], icon: ICON[key] })),
+    items: sections.map((key) => ({
+      key,
+      label: DASHBOARD_CONFIG.nav.parent[key],
+      icon: ICON[key],
+      badge: key === "help" ? unseen.length : 0,
+    })),
     active: section,
     go,
     href,
@@ -103,7 +148,14 @@ export function ParentDashboard({
       {sample && <p className="pd-banner">{copy.sampleBanner}</p>}
       {picker}
       {section === "home" && (
-        <ParentHome records={records} today={today} classes={classes} notices={notices} go={go} />
+        <ParentHome
+          records={records}
+          today={today}
+          classes={classes}
+          notices={notices}
+          unseen={unseen}
+          go={go}
+        />
       )}
       {section === "progress" && (
         <>
@@ -130,6 +182,7 @@ export function ParentDashboard({
       {section === "help" && (
         <>
           <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.help} />
+          {doubts && <FamilyDoubts store={doubts} />}
           <HelpBox practice={sample} startOpen whatsappText="Hi Stoodant, I need help with the app." />
           {askTeacher}
         </>
@@ -156,10 +209,12 @@ function ParentHome({
   today,
   classes,
   notices,
+  unseen,
   go,
 }: {
   records: StudentRecords;
   today: string;
+  unseen: Doubt[];
   classes?: { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined } | undefined;
   notices?: FamilyNoticeStore | undefined;
   go: (s: Section) => void;
@@ -184,6 +239,16 @@ function ParentHome({
         </p>
       </section>
 
+      {unseen.length > 0 && (
+        <button type="button" className="pd-newans" onClick={() => go("help")}>
+          <span>
+            {unseen.length === 1
+              ? home.newAnswer.replace("{teacher}", unseen[0]!.teacherName || "The teacher")
+              : home.newAnswers.replace("{n}", String(unseen.length))}
+          </span>
+          <span className="pd-link">{home.readAnswer} →</span>
+        </button>
+      )}
       {classes && <ParentClasses load={classes.load} onJoin={classes.onJoin} compact />}
       {notices && <FamilyNotices store={notices} today={today} />}
 

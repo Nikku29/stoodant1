@@ -377,6 +377,37 @@ service cloud.firestore {
       }
     }
 
+    // ---- Doubts: a family asks one of the child's teachers; the teacher answers ----
+    // batchName, subject and teacherName are filled in by onDoubtCreated (Admin SDK), never by the browser.
+    match /doubts/{doubtId} {
+      function ownChild(studentId) {
+        return signedIn() && phone() != ''
+          && get(/databases/$(database)/documents/progress/$(studentId)).data.parentPhone == phone();
+      }
+      function validQuestion() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['batchId', 'studentId', 'studentName', 'question', 'status', 'askedBy', 'createdAt'])
+          && exists(/databases/$(database)/documents/batches/$(d.batchId))
+          && d.studentId in batch(d.batchId).get('studentIds', [])
+          && shortText(d.studentName, 80)
+          && shortText(d.question, 600)
+          && d.status == 'open'
+          && d.askedBy == request.auth.uid
+          && d.createdAt == request.time;
+      }
+      allow read: if isAdmin() || teachesBatch(resource.data.batchId) || ownChild(resource.data.studentId);
+      allow create: if ownChild(request.resource.data.studentId) && validQuestion();
+      // The batch's teacher answers (or corrects the answer); nothing else changes.
+      allow update: if (isAdmin() || teachesBatch(resource.data.batchId))
+        && changed().hasOnly(['answer', 'status', 'answeredBy', 'answeredAt'])
+        && request.resource.data.status == 'answered'
+        && shortText(request.resource.data.answer, 1000)
+        && request.resource.data.answeredBy == request.auth.uid
+        && request.resource.data.answeredAt == request.time;
+      // A family can take back a question until it is answered.
+      allow delete: if isAdmin() || (ownChild(resource.data.studentId) && resource.data.status == 'open');
+    }
+
     match /progress/{studentId} {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.parentPhone == phone());
     }

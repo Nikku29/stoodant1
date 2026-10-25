@@ -8,6 +8,7 @@ import { firebaseConfigured } from "@/lib/firebase/app";
 import { changeClass, classesFor, joinedIn, lastLink, scheduleClasses } from "@/lib/firebase/classes";
 import { addMaterial, materialsFor, openUrl, removeMaterial } from "@/lib/firebase/materials";
 import { addNotice, doneCount, noticesFor, removeNotice } from "@/lib/firebase/notices";
+import { answerDoubt, doubtsOfBatch } from "@/lib/firebase/doubts";
 import { istIso, istParts } from "@/lib/classes/time";
 import {
   istDay,
@@ -162,6 +163,10 @@ function storeFor(batch: Batch, uid: string, teacherName: string): TeacherStore 
       add: (n) => addNotice(batch, n, { uid, name: teacherName }),
       remove: removeNotice,
       doneCount,
+    },
+    doubts: {
+      list: () => doubtsOfBatch(batch.id),
+      answer: (id, text) => answerDoubt(id, text, uid),
     },
     classes: {
       list: () => classesFor([batch.id]),

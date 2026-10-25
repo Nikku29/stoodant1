@@ -1,13 +1,14 @@
 import { initializeApp } from "firebase-admin/app";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, onRequest } from "firebase-functions/v2/https";
-import { onDocumentCreated, onDocumentDeleted, onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated, onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./config.js";
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
+import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
 import { handleClaimAdmin, handleTeamRemoved } from "./school/admin.js";
 import { sendClassReminders } from "./classes/reminders.js";
 import { handleChangeClass, handleScheduleClasses } from "./classes/schedule.js";
@@ -80,6 +81,16 @@ export const askForHelp = onCall({ cors: true }, handleAskForHelp);
 export const onHelpRequested = onDocumentCreated(
   { document: "helpRequests/{requestId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
   handleHelpRequested,
+);
+
+// Doubts: the teacher gets a push when a family asks, and the family when the teacher answers.
+export const onDoubtCreated = onDocumentCreated(
+  { document: "doubts/{doubtId}", timeoutSeconds: 30 },
+  handleDoubtCreated,
+);
+export const onDoubtAnswered = onDocumentUpdated(
+  { document: "doubts/{doubtId}", timeoutSeconds: 30 },
+  handleDoubtUpdated,
 );
 
 // Homework and notices: the batch's families get a push as soon as the teacher posts one.
