@@ -12,6 +12,7 @@ import {
 import { formatDay } from "@/lib/progress/insights";
 import { SAMPLE_BATCH_NOTES, SAMPLE_HISTORY, SAMPLE_MATERIALS } from "@/lib/progress/sampleData";
 import { TeacherClasses, type ClassStore } from "./LiveClasses";
+import { practiceDoubtStore, TeacherDoubts, type DoubtStore } from "./Doubts";
 import { practiceNoticeStore, TeacherNotices, type NoticeStore } from "./Notices";
 import { practiceClassStore } from "./practiceClasses";
 import { Materials, StudentReport, type BatchNote, type NewMaterial } from "./TeacherExtras";
@@ -54,6 +55,8 @@ export type TeacherStore = {
   classes?: ClassStore;
   /** Homework and notices for this batch. Left out, practice mode keeps them in memory. */
   notices?: NoticeStore;
+  /** Doubts from this batch's students. Left out, practice mode keeps them in memory. */
+  doubts?: DoubtStore;
   /** Children who tapped Join in that day's live classes, or null when there was no live class. */
   joinedOn?(date: string): Promise<Set<string> | null>;
 };
@@ -85,14 +88,17 @@ export function TeacherEntry({
   const tabs = (Object.keys(copy.tabs) as Tab[]).filter((t) => t !== "classes" || hasClasses);
   const [tab, setTab] = useState<Tab>(() => {
     if (startTab && tabs.includes(startTab)) return startTab;
-    const wanted = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("class");
-    return wanted && hasClasses ? "classes" : "attendance";
+    const q = new URLSearchParams(typeof location === "undefined" ? "" : location.search);
+    // A doubt's push opens /teacher?batch=...&doubt=...
+    if (q.has("doubt")) return "doubts";
+    return q.get("class") && hasClasses ? "classes" : "attendance";
   });
   const classStore = useMemo(
     () => store?.classes ?? practiceClasses ?? practiceClassStore(),
     [store, practiceClasses],
   );
   const noticeStore = useMemo(() => store?.notices ?? practiceNoticeStore(today), [store, today]);
+  const doubtStore = useMemo(() => store?.doubts ?? practiceDoubtStore(), [store]);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -162,6 +168,7 @@ export function TeacherEntry({
             practice={!store?.notices}
           />
         )}
+        {tab === "doubts" && <TeacherDoubts store={doubtStore} practice={!store?.doubts} />}
         {tab === "notes" && <NotesForm {...props} />}
         {tab === "overview" && (
           <ClassOverview

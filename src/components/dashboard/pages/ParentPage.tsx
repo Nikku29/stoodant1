@@ -14,6 +14,8 @@ import { sampleClasses } from "@/components/dashboard/practiceClasses";
 import { useMoveToApp } from "@/lib/moveToApp";
 import { isDone, noticesFor, setDone } from "@/lib/firebase/notices";
 import { previewFamilyStore, type FamilyNoticeStore } from "@/components/dashboard/Notices";
+import { askDoubt, doubtsOfChild, withdrawDoubt } from "@/lib/firebase/doubts";
+import { previewFamilyDoubts, type FamilyDoubtStore } from "@/components/dashboard/Doubts";
 
 // Parent dashboard: the signed-in parent's child (or children). `?sample=1` shows the preview with sample
 // records. Used by the /parent route here and by app.stoodant.com (console/), never by the landing page.
@@ -35,6 +37,7 @@ export function ParentPage() {
         materials={{ load: loadSampleMaterials }}
         classes={{ load: loadSampleClasses }}
         notices={sampleNotices}
+        doubts={sampleDoubts}
       />
     );
   return <LiveParent />;
@@ -43,6 +46,23 @@ export function ParentPage() {
 const loadSampleMaterials = async () => SAMPLE_MATERIALS;
 const loadSampleClasses = async () => sampleClasses();
 const sampleNotices = previewFamilyStore(SAMPLE_TODAY);
+const sampleDoubts = previewFamilyDoubts();
+
+/**
+ * The child's batches by name. Progress pages built before doubts came in have no `batches` yet; their
+ * `batch` line lists the same batches' names in the same order as `batchIds`.
+ */
+function batchesOf(student: Progress["student"]): FamilyDoubtStore["batches"] {
+  if (student.batches?.length) return student.batches;
+  const ids = student.batchIds ?? [];
+  const names = student.batch.split(" · ");
+  const sameOrder = names.length === ids.length;
+  return ids.map((id, i) => ({
+    id,
+    name: sameOrder ? names[i]! : `Batch ${i + 1}`,
+    subject: ids.length === 1 ? (student.subjects[0] ?? "") : "",
+  }));
+}
 
 function LiveParent() {
   const session = useSession();
@@ -154,6 +174,20 @@ function Child({
     }),
     [batchIds, studentId, uid],
   );
+  const studentName = child.student.name;
+  const doubts = useMemo<FamilyDoubtStore>(
+    () => ({
+      batches: batchesOf(child.student),
+      list: () => doubtsOfChild(studentId),
+      // The team viewing a child's page can't ask for them.
+      ask: (batchId, question) =>
+        uid
+          ? askDoubt({ batchId, studentId, studentName, question, uid })
+          : Promise.reject(new Error("view only")),
+      withdraw: withdrawDoubt,
+    }),
+    [child.student, studentId, studentName, uid],
+  );
   const picker =
     all.length > 1 ? (
       <div className="pd-picker" role="group" aria-label="Choose a child">
@@ -179,6 +213,7 @@ function Child({
       materials={{ load, open: openUrl }}
       classes={{ load: loadClasses, onJoin }}
       notices={notices}
+      doubts={doubts}
     />
   );
 }

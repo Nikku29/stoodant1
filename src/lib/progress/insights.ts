@@ -23,6 +23,8 @@ export type Student = {
   subjects: string[];
   /** The child's batches, for the study material they share. Set on live progress pages. */
   batchIds?: string[];
+  /** The same batches with their names, for asking a doubt. On progress pages rebuilt since doubts came in. */
+  batches?: { id: string; name: string; subject: string }[];
 };
 
 export type StudentRecords = {

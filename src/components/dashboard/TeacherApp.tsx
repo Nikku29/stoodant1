@@ -17,7 +17,7 @@ const SECTIONS = Object.keys(DASHBOARD_CONFIG.nav.teacher) as Section[];
 const ICON = { today: "sun", batches: "layers", help: "help" } as const;
 // Class reminders and the team's links open a batch: /teacher?batch=...&class=...
 const fromQuery = (q: URLSearchParams): Section | null =>
-  q.has("batch") || q.has("class") ? "batches" : null;
+  q.has("batch") || q.has("class") || q.has("doubt") ? "batches" : null;
 
 export type TeacherBatch = { id: string; batch: Batch; store?: TeacherStore | undefined };
 
@@ -154,7 +154,7 @@ function greeting() {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-type Todo = { kind: "attendance" | "homework"; batchId: string; batchName: string; at: number };
+type Todo = { kind: "attendance" | "homework" | "doubts"; batchId: string; batchName: string; at: number };
 
 /** The teacher's day on one screen. Every row opens the batch, on the right tab. */
 function TeacherToday({
@@ -204,7 +204,16 @@ function TeacherToday({
             return { kind: "homework" as const, batchId: b.id, batchName: b.batch.name, at: 0 };
           }),
         );
-        if (live) setTodos([...(attendance ?? []), ...homework].filter((r): r is Todo => r !== null));
+        // Doubts waiting for an answer come first: a child is stuck until then. `at` holds how many.
+        const doubts = await Promise.all(
+          batches.map(async (b) => {
+            const list = b.store?.doubts ? await b.store.doubts.list().catch(() => null) : null;
+            const waiting = list?.filter((d) => d.status === "open").length ?? 0;
+            return waiting ? { kind: "doubts" as const, batchId: b.id, batchName: b.batch.name, at: waiting } : null;
+          }),
+        );
+        if (live)
+          setTodos([...doubts, ...(attendance ?? []), ...homework].filter((r): r is Todo => r !== null));
       })
       .catch(() => {
         if (!live) return;
@@ -290,9 +299,16 @@ function TeacherToday({
               <li key={`${t.kind}-${t.batchId}`}>
                 <button type="button" onClick={() => open(t.batchId, t.kind)}>
                   <span className="pd-todo-mark" aria-hidden="true">
-                    {t.kind === "attendance" ? "!" : "+"}
+                    {t.kind === "attendance" ? "!" : t.kind === "doubts" ? "?" : "+"}
                   </span>
-                  {t.kind === "attendance" ? (
+                  {t.kind === "doubts" ? (
+                    <span>
+                      {copy.answerDoubts}: {t.batchName}
+                      <small>
+                        {t.at === 1 ? copy.answerDoubtsHintOne : copy.answerDoubtsHint.replace("{n}", String(t.at))}
+                      </small>
+                    </span>
+                  ) : t.kind === "attendance" ? (
                     <span>
                       {copy.markAttendance}: {t.batchName}
                       <small>After the {time12(t.at)} class</small>
