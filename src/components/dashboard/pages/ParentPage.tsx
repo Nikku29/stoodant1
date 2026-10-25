@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ParentDashboard } from "@/components/dashboard/ParentDashboard";
 import { Loading, RequireLogin, Shell, useSearchFlag } from "@/components/dashboard/Shell";
@@ -12,6 +12,8 @@ import { signOutNow, useSession, type Session } from "@/lib/firebase/session";
 import { SAMPLE_MATERIALS, SAMPLE_RECORDS, SAMPLE_TODAY } from "@/lib/progress/sampleData";
 import { sampleClasses } from "@/components/dashboard/practiceClasses";
 import { useMoveToApp } from "@/lib/moveToApp";
+import { isDone, noticesFor, setDone } from "@/lib/firebase/notices";
+import { previewFamilyStore, type FamilyNoticeStore } from "@/components/dashboard/Notices";
 
 // Parent dashboard: the signed-in parent's child (or children). `?sample=1` shows the preview with sample
 // records. Used by the /parent route here and by app.stoodant.com (console/), never by the landing page.
@@ -32,6 +34,7 @@ export function ParentPage() {
         sample
         materials={{ load: loadSampleMaterials }}
         classes={{ load: loadSampleClasses }}
+        notices={sampleNotices}
       />
     );
   return <LiveParent />;
@@ -39,6 +42,7 @@ export function ParentPage() {
 
 const loadSampleMaterials = async () => SAMPLE_MATERIALS;
 const loadSampleClasses = async () => sampleClasses();
+const sampleNotices = previewFamilyStore(SAMPLE_TODAY);
 
 function LiveParent() {
   const session = useSession();
@@ -136,6 +140,20 @@ function Child({
     (c: { id: string }) => void (uid && markJoined(c.id, studentId, uid).catch(() => undefined)),
     [uid, studentId],
   );
+  const notices = useMemo<FamilyNoticeStore>(
+    () => ({
+      list: async () => {
+        const items = await noticesFor(batchIds ? batchIds.split(",") : []);
+        const done = await Promise.all(
+          items.map((n) => (n.kind === "homework" ? isDone(n.id, studentId).catch(() => false) : false)),
+        );
+        return items.map((n, i) => ({ ...n, done: done[i]! }));
+      },
+      // The team viewing a child's page can't tick for them; the rules refuse it and the tick goes back.
+      setDone: (id, done) => (uid ? setDone(id, studentId, uid, done) : Promise.reject(new Error("view only"))),
+    }),
+    [batchIds, studentId, uid],
+  );
   const picker =
     all.length > 1 ? (
       <div className="pd-picker" role="group" aria-label="Choose a child">
@@ -160,6 +178,7 @@ function Child({
       onSignOut={signOut}
       materials={{ load, open: openUrl }}
       classes={{ load: loadClasses, onJoin }}
+      notices={notices}
     />
   );
 }

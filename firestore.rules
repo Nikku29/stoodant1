@@ -337,6 +337,46 @@ service cloud.firestore {
       }
     }
 
+    // Homework and notices a teacher posts to one batch. Families of the batch read them and get a push
+    // (onNoticeCreated). For homework, a parent ticks Done for their own child; the teacher sees the count.
+    match /notices/{noticeId} {
+      function notice() {
+        return get(/databases/$(database)/documents/notices/$(noticeId)).data;
+      }
+      function validNotice() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['batchId', 'batchName', 'subject', 'kind', 'title', 'body', 'due', 'teacherName', 'createdBy', 'createdAt'])
+          && exists(/databases/$(database)/documents/batches/$(d.batchId))
+          && d.batchName is string && d.batchName.size() <= 80
+          && d.subject is string && d.subject.size() <= 40
+          && d.kind in ['homework', 'notice']
+          && shortText(d.title, 100)
+          && d.body is string && d.body.size() <= 600
+          && (!('due' in d) || (d.kind == 'homework' && d.due is string && d.due.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+          && d.teacherName is string && d.teacherName.size() <= 80
+          && d.createdBy == request.auth.uid
+          && d.createdAt == request.time;
+      }
+      allow read: if isAdmin() || teachesBatch(resource.data.batchId) || parentOfBatch(resource.data.batchId);
+      allow create: if (isAdmin() || teachesBatch(request.resource.data.batchId)) && validNotice();
+      allow delete: if isAdmin() || teachesBatch(resource.data.batchId);
+
+      match /done/{studentId} {
+        function parentOfChild() {
+          return signedIn() && phone() != ''
+            && get(/databases/$(database)/documents/progress/$(studentId)).data.parentPhone == phone()
+            && studentId in batch(notice().batchId).get('studentIds', []);
+        }
+        allow list: if isAdmin() || teachesBatch(notice().batchId);
+        allow get: if isAdmin() || teachesBatch(notice().batchId) || parentOfChild();
+        allow create: if notice().kind == 'homework' && parentOfChild()
+          && request.resource.data.keys().hasOnly(['at', 'by'])
+          && request.resource.data.at == request.time
+          && request.resource.data.by == request.auth.uid;
+        allow delete: if parentOfChild();
+      }
+    }
+
     match /progress/{studentId} {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.parentPhone == phone());
     }

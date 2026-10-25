@@ -154,7 +154,7 @@ function greeting() {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-type Todo = { batchId: string; batchName: string; at: number };
+type Todo = { kind: "attendance" | "homework"; batchId: string; batchName: string; at: number };
 
 /** The teacher's day on one screen. Every row opens the batch, on the right tab. */
 function TeacherToday({
@@ -190,9 +190,21 @@ function TeacherToday({
             const b = batches.find((x) => x.id === c.batchId);
             if (!b) return null;
             const saved = b.store ? await b.store.loadAttendance(today).catch(() => null) : null;
-            return saved ? null : { batchId: b.id, batchName: b.batch.name, at: c.startAt };
+            return saved ? null : { kind: "attendance" as const, batchId: b.id, batchName: b.batch.name, at: c.startAt };
           }),
-        ).then((rows) => live && setTodos(rows.filter((r): r is Todo => r !== null)));
+        );
+      })
+      .then(async (attendance) => {
+        // A batch with no homework set in the last 7 days gets a gentle nudge.
+        const weekAgo = Date.now() - 7 * 86_400_000;
+        const homework = await Promise.all(
+          batches.map(async (b) => {
+            const list = b.store?.notices ? await b.store.notices.list().catch(() => null) : null;
+            if (!list || list.some((n) => n.kind === "homework" && n.createdAt >= weekAgo)) return null;
+            return { kind: "homework" as const, batchId: b.id, batchName: b.batch.name, at: 0 };
+          }),
+        );
+        if (live) setTodos([...(attendance ?? []), ...homework].filter((r): r is Todo => r !== null));
       })
       .catch(() => {
         if (!live) return;
@@ -275,15 +287,22 @@ function TeacherToday({
         ) : todos.length ? (
           <ul className="pd-todo">
             {todos.map((t) => (
-              <li key={t.batchId}>
-                <button type="button" onClick={() => open(t.batchId, "attendance")}>
+              <li key={`${t.kind}-${t.batchId}`}>
+                <button type="button" onClick={() => open(t.batchId, t.kind)}>
                   <span className="pd-todo-mark" aria-hidden="true">
-                    !
+                    {t.kind === "attendance" ? "!" : "+"}
                   </span>
-                  <span>
-                    {copy.markAttendance}: {t.batchName}
-                    <small>After the {time12(t.at)} class</small>
-                  </span>
+                  {t.kind === "attendance" ? (
+                    <span>
+                      {copy.markAttendance}: {t.batchName}
+                      <small>After the {time12(t.at)} class</small>
+                    </span>
+                  ) : (
+                    <span>
+                      {copy.setHomework}: {t.batchName}
+                      <small>{copy.setHomeworkHint}</small>
+                    </span>
+                  )}
                   <span className="pd-todo-go" aria-hidden="true">
                     →
                   </span>

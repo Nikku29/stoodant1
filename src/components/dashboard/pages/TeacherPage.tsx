@@ -7,6 +7,7 @@ import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { firebaseConfigured } from "@/lib/firebase/app";
 import { changeClass, classesFor, joinedIn, lastLink, scheduleClasses } from "@/lib/firebase/classes";
 import { addMaterial, materialsFor, openUrl, removeMaterial } from "@/lib/firebase/materials";
+import { addNotice, doneCount, noticesFor, removeNotice } from "@/lib/firebase/notices";
 import { istIso, istParts } from "@/lib/classes/time";
 import {
   istDay,
@@ -156,6 +157,12 @@ function storeFor(batch: Batch, uid: string, teacherName: string): TeacherStore 
     addMaterial: (m) => addMaterial({ ...m, batchId: batch.id, uid, teacherName: teacherName.slice(0, 80) }),
     removeMaterial,
     openMaterial: openUrl,
+    notices: {
+      list: () => noticesFor([batch.id]),
+      add: (n) => addNotice(batch, n, { uid, name: teacherName }),
+      remove: removeNotice,
+      doneCount,
+    },
     classes: {
       list: () => classesFor([batch.id]),
       lastLink: () => lastLink(batch.id),

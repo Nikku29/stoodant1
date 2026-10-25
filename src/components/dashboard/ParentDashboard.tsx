@@ -27,6 +27,7 @@ import { AttendanceChart, MarksChart } from "./Charts";
 import { HelpBox } from "./HelpBox";
 import { ParentClasses } from "./LiveClasses";
 import { MaterialList } from "./MaterialList";
+import { FamilyNotices, type FamilyNoticeStore } from "./Notices";
 import { Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.parent;
@@ -47,6 +48,7 @@ export function ParentDashboard({
   onSignOut,
   materials,
   classes,
+  notices,
 }: {
   records: StudentRecords;
   today: string;
@@ -64,6 +66,8 @@ export function ParentDashboard({
   classes?:
     | { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined }
     | undefined;
+  /** Homework and notices from the child's teachers, on Home. */
+  notices?: FamilyNoticeStore | undefined;
 }) {
   const hasClasses = Boolean(classes);
   const hasMaterials = Boolean(materials);
@@ -99,7 +103,7 @@ export function ParentDashboard({
       {sample && <p className="pd-banner">{copy.sampleBanner}</p>}
       {picker}
       {section === "home" && (
-        <ParentHome records={records} today={today} classes={classes} go={go} />
+        <ParentHome records={records} today={today} classes={classes} notices={notices} go={go} />
       )}
       {section === "progress" && (
         <>
@@ -151,11 +155,13 @@ function ParentHome({
   records,
   today,
   classes,
+  notices,
   go,
 }: {
   records: StudentRecords;
   today: string;
   classes?: { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined } | undefined;
+  notices?: FamilyNoticeStore | undefined;
   go: (s: Section) => void;
 }) {
   const { student } = records;
@@ -179,6 +185,7 @@ function ParentHome({
       </section>
 
       {classes && <ParentClasses load={classes.load} onJoin={classes.onJoin} compact />}
+      {notices && <FamilyNotices store={notices} today={today} />}
 
       <section className="pd-section" aria-labelledby="pd-month">
         <h2 id="pd-month">

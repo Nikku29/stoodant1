@@ -7,6 +7,7 @@ import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./conf
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
+import { handleNoticeCreated } from "./notices/notify.js";
 import { handleClaimAdmin, handleTeamRemoved } from "./school/admin.js";
 import { sendClassReminders } from "./classes/reminders.js";
 import { handleChangeClass, handleScheduleClasses } from "./classes/schedule.js";
@@ -79,4 +80,10 @@ export const askForHelp = onCall({ cors: true }, handleAskForHelp);
 export const onHelpRequested = onDocumentCreated(
   { document: "helpRequests/{requestId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
   handleHelpRequested,
+);
+
+// Homework and notices: the batch's families get a push as soon as the teacher posts one.
+export const onNoticeCreated = onDocumentCreated(
+  { document: "notices/{noticeId}", timeoutSeconds: 30 },
+  handleNoticeCreated,
 );
