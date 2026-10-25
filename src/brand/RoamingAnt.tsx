@@ -40,15 +40,22 @@ const decode = (names: readonly string[]) =>
   Promise.all(names.map((n) => { const img = new Image(); img.src = `${IMG}${n}.webp`; return img.decode().catch(() => undefined); }));
 
 // Dance moves, played on the whole figure (feet stay on the ground line) while the legs kick.
+// Each step eases out into an extreme and eases in away from it, so the motion swings like a pendulum
+// instead of stopping at every keyframe.
+const OUT = "cubic-bezier(.33,1,.68,1)";
+const IN = "cubic-bezier(.32,0,.67,0)";
+const swing = (a: string, b: string): Keyframe[] => [
+  { transform: "none", easing: OUT }, { transform: a, easing: IN }, { transform: "none", easing: OUT }, { transform: b, easing: IN }, { transform: "none" },
+];
 const DANCES: [Keyframe[], ...Keyframe[][]] = [
-  // Bounce
-  [{ transform: "none" }, { transform: "scale(1.06,.94)" }, { transform: "translateY(-16%) scale(.97,1.04)" }, { transform: "scale(1.06,.94)" }, { transform: "none" }],
+  // Bounce: squash, spring up, land soft.
+  [{ transform: "none", easing: OUT }, { transform: "scale(1.05,.95)", offset: .2, easing: OUT }, { transform: "translateY(-14%) scale(.98,1.03)", offset: .55, easing: IN }, { transform: "scale(1.04,.96)", offset: .85, easing: OUT }, { transform: "none" }],
   // Sway
-  [{ transform: "none" }, { transform: "rotate(-9deg)" }, { transform: "none" }, { transform: "rotate(9deg)" }, { transform: "none" }],
+  swing("rotate(-8deg)", "rotate(8deg)"),
   // Spin
-  [{ transform: "none" }, { transform: "translateY(-10%) scaleX(-1)" }, { transform: "none" }],
+  [{ transform: "none", easing: OUT }, { transform: "translateY(-8%) scaleX(-1)", easing: IN }, { transform: "none" }],
   // Shuffle
-  [{ transform: "none" }, { transform: "translateX(-14%) skewX(6deg)" }, { transform: "none" }, { transform: "translateX(14%) skewX(-6deg)" }, { transform: "none" }],
+  swing("translateX(-12%) skewX(5deg)", "translateX(12%) skewX(-5deg)"),
 ];
 
 /**
@@ -93,23 +100,37 @@ export function RoamingAnt() {
       if (!target) return;
       try { await target.animate(frames, options).finished; } catch { /* cancelled on unmount */ }
     };
-    const glide = (from: number, to: number) =>
-      play(el, [{ transform: `translate(${from}px,0)` }, { transform: `translate(${to}px,0)` }], { duration: Math.max(T.moonMin, Math.abs(to - from) / T.moonSpeed) * 1000, easing: "linear", fill: "forwards" });
+    // Eases in and out so the glide starts and stops softly. A shorter-than-usual min is a fixed, quick exit.
+    const glide = (from: number, to: number, min: number) =>
+      play(el, [{ transform: `translate(${from}px,0)` }, { transform: `translate(${to}px,0)` }], { duration: (min < T.moonMin ? min : Math.max(min, Math.abs(to - from) / T.moonSpeed)) * 1000, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
     // Moonwalk: face away from where it is going (the image faces right when not flipped) and lean back.
-    const moonwalk = async (from: number, to: number) => {
+    const moonwalk = async (from: number, to: number, min: number = T.moonMin) => {
       const right = to > from;
       if (flip.current) flip.current.style.transform = right ? "scaleX(-1)" : "";
       el.style.setProperty("--lean", right ? "4deg" : "-4deg");
       el.classList.add("is-moonwalk");
-      await glide(from, to);
+      await glide(from, to, min);
       el.classList.remove("is-moonwalk");
     };
     const onVisibility = () => el.getAnimations({ subtree: true }).forEach((a) => (document.hidden ? a.pause() : a.play()));
     document.addEventListener("visibilitychange", onVisibility);
+    // A tap anywhere else on the page sends it away at once: stop what it is doing where it stands.
+    let gone = false;
+    let at = 0;
+    const onTapElsewhere = (e: PointerEvent) => {
+      if (!el.classList.contains("is-shown") || gone || el.contains(e.target as Node)) return;
+      gone = true;
+      at = el.getBoundingClientRect().left;
+      el.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+      el.style.transform = `translate(${at}px,0)`;
+      el.classList.remove("is-moonwalk", "is-dance");
+      talkUntil.current = 0;
+    };
+    document.addEventListener("pointerdown", onTapElsewhere, true);
     const stay = async () => {
-      // Stay longer while it is talking; leave early if the form or footer comes into view.
+      // Stay longer while it is talking; leave early if tapped away or the form or footer comes into view.
       const until = Date.now() + T.stay * 1000;
-      while (alive && !blocked.current && (Date.now() < until || Date.now() < talkUntil.current || document.hidden)) await wait(250);
+      while (alive && !gone && !blocked.current && (Date.now() < until || Date.now() < talkUntil.current || document.hidden)) await wait(250);
     };
 
     let lastDance = -1;
@@ -123,6 +144,7 @@ export function RoamingAnt() {
       const x1 = rand(left, Math.min(right, left + vw * 0.55));
       el.classList.toggle("is-right", x1 > vw / 2);
       setFace(pick(FACES));
+      gone = false;
 
       if (!animated) {
         const pose = pick(LOW_POSES);
@@ -148,6 +170,7 @@ export function RoamingAnt() {
       setShown(true);
       await moonwalk(off, x1);
       if (!alive) return;
+      if (!gone) at = x1;
 
       // Dance (a different move from last time), then face the visitor and share a tip.
       if (flip.current) flip.current.style.transform = "";
@@ -155,18 +178,18 @@ export function RoamingAnt() {
       if (d === lastDance) d = (d + 1) % DANCES.length;
       lastDance = d;
       const beat = T.moonStep * 1000 * 1.6;
-      el.classList.add("is-dance");
-      await play(fig.current, DANCES[d] ?? DANCES[0], { duration: beat, iterations: Math.max(1, Math.round((T.dance * 1000) / beat)), easing: "ease-in-out" });
+      if (!gone) el.classList.add("is-dance");
+      if (!gone) await play(fig.current, DANCES[d] ?? DANCES[0], { duration: beat, iterations: Math.max(1, Math.round((T.dance * 1000) / beat)) });
       el.classList.remove("is-dance");
       if (!alive) return;
-      if (!blocked.current) {
+      if (!gone && !blocked.current) {
         talkRef.current();
         await stay();
       }
       if (!alive) return;
       setMessage(null);
-      // Moonwalk out the way it came.
-      await moonwalk(x1, off);
+      // Moonwalk out the way it came (quickly if it was tapped away).
+      await moonwalk(at, off, gone ? T.moonMin / 2 : T.moonMin);
       setShown(false);
     };
 
@@ -181,6 +204,7 @@ export function RoamingAnt() {
       alive = false;
       el.getAnimations({ subtree: true }).forEach((a) => a.cancel());
       document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("pointerdown", onTapElsewhere, true);
     };
   }, []);
 

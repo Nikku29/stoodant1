@@ -1,7 +1,7 @@
 /* The roaming mascot (RoamingAnt.tsx). Loaded with the ant's own chunk, after the page is up.
    Durations come from TIMING through the --step custom property set on .roamer. */
 .roamer{position:fixed;left:0;bottom:10px;z-index:85;width:70px;visibility:hidden;transform:translate(-200px,0)}
-.roamer.is-shown{visibility:visible}
+.roamer.is-shown{visibility:visible;will-change:transform}
 .roamer.is-low{width:96px;bottom:0}
 .roamer-ant{display:block;width:100%;padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .roamer-ant img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none;pointer-events:none}
@@ -19,7 +19,9 @@
 .is-moonwalk .roamer-leg-l{animation:roamer-heel var(--step) ease-in-out infinite}
 .is-moonwalk .roamer-leg-r{animation:roamer-heel var(--step) ease-in-out calc(var(--step) / -2) infinite}
 .is-moonwalk .roamer-lean{transform:rotate(var(--lean,0deg))}
-@keyframes roamer-heel{0%,55%,100%{transform:none}25%{transform:translate(1%,-4.5%) rotate(-5deg)}}
+.is-moonwalk .roamer-body{animation:roamer-bob calc(var(--step) / 2) ease-in-out infinite alternate}
+@keyframes roamer-heel{0%,60%,100%{transform:none}30%{transform:translate(.8%,-3.5%) rotate(-3.5deg)}}
+@keyframes roamer-bob{to{transform:translateY(1.2%)}}
 
 /* Dancing: quick alternate kicks. */
 .is-dance .roamer-leg-l{animation:roamer-kick-l calc(var(--step) * .8) ease-in-out infinite}
