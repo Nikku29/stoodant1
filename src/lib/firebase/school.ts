@@ -14,6 +14,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
   type DocumentData,
 } from "firebase/firestore/lite";
 
@@ -299,22 +300,85 @@ export const listAll = {
 
 type Editable = "teachers" | "students" | "batches";
 
-/** Creates (no id) or updates a record. Fields the Cloud Functions keep are never sent. */
+/** The fields the team edits. Anything else on a loaded record (id, rosters, nameKey) is never sent back. */
+const EDITABLE: Record<Editable, string[]> = {
+  teachers: ["name", "phone", "subjects", "active"],
+  students: ["name", "classLevel", "board", "parentName", "parentPhone", "batchIds", "whatsappOptIn", "active"],
+  batches: ["name", "classLevel", "board", "subject", "teacherId", "schedule", "durationMinutes", "active"],
+};
+
+/** "  Aarav   Sharma " and "aarav sharma" are the same name (firestore.rules normName). */
+export const nameKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * The value that must not repeat: one teacher per mobile number, one child per parent's number + name.
+ * Hashed the same way as firestore.rules (teacherKey, studentKey); the hash is the `uniqueKeys` id.
+ */
+async function uniqueKey(kind: "teachers" | "students", f: Record<string, unknown>) {
+  const text =
+    kind === "teachers"
+      ? `teacher|${String(f["phone"])}`
+      : `student|${String(f["parentPhone"])}|${nameKey(String(f["name"]))}`;
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Thrown when the number (teacher) or parent's number + name (student) is already on another record. */
+export class DuplicateRecord extends Error {
+  constructor(readonly kind: "teachers" | "students") {
+    super("duplicate");
+  }
+}
+
+/**
+ * Creates (no id) or updates a record. Fields the Cloud Functions keep are never sent. Teachers and
+ * students also move their unique key in the same write, so a duplicate is refused as a whole.
+ */
 export async function saveRecord(
   kind: Editable,
   id: string | null,
-  fields: Record<string, unknown>,
+  input: Record<string, unknown>,
 ) {
-  if (id) await updateDoc(doc(db(), kind, id), { ...fields, updatedAt: serverTimestamp() });
-  else
-    await addDoc(collection(db(), kind), {
-      ...fields,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+  const fields = Object.fromEntries(
+    Object.entries(input).filter(([key, value]) => EDITABLE[kind].includes(key) && value !== undefined),
+  );
+  if (kind === "batches") {
+    if (id) await updateDoc(doc(db(), kind, id), { ...fields, updatedAt: serverTimestamp() });
+    else await addDoc(collection(db(), kind), { ...fields, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    return;
+  }
+  const ref = id ? doc(db(), kind, id) : doc(collection(db(), kind));
+  const record = { ...fields, nameKey: nameKey(String(fields["name"] ?? "")) };
+  const key = await uniqueKey(kind, record);
+  const before = id ? await getDoc(ref) : null;
+  const oldKey = before?.exists() ? await uniqueKey(kind, before.data()) : null;
+  const holder = await getDoc(doc(db(), "uniqueKeys", key));
+  if (holder.exists() && holder.get("id") !== ref.id) throw new DuplicateRecord(kind);
+
+  const batch = writeBatch(db());
+  if (id) batch.update(ref, { ...record, updatedAt: serverTimestamp() });
+  else batch.set(ref, { ...record, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  if (oldKey !== key) {
+    if (!holder.exists()) batch.set(doc(db(), "uniqueKeys", key), { kind, id: ref.id });
+    if (oldKey && (await getDoc(doc(db(), "uniqueKeys", oldKey))).get("id") === ref.id)
+      batch.delete(doc(db(), "uniqueKeys", oldKey));
+  }
+  await batch.commit();
 }
 
-export const deleteRecord = (kind: Editable, id: string) => deleteDoc(doc(db(), kind, id));
+/** Deletes a record, and for teachers and students the unique key it holds, in one write. */
+export async function deleteRecord(kind: Editable, id: string) {
+  const ref = doc(db(), kind, id);
+  if (kind === "batches") return deleteDoc(ref);
+  const snap = await getDoc(ref);
+  const batch = writeBatch(db());
+  batch.delete(ref);
+  if (snap.exists()) {
+    const keyRef = doc(db(), "uniqueKeys", await uniqueKey(kind, snap.data()));
+    if ((await getDoc(keyRef)).get("id") === id) batch.delete(keyRef);
+  }
+  await batch.commit();
+}
 
 export const setLeadStatus = (id: string, status: string) =>
   updateDoc(doc(db(), "leads", id), { status, updatedAt: serverTimestamp() });

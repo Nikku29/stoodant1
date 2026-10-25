@@ -1,6 +1,7 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { logger } from "firebase-functions/v2";
 import type { Change, DocumentSnapshot, FirestoreEvent } from "firebase-functions/v2/firestore";
+import { syncKeys } from "./keys.js";
 import { rebuildProgress } from "./progress.js";
 
 // Teachers and the admin write the raw records; these triggers keep the derived fields that rules and
@@ -13,6 +14,17 @@ const ids = (value: unknown): string[] =>
 const keys = (value: unknown): string[] =>
   value && typeof value === "object" ? Object.keys(value as Record<string, unknown>) : [];
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+/** True when the only change is the `nameKey` a function filled in: nothing else needs doing. */
+function onlyNameKey(before: FirebaseFirestore.DocumentData | undefined, after: FirebaseFirestore.DocumentData | undefined) {
+  if (!before || !after) return false;
+  const changedKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const key of changedKeys) {
+    if (key === "nameKey") continue;
+    if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) return false;
+  }
+  return true;
+}
 
 async function rebuildAll(studentIds: Iterable<string>) {
   const db = getFirestore();
@@ -39,9 +51,10 @@ async function refreshRoster(batchId: string) {
   const parentPhones = [...new Set(enrolled.map((s) => String(s.get("parentPhone") ?? "")).filter(Boolean))].sort();
   const access = await accessRef.get();
   if (!sameList(ids(access.get("parentPhones")), parentPhones)) await accessRef.set({ parentPhones });
+  // Two children can share a name; the id keeps their order the same on every rebuild.
   const roster = enrolled
     .map((s) => ({ id: s.id, name: String(s.get("name") ?? "") }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   const studentIds = roster.map((s) => s.id);
   const current = batch.data()!;
   const sameRoster =
@@ -53,26 +66,39 @@ async function refreshRoster(batchId: string) {
 export async function handleStudentWritten(event: Written) {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
+  if (onlyNameKey(before, after)) return;
+  const db = getFirestore();
+  const studentId = event.params.studentId as string;
+  // Keys follow the record as it is now: a late event must not take a key from a newer record.
+  const current = (await db.doc(`students/${studentId}`).get()).data();
+  await syncKeys(db, "students", studentId, before, current);
   const batchIds = new Set([...ids(before?.batchIds), ...ids(after?.batchIds)]);
   const rosterChanged =
     !before || !after || before.name !== after.name || before.active !== after.active ||
     before.parentPhone !== after.parentPhone ||
     !sameList(ids(before.batchIds), ids(after.batchIds));
   if (rosterChanged) for (const id of batchIds) await refreshRoster(id);
-  await rebuildProgress(getFirestore(), event.params.studentId as string);
+  await rebuildProgress(db, studentId);
 }
 
 export async function handleTeacherWritten(event: Written) {
   const db = getFirestore();
+  if (onlyNameKey(event.data?.before.data(), event.data?.after.data())) return;
   // Read the record as it is now, not as the event saw it: events can arrive out of order, and an old
   // one must not undo a newer change.
   const teacherId = event.params.teacherId as string;
   const after = (await db.doc(`teachers/${teacherId}`).get()).data();
+  await syncKeys(db, "teachers", teacherId, event.data?.before.data(), after);
   const batches = await db.collection("batches").where("teacherId", "==", teacherId).get();
-  // A removed or paused teacher loses access at once: their batches stop matching their phone.
+  // A removed or paused teacher loses access at once: their batches stop matching their phone. A deleted
+  // teacher's batches are left with no teacher (''), so they never point at a record that is gone.
   const teacherPhone = after && after.active !== false ? String(after.phone ?? "") : "";
   const teacherName = String(after?.name ?? "");
   for (const batch of batches.docs) {
+    if (!after) {
+      await batch.ref.update({ teacherId: "", teacherPhone: "", teacherName: "", updatedAt: FieldValue.serverTimestamp() });
+      continue;
+    }
     if (batch.get("teacherPhone") === teacherPhone && batch.get("teacherName") === teacherName) continue;
     await batch.ref.update({ teacherPhone, teacherName, updatedAt: FieldValue.serverTimestamp() });
   }
@@ -96,6 +122,11 @@ export async function handleBatchWritten(event: Written) {
     }
   }
   if (!before || !after) await refreshRoster(batchId);
+  // A deleted batch leaves every child's list; each child's own trigger then rebuilds their page.
+  if (!after && !(await db.doc(`batches/${batchId}`).get()).exists) {
+    const listed = await db.collection("students").where("batchIds", "array-contains", batchId).get();
+    for (const student of listed.docs) await student.ref.update({ batchIds: FieldValue.arrayRemove(batchId) });
+  }
   // Name and subject appear on each child's page; a deleted batch drops out of it.
   if (!after || before?.name !== after.name || before?.subject !== after.subject || before?.active !== after.active) {
     await rebuildAll([...ids(before?.studentIds), ...ids(after?.studentIds)]);

@@ -7,6 +7,7 @@ import {
   allProgress,
   deleteLead,
   deleteRecord,
+  DuplicateRecord,
   istDay,
   listAll,
   removeTeamMember,
@@ -94,8 +95,14 @@ function Admin({ session }: { session: Session }) {
       await reload();
       setTimeout(() => void reload(), 2500);
       return true;
-    } catch {
-      setError("That change wasn't saved. Please check every field and try again.");
+    } catch (e) {
+      setError(
+        e instanceof DuplicateRecord
+          ? e.kind === "teachers"
+            ? "That change wasn't saved: another teacher already has this mobile number."
+            : "That change wasn't saved: this child is already on the list with the same parent's number."
+          : "That change wasn't saved. Please check every field and try again.",
+      );
       return false;
     }
   };

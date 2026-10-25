@@ -35,7 +35,7 @@ export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 export const ACCEPT = ".pdf,image/*,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt";
 /** The same list the Storage rules allow. */
 export const allowedType = (type: string) =>
-  /^(application\/pdf|image\/.+|application\/msword|application\/vnd\.openxmlformats-officedocument\..+|application\/vnd\.ms-.+|text\/plain)$/.test(
+  /^(application\/pdf|image\/(jpeg|png|webp|gif|heic|heif)|application\/msword|application\/vnd\.openxmlformats-officedocument\..+|application\/vnd\.ms-.+|text\/plain)$/.test(
     type,
   );
 
