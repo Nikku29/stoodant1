@@ -77,6 +77,21 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/this-page-does-not-exist)" = 404
           curl -s http://127.0.0.1:8080/ | grep -q "Learning that moves"
 
+  infra:
+    name: Terraform format and validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.7
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
+
   e2e:
     name: Playwright smoke tests
     runs-on: ubuntu-latest
