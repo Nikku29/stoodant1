@@ -12,6 +12,7 @@ import {
 import { formatDay } from "@/lib/progress/insights";
 import { SAMPLE_BATCH_NOTES, SAMPLE_HISTORY, SAMPLE_MATERIALS } from "@/lib/progress/sampleData";
 import { TeacherClasses, type ClassStore } from "./LiveClasses";
+import { practiceNoticeStore, TeacherNotices, type NoticeStore } from "./Notices";
 import { practiceClassStore } from "./practiceClasses";
 import { Materials, StudentReport, type BatchNote, type NewMaterial } from "./TeacherExtras";
 
@@ -51,6 +52,8 @@ export type TeacherStore = {
   openMaterial(m: Material): Promise<string>;
   /** Live classes of this batch (the app). Left out on stoodant.com's own teacher page. */
   classes?: ClassStore;
+  /** Homework and notices for this batch. Left out, practice mode keeps them in memory. */
+  notices?: NoticeStore;
   /** Children who tapped Join in that day's live classes, or null when there was no live class. */
   joinedOn?(date: string): Promise<Set<string> | null>;
 };
@@ -89,6 +92,7 @@ export function TeacherEntry({
     () => store?.classes ?? practiceClasses ?? practiceClassStore(),
     [store, practiceClasses],
   );
+  const noticeStore = useMemo(() => store?.notices ?? practiceNoticeStore(today), [store, today]);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -150,6 +154,14 @@ export function TeacherEntry({
         )}
         {tab === "attendance" && <AttendanceForm key={openDate} {...props} start={openDate} />}
         {tab === "marks" && <MarksForm {...props} />}
+        {tab === "homework" && (
+          <TeacherNotices
+            store={noticeStore}
+            today={today}
+            students={batch.students.length}
+            practice={!store?.notices}
+          />
+        )}
         {tab === "notes" && <NotesForm {...props} />}
         {tab === "overview" && (
           <ClassOverview
