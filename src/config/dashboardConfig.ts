@@ -125,6 +125,8 @@ export const DASHBOARD_CONFIG = {
     noBatches:
       "You're all set up. Your batches will appear here as soon as the Stoodant team adds you to one.",
     tryPractice: "Try the page in practice mode",
+    noBatchTitle: "Your first batch is on its way",
+    askToAdd: "Ask the team on WhatsApp",
     cancelled: "Class didn't happen today",
   },
   classes: {

@@ -70,6 +70,7 @@ export function NavLinks<T extends string>({ nav }: { nav: Nav<T> }) {
   const open = (e: MouseEvent, key: T) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
+    if (key !== nav.active) navigator.vibrate?.(8);
     nav.go(key);
   };
   return (
@@ -101,21 +102,101 @@ export function Tile({
   value,
   hint,
   tone,
+  meter,
   onClick,
 }: {
   label: string;
   value: string;
   hint: string;
   tone?: "good" | "alert" | undefined;
+  /** 0 to 100: a bar under the number that fills as it counts up. */
+  meter?: number | null | undefined;
   onClick: () => void;
 }) {
   return (
     <button type="button" className="pd-tile" data-tone={tone} onClick={onClick}>
       <span className="pd-tile-label">{label}</span>
-      <strong className="pd-tile-value">{value}</strong>
+      <strong className="pd-tile-value">
+        <CountUp value={value} />
+      </strong>
+      {meter != null && (
+        <span className="pd-meter" aria-hidden="true">
+          <span style={{ width: `${Math.max(0, Math.min(100, meter))}%` }} />
+        </span>
+      )}
       <span className="pd-tile-hint">{hint}</span>
     </button>
   );
+}
+
+const calm = () =>
+  typeof matchMedia === "undefined" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Numbers like "86%", "+3" or "12" count up from zero when they first show; anything else as it is. */
+export function CountUp({ value }: { value: string }) {
+  const match = /^([+-]?)(\d+)(%?)$/.exec(value);
+  const target = match ? Number(match[2]) : 0;
+  const [shown, setShown] = useState(() => (match && !calm() ? 0 : target));
+  useEffect(() => {
+    if (!match || calm()) return setShown(target);
+    let frame = 0;
+    const start = performance.now();
+    const step = (t: number) => {
+      const k = Math.min(1, (t - start) / 700);
+      setShown(Math.round(target * (1 - (1 - k) ** 3)));
+      if (k < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, value]);
+  if (!match) return <>{value}</>;
+  return (
+    <>
+      <span aria-hidden="true">
+        {match[1]}
+        {shown}
+        {match[3]}
+      </span>
+      <span className="pd-sr">{value}</span>
+    </>
+  );
+}
+
+/**
+ * Pull down at the top of a screen to load it again, as in phone apps. Only with touch, and only from the
+ * very top, so it never fights normal scrolling. Home screens only: a form elsewhere may hold unsaved taps.
+ */
+export function usePullToRefresh(onRefresh: (() => void) | null) {
+  const [pull, setPull] = useState(0);
+  useEffect(() => {
+    if (!onRefresh) return;
+    let startY: number | null = null;
+    let dist = 0;
+    const down = (e: TouchEvent) => {
+      startY = scrollY <= 0 && e.touches.length === 1 ? e.touches[0]!.clientY : null;
+      dist = 0;
+    };
+    const move = (e: TouchEvent) => {
+      if (startY == null) return;
+      dist = Math.max(0, e.touches[0]!.clientY - startY);
+      setPull(Math.min(dist, 120));
+    };
+    const up = () => {
+      if (startY != null && dist > 90) onRefresh();
+      startY = null;
+      setPull(0);
+    };
+    addEventListener("touchstart", down, { passive: true });
+    addEventListener("touchmove", move, { passive: true });
+    addEventListener("touchend", up);
+    return () => {
+      removeEventListener("touchstart", down);
+      removeEventListener("touchmove", move);
+      removeEventListener("touchend", up);
+    };
+  }, [onRefresh]);
+  return pull;
 }
 
 // Simple line icons, drawn with a 2px stroke on a 24px grid (styled in dashboard.css).

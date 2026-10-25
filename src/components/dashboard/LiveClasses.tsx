@@ -6,14 +6,26 @@ import { istParts, joinState, statusLine, weeklyStarts, whenLabel, istIso } from
 
 const copy = DASHBOARD_CONFIG.classes;
 
-/** Re-renders every 30 seconds, so countdowns and the Join button stay current. */
-function useNow() {
+/** Re-renders every few seconds, so the status line and the Join button stay current. */
+function useNow(every = 10_000) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 30_000);
+    const t = setInterval(() => setNow(Date.now()), every);
     return () => clearInterval(t);
-  }, []);
+  }, [every]);
   return now;
+}
+
+/** A ticking "12:34" to the start of a class within the hour. */
+function Countdown({ to }: { to: number }) {
+  const now = useNow(1000);
+  const left = Math.max(0, Math.round((to - now) / 1000));
+  const text = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  return (
+    <span className="pd-countdown" role="timer" aria-label={`${Math.ceil(left / 60)} minutes to go`}>
+      {text}
+    </span>
+  );
 }
 
 function useList(load: () => Promise<LiveClass[]>) {
@@ -54,7 +66,16 @@ export function ParentClasses({
       <h2 id="pd-lc-title">{compact ? copy.nextTitle : copy.parentTitle}</h2>
       {next ? (
         <article className="pd-lc-next" data-state={joinState(next, now)}>
-          <p className="pd-lc-when">{statusLine(next, now)}</p>
+          <p className="pd-lc-when">
+            {joinState(next, now) !== "ended" && now < next.startAt && next.startAt - now < 3_600_000 ? (
+              <>
+                Starts in
+                <Countdown to={next.startAt} />
+              </>
+            ) : (
+              statusLine(next, now)
+            )}
+          </p>
           <h3>
             {next.subject || next.batchName}
             {next.teacherName && <span> with {next.teacherName}</span>}

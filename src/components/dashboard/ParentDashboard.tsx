@@ -190,11 +190,13 @@ function ParentHome({
             value={month.attendance.percent == null ? "–" : `${month.attendance.percent}%`}
             hint={attendanceHint(month)}
             tone={attendanceTone(month.attendance.percent) === "good" ? "good" : undefined}
+            meter={month.attendance.percent}
             onClick={() => go("progress")}
           />
           <Tile
             label={home.latestTest}
             value={latest ? `${latest.percent}%` : "–"}
+            meter={latest?.percent}
             hint={
               latest
                 ? `${latest.test.subject}${
@@ -211,6 +213,7 @@ function ParentHome({
           <Tile
             label={copy.average}
             value={month.average == null ? "–" : `${month.average}%`}
+            meter={month.average}
             hint={month.tests.length ? `${month.tests.length} tests this month` : copy.noTests}
             onClick={() => go("progress")}
           />
