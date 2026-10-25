@@ -59,6 +59,7 @@ Bump versions in the `Dockerfile` and `package.json` `engines` together.
 
 `infra/` holds the Firestore database, backups, Storage bucket, secrets (names only), GitHub deploy access,
 the budget, uptime checks and every alert. See infra/README.md for the first run and day-to-day use.
+Applied to stoodant-prod on 2026-10-25 (state in `gs://stoodant-prod-tfstate`); `terraform plan` shows no changes.
 Rule: change these only through `infra/` and a pull request, never in the console.
 
 ## 5. Self-healing: why there's no Kubernetes cluster
@@ -83,7 +84,7 @@ set, since the form's 3 s minimum fill time already hides it.
 
 - **Dashboard** "Stoodant health" in Cloud Monitoring (`infra/metrics.tf`): error budget left, uptime response time,
   requests by function and result, p95 response time and p95 CPU against their 7-day normal, running instances,
-  Firestore reads and writes. Link: `terraform output dashboard_url`.
+  Firestore reads and writes. Link: https://console.cloud.google.com/monitoring/dashboards/builder/f631e5fe-47f3-4cfd-b6e6-c40c1dd27486?project=stoodant-prod
 - **Anomaly alerts** (email to info@stoodant.com), each comparing the last 10 minutes with the same metric's
   7-day normal and with a floor so tiny numbers don't page anyone: slow responses (2× normal and > 2 s),
   error rate (3× normal and > 5%), traffic spike (5× normal), CPU (2× normal and > 80%), Firestore reads (5× normal).

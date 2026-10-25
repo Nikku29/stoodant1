@@ -65,8 +65,9 @@ resource "google_monitoring_alert_policy" "anomaly" {
   conditions {
     display_name = each.value.name
     condition_prometheus_query_language {
-      query               = each.value.query
-      duration            = "600s"
+      query = each.value.query
+      # No retest window: the API forbids one with a 7-day lookback, and the 10-minute rate already smooths blips.
+      duration            = "0s"
       evaluation_interval = "300s"
     }
   }
@@ -83,62 +84,62 @@ resource "google_monitoring_alert_policy" "anomaly" {
   notification_channels = [google_monitoring_notification_channel.email.id]
 }
 
-# One page with everything: uptime, functions, database and the error budget.
+# One page with everything (zero positions are left out, as the API drops them and Terraform would see a change): uptime, functions, database and the error budget.
 resource "google_monitoring_dashboard" "health" {
   dashboard_json = jsonencode({
     displayName = "Stoodant health"
     mosaicLayout = {
       columns = 12
       tiles = [
-        { xPos = 0, yPos = 0, width = 4, height = 3, widget = {
+        { width = 4, height = 3, widget = {
           title = "Error budget left: site (30 days)"
           scorecard = {
             timeSeriesQuery = { timeSeriesFilter = { filter = "select_slo_budget_fraction(\"${google_monitoring_slo.site.name}\")" } }
-            thresholds      = [{ value = 0.25, direction = "BELOW", color = "YELLOW" }, { value = 0, direction = "BELOW", color = "RED" }]
+            thresholds      = [{ value = 0.25, direction = "BELOW", color = "YELLOW" }, { value = 0.05, direction = "BELOW", color = "RED" }]
           }
         } },
-        { xPos = 4, yPos = 0, width = 4, height = 3, widget = {
+        { xPos = 4, width = 4, height = 3, widget = {
           title = "Error budget left: demo form (30 days)"
           scorecard = {
             timeSeriesQuery = { timeSeriesFilter = { filter = "select_slo_budget_fraction(\"${google_monitoring_slo.form.name}\")" } }
-            thresholds      = [{ value = 0.25, direction = "BELOW", color = "YELLOW" }, { value = 0, direction = "BELOW", color = "RED" }]
+            thresholds      = [{ value = 0.25, direction = "BELOW", color = "YELLOW" }, { value = 0.05, direction = "BELOW", color = "RED" }]
           }
         } },
-        { xPos = 8, yPos = 0, width = 4, height = 3, widget = {
+        { xPos = 8, width = 4, height = 3, widget = {
           title        = "Open incidents"
           incidentList = {}
         } },
-        { xPos = 0, yPos = 3, width = 6, height = 4, widget = {
+        { yPos = 3, width = 6, height = 4, widget = {
           title   = "Uptime check response time (ms)"
-          xyChart = { dataSets = [{ plotType = "LINE", timeSeriesQuery = { prometheusQuery = "avg by (check_id) (monitoring_googleapis_com:uptime_check_request_latency{monitored_resource=\"uptime_url\"})" } }] }
+          xyChart = { dataSets = [{ targetAxis = "Y1", plotType = "LINE", timeSeriesQuery = { prometheusQuery = "avg by (check_id) (monitoring_googleapis_com:uptime_check_request_latency{monitored_resource=\"uptime_url\"})" } }] }
         } },
         { xPos = 6, yPos = 3, width = 6, height = 4, widget = {
           title   = "Requests per second by function and result"
-          xyChart = { dataSets = [{ plotType = "STACKED_AREA", timeSeriesQuery = { prometheusQuery = "sum by (service_name, response_code_class) (rate(run_googleapis_com:request_count{${local.run}}[5m]))" } }] }
+          xyChart = { dataSets = [{ targetAxis = "Y1", plotType = "STACKED_AREA", timeSeriesQuery = { prometheusQuery = "sum by (service_name, response_code_class) (rate(run_googleapis_com:request_count{${local.run}}[5m]))" } }] }
         } },
-        { xPos = 0, yPos = 7, width = 6, height = 4, widget = {
+        { yPos = 7, width = 6, height = 4, widget = {
           title = "p95 response time by function (ms), with 7-day normal"
           xyChart = { dataSets = [
-            { plotType = "LINE", legendTemplate = "now", timeSeriesQuery = { prometheusQuery = replace(local.p95_now, local.window, "5m") } },
-            { plotType = "LINE", legendTemplate = "7-day normal", timeSeriesQuery = { prometheusQuery = local.p95_base } },
+            { targetAxis = "Y1", plotType = "LINE", legendTemplate = "now", timeSeriesQuery = { prometheusQuery = replace(local.p95_now, local.window, "5m") } },
+            { targetAxis = "Y1", plotType = "LINE", legendTemplate = "7-day normal", timeSeriesQuery = { prometheusQuery = local.p95_base } },
           ] }
         } },
         { xPos = 6, yPos = 7, width = 6, height = 4, widget = {
           title = "p95 CPU by function, with 7-day normal"
           xyChart = { dataSets = [
-            { plotType = "LINE", legendTemplate = "now", timeSeriesQuery = { prometheusQuery = replace(local.cpu_now, local.window, "5m") } },
-            { plotType = "LINE", legendTemplate = "7-day normal", timeSeriesQuery = { prometheusQuery = local.cpu_base } },
+            { targetAxis = "Y1", plotType = "LINE", legendTemplate = "now", timeSeriesQuery = { prometheusQuery = replace(local.cpu_now, local.window, "5m") } },
+            { targetAxis = "Y1", plotType = "LINE", legendTemplate = "7-day normal", timeSeriesQuery = { prometheusQuery = local.cpu_base } },
           ] }
         } },
-        { xPos = 0, yPos = 11, width = 6, height = 4, widget = {
+        { yPos = 11, width = 6, height = 4, widget = {
           title   = "Running instances by function"
-          xyChart = { dataSets = [{ plotType = "LINE", timeSeriesQuery = { prometheusQuery = "sum by (service_name) (run_googleapis_com:container_instance_count{${local.run}})" } }] }
+          xyChart = { dataSets = [{ targetAxis = "Y1", plotType = "LINE", timeSeriesQuery = { prometheusQuery = "sum by (service_name) (run_googleapis_com:container_instance_count{${local.run}})" } }] }
         } },
         { xPos = 6, yPos = 11, width = 6, height = 4, widget = {
           title = "Firestore reads and writes per second"
           xyChart = { dataSets = [
-            { plotType = "LINE", legendTemplate = "reads", timeSeriesQuery = { prometheusQuery = "sum(rate(firestore_googleapis_com:document_read_count{monitored_resource=\"firestore_instance\"}[5m]))" } },
-            { plotType = "LINE", legendTemplate = "writes", timeSeriesQuery = { prometheusQuery = "sum(rate(firestore_googleapis_com:document_write_count{monitored_resource=\"firestore_instance\"}[5m]))" } },
+            { targetAxis = "Y1", plotType = "LINE", legendTemplate = "reads", timeSeriesQuery = { prometheusQuery = "sum(rate(firestore_googleapis_com:document_read_count{monitored_resource=\"firestore_instance\"}[5m]))" } },
+            { targetAxis = "Y1", plotType = "LINE", legendTemplate = "writes", timeSeriesQuery = { prometheusQuery = "sum(rate(firestore_googleapis_com:document_write_count{monitored_resource=\"firestore_instance\"}[5m]))" } },
           ] }
         } },
       ]
