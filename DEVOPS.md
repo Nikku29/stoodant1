@@ -74,8 +74,8 @@ that without running a cluster:
   so one failed email doesn't drop a lead.
 - The site is static files on Vercel's CDN (later Firebase Hosting): there's no server process to crash.
 
-A GKE cluster would cost about ₹6,000+ a month even when idle and add upgrades to look after, for no gain at this
-traffic. Revisit only if Stoodant runs long-lived servers (for example its own video or live-class service).
+A GKE cluster's nodes run (and bill) around the clock, at least ₹1,000–2,000 a month even when idle, and add
+upgrades to look after, for no gain at this traffic. Revisit only if Stoodant runs long-lived servers (for example its own video or live-class service).
 `minInstances: 1` on `submitLead` would remove the cold start on the demo form for roughly ₹300–600 a month; not
 set, since the form's 3 s minimum fill time already hides it.
 
