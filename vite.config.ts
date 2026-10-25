@@ -56,6 +56,8 @@ export default defineConfig({
     include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
   server: { port: 8080 },
+  // The prerender step crawls a preview server. Pin it to IPv4 so "localhost" can't resolve to ::1 in Docker builds.
+  preview: { host: "127.0.0.1" },
   environments: {
     client: {
       build: {

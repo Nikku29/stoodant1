@@ -33,3 +33,9 @@ firebase-export-*/
 test-results/
 playwright-report/
 .lighthouseci/
+
+# Terraform (the lock file is committed; state lives in GCS)
+infra/.terraform/
+infra/*.tfstate*
+infra/*.tfplan
+infra/imports-discovered.tf

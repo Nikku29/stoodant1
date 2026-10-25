@@ -1,0 +1,24 @@
+# DevOps level 1: every change that reaches main gets a checkpoint tag (live-YYYY.MM.DD-N), so a bad
+# release can be found and compared with `git diff <tag>..main` and rolled back to by name (DEVOPS.md).
+name: Release tag
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          tag="live-$(date -u +%Y.%m.%d)-${{ github.run_number }}"
+          git tag "$tag" "${{ github.sha }}" && git push origin "$tag"
+          echo "Tagged ${{ github.sha }} as $tag" >> "$GITHUB_STEP_SUMMARY"

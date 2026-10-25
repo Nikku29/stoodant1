@@ -1,0 +1,13 @@
+.git
+**/node_modules
+dist
+functions/lib
+.firebase
+test-results
+playwright-report
+.lighthouseci
+*.log
+*.local
+functions/.secret.local
+infra/.terraform
+infra/*.tfstate*

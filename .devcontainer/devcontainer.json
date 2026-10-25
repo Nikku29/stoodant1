@@ -1,0 +1,12 @@
+// DevOps level 3: open the repo in VS Code "Dev Containers" (or GitHub Codespaces) and you get the exact
+// Node, bun and Java versions CI uses, whatever is installed on the laptop. Built from the Dockerfile's toolchain stage.
+{
+  "name": "Stoodant",
+  "build": { "dockerfile": "../Dockerfile", "context": "..", "target": "toolchain" },
+  "features": { "ghcr.io/devcontainers/features/git:1": {} },
+  "postCreateCommand": "bun install --frozen-lockfile && npm ci --prefix functions",
+  "forwardPorts": [8080, 5000, 5001, 9099, 9199],
+  "customizations": {
+    "vscode": { "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "bradlc.vscode-tailwindcss", "hashicorp.terraform"] }
+  }
+}
