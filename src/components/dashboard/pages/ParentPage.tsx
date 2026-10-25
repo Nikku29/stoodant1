@@ -16,6 +16,8 @@ import { isDone, noticesFor, setDone } from "@/lib/firebase/notices";
 import { previewFamilyStore, type FamilyNoticeStore } from "@/components/dashboard/Notices";
 import { askDoubt, doubtsOfChild, withdrawDoubt } from "@/lib/firebase/doubts";
 import { previewFamilyDoubts, type FamilyDoubtStore } from "@/components/dashboard/Doubts";
+import { applyCoupon, feesOfChild, paySettings, submitPayment } from "@/lib/firebase/fees";
+import { previewFeeStore, type FamilyFeeStore } from "@/components/dashboard/Fees";
 
 // Parent dashboard: the signed-in parent's child (or children). `?sample=1` shows the preview with sample
 // records. Used by the /parent route here and by app.stoodant.com (console/), never by the landing page.
@@ -38,6 +40,7 @@ export function ParentPage() {
         classes={{ load: loadSampleClasses }}
         notices={sampleNotices}
         doubts={sampleDoubts}
+        fees={sampleFees}
       />
     );
   return <LiveParent />;
@@ -47,6 +50,7 @@ const loadSampleMaterials = async () => SAMPLE_MATERIALS;
 const loadSampleClasses = async () => sampleClasses();
 const sampleNotices = previewFamilyStore(SAMPLE_TODAY);
 const sampleDoubts = previewFamilyDoubts();
+const sampleFees = previewFeeStore(SAMPLE_TODAY);
 
 /**
  * The child's batches by name. Progress pages built before doubts came in have no `batches` yet; their
@@ -153,7 +157,10 @@ function Child({
 }) {
   const batchIds = (child.student.batchIds ?? []).join(",");
   const load = useCallback(() => materialsFor(batchIds ? batchIds.split(",") : []), [batchIds]);
-  const loadClasses = useCallback(() => classesFor(batchIds ? batchIds.split(",") : []), [batchIds]);
+  const loadClasses = useCallback(
+    () => classesFor(batchIds ? batchIds.split(",") : []),
+    [batchIds],
+  );
   const studentId = child.student.id;
   // The team viewing a child's page doesn't count as the child joining.
   const onJoin = useCallback(
@@ -165,12 +172,15 @@ function Child({
       list: async () => {
         const items = await noticesFor(batchIds ? batchIds.split(",") : []);
         const done = await Promise.all(
-          items.map((n) => (n.kind === "homework" ? isDone(n.id, studentId).catch(() => false) : false)),
+          items.map((n) =>
+            n.kind === "homework" ? isDone(n.id, studentId).catch(() => false) : false,
+          ),
         );
         return items.map((n, i) => ({ ...n, done: done[i]! }));
       },
       // The team viewing a child's page can't tick for them; the rules refuse it and the tick goes back.
-      setDone: (id, done) => (uid ? setDone(id, studentId, uid, done) : Promise.reject(new Error("view only"))),
+      setDone: (id, done) =>
+        uid ? setDone(id, studentId, uid, done) : Promise.reject(new Error("view only")),
     }),
     [batchIds, studentId, uid],
   );
@@ -187,6 +197,17 @@ function Child({
       withdraw: withdrawDoubt,
     }),
     [child.student, studentId, studentName, uid],
+  );
+  const fees = useMemo<FamilyFeeStore>(
+    () => ({
+      list: () => feesOfChild(studentId),
+      settings: paySettings,
+      applyCoupon,
+      // The team viewing a child's page doesn't pay for them.
+      submit: (id, utr) =>
+        uid ? submitPayment(id, utr, uid) : Promise.reject(new Error("view only")),
+    }),
+    [studentId, uid],
   );
   const picker =
     all.length > 1 ? (
@@ -214,6 +235,7 @@ function Child({
       classes={{ load: loadClasses, onJoin }}
       notices={notices}
       doubts={doubts}
+      fees={fees}
     />
   );
 }

@@ -9,15 +9,25 @@ import { useSection, type Nav } from "./AppNav";
 import { HelpBox } from "./HelpBox";
 import type { ClassStore } from "./LiveClasses";
 import { Shell } from "./Shell";
-import { TeacherEntry, type Batch, type Tab, type TeacherStore } from "./TeacherEntry";
+import { areaOf, TeacherEntry, type Area, type Batch, type Tab, type TeacherStore } from "./TeacherEntry";
 
 const copy = DASHBOARD_CONFIG.home;
 type Section = keyof typeof DASHBOARD_CONFIG.nav.teacher;
 const SECTIONS = Object.keys(DASHBOARD_CONFIG.nav.teacher) as Section[];
-const ICON = { today: "sun", batches: "layers", help: "help" } as const;
-// Class reminders and the team's links open a batch: /teacher?batch=...&class=...
+const ICON = {
+  today: "sun",
+  records: "pen",
+  homework: "check",
+  doubts: "chat",
+  classes: "video",
+  material: "book",
+  help: "help",
+} as const;
+// Pushes and the team's links open a batch on the right screen: a doubt (/teacher?batch=...&doubt=...),
+// a class reminder (&class=...), or just the batch's records.
 const fromQuery = (q: URLSearchParams): Section | null =>
-  q.has("batch") || q.has("class") || q.has("doubt") ? "batches" : null;
+  q.has("doubt") ? "doubts" : q.has("class") ? "classes" : q.has("batch") ? "records" : null;
+const isArea = (s: Section): s is Section & Area => s !== "today" && s !== "help";
 
 export type TeacherBatch = { id: string; batch: Batch; store?: TeacherStore | undefined };
 
@@ -46,13 +56,29 @@ export function TeacherApp({
   onSignOut?: (() => void) | undefined;
 }) {
   const [section, go, href] = useSection("/teacher", SECTIONS, fromQuery);
+  // Doubts waiting for an answer, as a badge on Doubts.
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    let live = true;
+    Promise.all(batches.map((b) => b.store?.doubts?.list().catch(() => []) ?? Promise.resolve([]))).then(
+      (lists) => live && setWaiting(lists.flat().filter((d) => d.status === "open").length),
+    );
+    return () => {
+      live = false;
+    };
+  }, [batches, section]);
   const [pick, setPick] = useState(() => {
     const wanted = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("batch");
     return Math.max(0, batches.findIndex((b) => b.id === wanted));
   });
   const [startTab, setStartTab] = useState<Tab | undefined>(undefined);
   const nav: Nav<Section> = {
-    items: SECTIONS.map((key) => ({ key, label: DASHBOARD_CONFIG.nav.teacher[key], icon: ICON[key] })),
+    items: SECTIONS.map((key) => ({
+      key,
+      label: key === "material" ? DASHBOARD_CONFIG.teacher.materialNav : DASHBOARD_CONFIG.nav.teacher[key],
+      icon: ICON[key],
+      badge: key === "doubts" ? waiting : 0,
+    })),
     active: section,
     go: (key) => {
       setStartTab(undefined);
@@ -63,7 +89,7 @@ export function TeacherApp({
   const open = (batchId: string, tab?: Tab) => {
     setPick(Math.max(0, batches.findIndex((b) => b.id === batchId)));
     setStartTab(tab);
-    go("batches");
+    go(tab ? areaOf(tab) : "records");
   };
   const current = batches[Math.min(pick, batches.length - 1)];
 
@@ -72,17 +98,19 @@ export function TeacherApp({
       {section === "today" && (
         <TeacherToday name={name} batches={batches} loadClasses={loadClasses} open={open} />
       )}
-      {section === "batches" && !current && (
+      {isArea(section) && !current && (
         <>
           <section className="pd-child">
-            <h1>{DASHBOARD_CONFIG.nav.teacher.batches}</h1>
+            <h1>{DASHBOARD_CONFIG.nav.teacher[section]}</h1>
           </section>
           <NoBatchYet />
         </>
       )}
-      {section === "batches" && current && (
+      {isArea(section) && current && (
         <TeacherEntry
-          key={`${current.id}-${startTab ?? ""}`}
+          key={`${section}-${current.id}-${startTab ?? ""}`}
+          area={section}
+          title={DASHBOARD_CONFIG.nav.teacher[section]}
           batch={current.batch}
           store={current.store}
           today={today}

@@ -9,6 +9,7 @@ import { handleLeadCreated } from "./lead/notify.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
 import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
+import { handleApplyCoupon, handleFeeWritten } from "./fees/fees.js";
 import { handleClaimAdmin, handleTeamRemoved } from "./school/admin.js";
 import { sendClassReminders } from "./classes/reminders.js";
 import { handleChangeClass, handleScheduleClasses } from "./classes/schedule.js";
@@ -81,6 +82,14 @@ export const askForHelp = onCall({ cors: true }, handleAskForHelp);
 export const onHelpRequested = onDocumentCreated(
   { document: "helpRequests/{requestId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
   handleHelpRequested,
+);
+
+// Fees by UPI: coupon codes are checked here (families can't read them); the family hears when a fee is
+// added or confirmed, the team when a family says they've paid.
+export const applyCoupon = onCall({ cors: true, timeoutSeconds: 20 }, handleApplyCoupon);
+export const onFeeWritten = onDocumentWritten(
+  { document: "fees/{feeId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
+  handleFeeWritten,
 );
 
 // Doubts: the teacher gets a push when a family asks, and the family when the teacher answers.

@@ -2247,3 +2247,349 @@
 .pd-newans .pd-link {
   color: #15803d;
 }
+
+/* "More" on a phone's bottom bar: the screens that don't fit, in a sheet above the bar. */
+.pd-nav-more {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--grey-4);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pd-nav-more svg {
+  stroke-width: 3.2;
+}
+.pd-nav-more[data-active],
+.pd-nav-more[aria-expanded="true"] {
+  color: var(--brand-ink);
+  font-weight: 700;
+}
+.pd-nav-more[data-active] .pd-nav-icon {
+  background: color-mix(in srgb, var(--amber) 30%, var(--white));
+}
+.pd-nav .pd-nav-extra {
+  display: none;
+}
+.pd-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 18;
+  border: 0;
+  background: rgb(10 16 38 / 0.25);
+}
+.pd-more-sheet {
+  position: fixed;
+  right: 12px;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  z-index: 21;
+  display: grid;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: 18px;
+  background: var(--white);
+  box-shadow: 0 12px 32px rgb(10 16 38 / 0.18);
+}
+.pd-more-sheet a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 4px;
+  border-radius: 12px;
+  color: var(--brand-ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.pd-more-sheet a[aria-current="page"] {
+  background: color-mix(in srgb, var(--amber) 22%, var(--white));
+}
+.pd-more-sheet .pd-nav-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 36px;
+}
+.pd-more-sheet svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pd-more-sheet {
+    animation: pd-rise 0.2s ease-out both;
+  }
+}
+@media (min-width: 900px) {
+  .pd-has-nav .pd-nav .pd-nav-extra {
+    display: flex;
+  }
+  .pd-nav-more,
+  .pd-more-sheet,
+  .pd-more-backdrop {
+    display: none;
+  }
+}
+
+/* Fees: what's due, paying by UPI, the receipt. */
+.pd-fee-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--brand-ink);
+  color: var(--white);
+  font-weight: 600;
+}
+.pd-fee-total strong {
+  font-size: 26px;
+  color: var(--amber);
+}
+.pd-fee-total[data-clear] {
+  background: #dcfce7;
+  color: #14532d;
+}
+.pd-fee-total[data-clear] strong {
+  color: #15803d;
+}
+.pd-fee {
+  gap: 10px;
+  border-left: 4px solid var(--amber);
+}
+.pd-fee[data-status="submitted"] {
+  border-left-color: #2563eb;
+}
+.pd-fee[data-status="paid"] {
+  border-left-color: #15803d;
+}
+.pd-fee-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pd-fee-amount {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--brand-ink);
+}
+.pd-fee-amount s {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--grey-4);
+}
+.pd-fee-status {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pd-fee-status[data-status="submitted"] {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.pd-fee-status[data-status="paid"] {
+  background: #dcfce7;
+  color: #15803d;
+}
+.pd-fee-status[data-status="cancelled"] {
+  background: var(--grey-1);
+  color: var(--grey-5);
+}
+.pd-pay {
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--grey-2);
+}
+.pd-pay-sum {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.pd-pay-sum > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pd-pay-sum dt,
+.pd-pay-sum dd {
+  margin: 0;
+}
+.pd-pay-off dd {
+  color: #15803d;
+  font-weight: 700;
+}
+.pd-pay-total {
+  padding-top: 6px;
+  border-top: 1px solid var(--grey-1);
+  font-size: 18px;
+  font-weight: 800;
+}
+.pd-coupon-open {
+  justify-self: start;
+}
+.pd-coupon-row {
+  display: flex;
+  gap: 8px;
+}
+.pd-coupon-row input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.pd-pay-steps {
+  display: grid;
+  gap: 18px;
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+.pd-pay-steps > li {
+  display: grid;
+  gap: 10px;
+}
+.pd-upi-btn {
+  margin-top: 0;
+}
+.pd-upi-scan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.pd-upi-scan > div {
+  flex: 1 1 180px;
+}
+.pd-upi-scan p {
+  margin: 0 0 6px;
+}
+.pd-qr {
+  flex: none;
+  border-radius: 12px;
+  border: 1px solid var(--grey-1);
+}
+.pd-upi-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--brand-ink);
+  overflow-wrap: anywhere;
+}
+.pd-receipt-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(10 16 38 / 0.45);
+  overflow-y: auto;
+}
+.pd-receipt {
+  width: min(100%, 440px);
+  padding: 24px;
+  border-radius: 18px;
+  background: #fff;
+  color: var(--brand-ink);
+}
+.pd-receipt-brand {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.pd-receipt h2 {
+  margin: 4px 0 16px;
+  font-size: 16px;
+  color: var(--grey-5);
+}
+.pd-receipt dl {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.pd-receipt dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--grey-1);
+}
+.pd-receipt dt {
+  color: var(--grey-5);
+}
+.pd-receipt dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+@media print {
+  .pd-main:has(.pd-receipt-wrap) > :not(.pd-receipt-wrap),
+  .pd:has(.pd-receipt-wrap) .pd-nav {
+    display: none !important;
+  }
+  .pd-receipt-wrap {
+    position: static;
+    background: none;
+    padding: 0;
+  }
+}
+.pd-feedue {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #78350f;
+}
+.pd-feedue .pd-link {
+  color: #92400e;
+}
+.pd-feedue small {
+  font-weight: 500;
+}
+/* The team's Fees screen. */
+.pd-tile-static {
+  min-height: 0;
+  cursor: default;
+}
+.pd-tile-static:active {
+  transform: none;
+}
+.pd-save.pd-save-sm {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 18px;
+  font-size: 14px;
+}
+.pd-coupon-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.06em;
+}
+.pd-tabs .pd-count {
+  margin-left: 6px;
+}
