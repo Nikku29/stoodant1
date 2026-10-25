@@ -43,6 +43,41 @@ service cloud.firestore {
       return signedIn() && phone() != '' && exists(/databases/$(database)/documents/batchAccess/$(id))
         && get(/databases/$(database)/documents/batchAccess/$(id)).data.parentPhones.hasAny([phone()]);
     }
+    // Names compare without case or extra spaces: "Aarav  Sharma" and "aarav sharma" are the same name.
+    // `nameKey` holds this form so lists sort the same way everywhere and a name search can use an index.
+    function normName(v) {
+      return v.trim().lower().replace('\\s+', ' ');
+    }
+    function fresh(d) {
+      return resource == null ? d.createdAt == request.time : !changed().hasAny(['createdAt']);
+    }
+
+    // ---- Unique keys (one document per value that must not repeat) ----
+    // Firestore has no UNIQUE constraint, so a value that must be unique gets its own document, whose id is
+    // a hash of that value. Creating a record and its key happen in one batched write: if the key already
+    // belongs to another record, the create of the key fails and so does the whole write.
+    //   teachers: one teacher per mobile number (it is what they log in with)
+    //   students: one child per parent's number + name (two children may share a name; a sibling may not
+    //             be entered twice). Each record's own id stays its auto id, which is what everything
+    //             else points at.
+    function teacherKey(t) {
+      return hashing.sha256('teacher|' + t.phone).toHexString().lower();
+    }
+    function studentKey(s) {
+      return hashing.sha256('student|' + s.parentPhone + '|' + normName(s.name)).toHexString().lower();
+    }
+    function keyPath(key) {
+      return /databases/$(database)/documents/uniqueKeys/$(key);
+    }
+    // After this write, `key` is held by this record.
+    function holds(key, kind, id) {
+      return getAfter(keyPath(key)).data == {'kind': kind, 'id': id};
+    }
+    // After this write, this record no longer holds the key it used to have.
+    function released(key, id) {
+      return !existsAfter(keyPath(key)) || getAfter(keyPath(key)).data.id != id;
+    }
+
     // A teacher fixes a mistake within two days; after that only the team can change a record.
     function recent() {
       return resource.data.createdAt > request.time - duration.value(48, 'h');
@@ -69,12 +104,18 @@ service cloud.firestore {
     match /teachers/{teacherId} {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.phone == phone());
       allow create, update: if isAdmin()
-        && request.resource.data.keys().hasOnly(['name', 'phone', 'subjects', 'active', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['name', 'nameKey', 'phone', 'subjects', 'active', 'createdAt', 'updatedAt'])
         && shortText(request.resource.data.name, 80)
+        && request.resource.data.nameKey == normName(request.resource.data.name)
         && isPhone(request.resource.data.phone)
         && request.resource.data.subjects is list && request.resource.data.subjects.size() <= 10
         && request.resource.data.active is bool
-        && request.resource.data.updatedAt == request.time;
+        && fresh(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        // Same number as before, or the new number's key moves to this teacher in the same write.
+        && ((resource != null && request.resource.data.phone == resource.data.phone)
+            || (holds(teacherKey(request.resource.data), 'teachers', teacherId)
+                && (resource == null || released(teacherKey(resource.data), teacherId))));
       allow delete: if isAdmin();
     }
 
@@ -90,12 +131,16 @@ service cloud.firestore {
         && request.resource.data.classLevel in ['4', '5', '6', '7', '8', '9', '10']
         && request.resource.data.board in ['CBSE', 'ICSE']
         && shortText(request.resource.data.subject, 40)
+        // No teacher yet (''), or a teacher who exists.
         && request.resource.data.teacherId is string
+        && (request.resource.data.teacherId == ''
+            || exists(/databases/$(database)/documents/teachers/$(request.resource.data.teacherId)))
         && request.resource.data.schedule is string && request.resource.data.schedule.size() <= 120
         && (!('durationMinutes' in request.resource.data)
             || (request.resource.data.durationMinutes is int
                 && request.resource.data.durationMinutes >= 15 && request.resource.data.durationMinutes <= 300))
         && request.resource.data.active is bool
+        && fresh(request.resource.data)
         && request.resource.data.updatedAt == request.time;
       allow delete: if isAdmin();
     }
@@ -104,17 +149,51 @@ service cloud.firestore {
     match /students/{studentId} {
       allow read, delete: if isAdmin();
       allow create, update: if isAdmin()
-        && request.resource.data.keys().hasOnly(['name', 'classLevel', 'board', 'parentName', 'parentPhone',
+        && request.resource.data.keys().hasOnly(['name', 'nameKey', 'classLevel', 'board', 'parentName', 'parentPhone',
              'batchIds', 'whatsappOptIn', 'active', 'createdAt', 'updatedAt'])
         && shortText(request.resource.data.name, 80)
+        && request.resource.data.nameKey == normName(request.resource.data.name)
         && request.resource.data.classLevel in ['4', '5', '6', '7', '8', '9', '10']
         && request.resource.data.board in ['CBSE', 'ICSE']
         && shortText(request.resource.data.parentName, 80)
         && isPhone(request.resource.data.parentPhone)
+        // Each batch at most once. /admin only offers batches that exist, and deleting a batch takes it
+        // off every child's list (onBatchWritten); rules can't check a whole list, as they may only look
+        // up 10 documents per write.
         && request.resource.data.batchIds is list && request.resource.data.batchIds.size() <= 10
+        && request.resource.data.batchIds.toSet().size() == request.resource.data.batchIds.size()
         && request.resource.data.whatsappOptIn is bool
         && request.resource.data.active is bool
-        && request.resource.data.updatedAt == request.time;
+        && fresh(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        // Same parent's number and name as before, or the new pair's key moves to this child.
+        && ((resource != null && request.resource.data.parentPhone == resource.data.parentPhone
+             && normName(request.resource.data.name) == normName(resource.data.name))
+            || (holds(studentKey(request.resource.data), 'students', studentId)
+                && (resource == null || released(studentKey(resource.data), studentId))));
+    }
+
+    // id = teacherKey() or studentKey(). The team creates a key together with its record and removes it
+    // when the record goes or its value changes; a key never moves straight from one record to another.
+    match /uniqueKeys/{key} {
+      function recordPath(d) {
+        return /databases/$(database)/documents/$(d.kind)/$(d.id);
+      }
+      function recordAfter(d) {
+        return getAfter(recordPath(d));
+      }
+      function keyOf(d, record) {
+        return d.kind == 'teachers' ? teacherKey(record.data) : studentKey(record.data);
+      }
+      allow get: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['kind', 'id'])
+        && request.resource.data.kind in ['teachers', 'students']
+        && request.resource.data.id is string
+        && existsAfter(recordPath(request.resource.data))
+        && keyOf(request.resource.data, recordAfter(request.resource.data)) == key;
+      allow delete: if isAdmin()
+        && (!existsAfter(recordPath(resource.data)) || keyOf(resource.data, recordAfter(resource.data)) != key);
     }
 
     // ---- Entered by teachers on /teacher ----

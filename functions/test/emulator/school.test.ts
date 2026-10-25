@@ -5,10 +5,12 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, type DocumentSnapshot, type Firestore,
+  collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch,
+  type DocumentSnapshot, type Firestore,
 } from "firebase/firestore";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
 import { PROJECT_ID, waitFor } from "./helpers.ts";
+import { keyOf } from "../../src/school/keys.ts";
 
 let env: RulesTestEnvironment;
 const rules = readFileSync(new URL("../../../firestore.rules", import.meta.url), "utf8");
@@ -31,15 +33,23 @@ after(() => env.cleanup());
 
 // Seeded already consistent with what the triggers derive, so they find nothing to change mid-test.
 beforeEach(async () => {
+  // Triggers from the last test may still be running; let them finish before the next seed.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await setDoc(doc(db, "teachers/t1"), { name: "Priya Ma'am", phone: TEACHER, subjects: ["Maths"], active: true });
-    await setDoc(doc(db, "teachers/t2"), { name: "Ravi Sir", phone: OTHER_TEACHER, subjects: ["Science"], active: true });
-    await setDoc(doc(db, "students/s1"), {
-      name: "Aarav", classLevel: "7", board: "CBSE", parentName: "Anita", parentPhone: PARENT,
+    const t1 = { name: "Priya Ma'am", nameKey: "priya ma'am", phone: TEACHER, subjects: ["Maths"], active: true };
+    const t2 = { name: "Ravi Sir", nameKey: "ravi sir", phone: OTHER_TEACHER, subjects: ["Science"], active: true };
+    const s1 = {
+      name: "Aarav", nameKey: "aarav", classLevel: "7", board: "CBSE", parentName: "Anita", parentPhone: PARENT,
       batchIds: ["b1"], whatsappOptIn: true, active: true,
-    });
+    };
+    await setDoc(doc(db, "uniqueKeys", keyOf("teachers", t1)!), { kind: "teachers", id: "t1" });
+    await setDoc(doc(db, "uniqueKeys", keyOf("teachers", t2)!), { kind: "teachers", id: "t2" });
+    await setDoc(doc(db, "uniqueKeys", keyOf("students", s1)!), { kind: "students", id: "s1" });
+    await setDoc(doc(db, "teachers/t1"), t1);
+    await setDoc(doc(db, "teachers/t2"), t2);
+    await setDoc(doc(db, "students/s1"), s1);
     await setDoc(doc(db, "batches/b1"), {
       name: "Class 7 Maths A", classLevel: "7", board: "CBSE", subject: "Maths", teacherId: "t1", schedule: "Mon Wed 5pm",
       active: true, teacherPhone: TEACHER, teacherName: "Priya Ma'am", roster: [{ id: "s1", name: "Aarav" }], studentIds: ["s1"],
@@ -65,6 +75,16 @@ const otherTeacher = () => phoneUser("ut2", OTHER_TEACHER);
 const parent = () => phoneUser("up1", PARENT);
 const admin = () => env.authenticatedContext("owner", { admin: true, email: "owner@example.com" }).firestore();
 const stranger = () => phoneUser("ux", "+919844444444");
+
+const nameKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** What /admin does: the record and its unique key in one write (src/lib/firebase/school.ts saveRecord). */
+function withKey(db: Firestore, kind: "teachers" | "students", id: string, fields: Record<string, unknown>) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, kind, id), { ...fields, nameKey: nameKey(String(fields["name"])), createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  batch.set(doc(db, "uniqueKeys", keyOf(kind, fields)!), { kind, id });
+  return batch.commit();
+}
 
 const session = (db: Firestore, overrides: Record<string, unknown> = {}, uid = "ut1") =>
   setDoc(doc(db, "sessions/b1_2026-10-20"), {
@@ -143,15 +163,15 @@ test("a parent reads only their own child's progress page", async () => {
 
 test("the team sets up students, teachers and batches, but not the fields functions keep", async () => {
   const db = admin();
-  await assertSucceeds(setDoc(doc(db, "teachers/t3"), { name: "Neha", phone: "+919855555555", subjects: ["English"], active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
-  await assertFails(setDoc(doc(db, "teachers/t4"), { name: "Bad", phone: "98555", subjects: [], active: true, updatedAt: serverTimestamp() }));
-  await assertSucceeds(setDoc(doc(db, "students/s2"), {
+  await assertSucceeds(withKey(db, "teachers", "t3", { name: "Neha", phone: "+919855555555", subjects: ["English"], active: true }));
+  await assertFails(withKey(db, "teachers", "t4", { name: "Bad", phone: "98555", subjects: [], active: true }));
+  await assertSucceeds(withKey(db, "students", "s2", {
     name: "Diya", classLevel: "8", board: "ICSE", parentName: "Meera", parentPhone: "+919866666666",
-    batchIds: [], whatsappOptIn: false, active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    batchIds: [], whatsappOptIn: false, active: true,
   }));
-  await assertFails(setDoc(doc(db, "students/s3"), {
+  await assertFails(withKey(db, "students", "s3", {
     name: "X", classLevel: "12", board: "CBSE", parentName: "Y", parentPhone: "+919866666666",
-    batchIds: [], whatsappOptIn: false, active: true, updatedAt: serverTimestamp(),
+    batchIds: [], whatsappOptIn: false, active: true,
   }));
   const batch = { name: "Class 8 Science", classLevel: "8", board: "ICSE", subject: "Science", teacherId: "t2", schedule: "Tue 6pm", active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
   await assertSucceeds(setDoc(doc(db, "batches/b2"), batch));
@@ -278,4 +298,107 @@ test("progress pages and rosters follow what teachers and the team enter", async
   await waitFor(async () => {
     return (await peek("progress/s2")).exists() ? undefined : true;
   });
+});
+
+// ---- Data integrity: unique records, references and name keys ----
+
+const child = (overrides: Record<string, unknown> = {}) => ({
+  name: "Kabir Singh", classLevel: "6", board: "CBSE", parentName: "Simran", parentPhone: "+919866666666",
+  batchIds: [], whatsappOptIn: true, active: true, ...overrides,
+});
+
+test("one teacher per mobile number; the number's key moves with it", async () => {
+  const db = admin();
+  // Ravi already has OTHER_TEACHER.
+  await assertFails(withKey(db, "teachers", "t3", { name: "Copy", phone: OTHER_TEACHER, subjects: [], active: true }));
+  // A teacher without the key in the same write is refused, so nobody can skip the check.
+  await assertFails(setDoc(doc(db, "teachers/t3"), {
+    name: "Neha", nameKey: "neha", phone: "+919855555555", subjects: [], active: true,
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }));
+  // Changing a number takes the new key and gives up the old one in one write.
+  const move = writeBatch(db);
+  move.update(doc(db, "teachers/t2"), { phone: "+919855555555", updatedAt: serverTimestamp() });
+  move.set(doc(db, "uniqueKeys", keyOf("teachers", { phone: "+919855555555" })!), { kind: "teachers", id: "t2" });
+  move.delete(doc(db, "uniqueKeys", keyOf("teachers", { phone: OTHER_TEACHER })!));
+  await assertSucceeds(move.commit());
+  // Now the old number is free again.
+  await assertSucceeds(withKey(db, "teachers", "t3", { name: "Neha", phone: OTHER_TEACHER, subjects: [], active: true }));
+  // Renaming keeps the number, so no key is needed; the name key must still match.
+  await assertSucceeds(updateDoc(doc(db, "teachers/t1"), { name: "Priya  Sharma", nameKey: "priya sharma", updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(db, "teachers/t1"), { name: "Priya", nameKey: "PRIYA", updatedAt: serverTimestamp() }));
+});
+
+test("two children may share a name, but the same child can't be entered twice", async () => {
+  const db = admin();
+  await assertSucceeds(withKey(db, "students", "s2", child()));
+  // Same name, different family: a different child with its own id.
+  await assertSucceeds(withKey(db, "students", "s3", child({ parentPhone: "+919877777777" })));
+  // Same family, same name (case and spaces don't matter): a duplicate.
+  await assertFails(withKey(db, "students", "s4", child({ name: "  kabir   SINGH " })));
+  // A sibling with another name is fine.
+  await assertSucceeds(withKey(db, "students", "s5", child({ name: "Meher Singh" })));
+  // Renaming a child onto a sibling's name is refused too.
+  const clash = writeBatch(db);
+  clash.update(doc(db, "students/s5"), { name: "Kabir Singh", nameKey: "kabir singh", updatedAt: serverTimestamp() });
+  clash.set(doc(db, "uniqueKeys", keyOf("students", child())!), { kind: "students", id: "s5" });
+  await assertFails(clash.commit());
+  // Each batch at most once on a child.
+  await assertFails(updateDoc(doc(db, "students/s1"), { batchIds: ["b1", "b1"], updatedAt: serverTimestamp() }));
+  // createdAt is set once.
+  await assertFails(updateDoc(doc(db, "students/s1"), { createdAt: new Date(0), updatedAt: serverTimestamp() }));
+});
+
+test("unique keys: only the team reads them, and a key in use can't be removed", async () => {
+  const key = keyOf("students", { name: "Aarav", parentPhone: PARENT })!;
+  await assertSucceeds(getDoc(doc(admin(), "uniqueKeys", key)));
+  for (const other of [teacher(), parent(), stranger()]) await assertFails(getDoc(doc(other, "uniqueKeys", key)));
+  await assertFails(deleteDoc(doc(admin(), "uniqueKeys", key)));
+  // A key that doesn't match its record is refused.
+  await assertFails(setDoc(doc(admin(), "uniqueKeys/abc"), { kind: "students", id: "s1" }));
+  // Deleting the record and its key together works.
+  const db = admin();
+  const gone = writeBatch(db);
+  gone.delete(doc(db, "students/s1"));
+  gone.delete(doc(db, "uniqueKeys", key));
+  await assertSucceeds(gone.commit());
+});
+
+test("a batch points at a teacher who exists, or at nobody yet", async () => {
+  const db = admin();
+  const batch = { name: "Class 9 Maths", classLevel: "9", board: "CBSE", subject: "Maths", schedule: "", active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+  await assertSucceeds(setDoc(doc(db, "batches/b2"), { ...batch, teacherId: "t1" }));
+  await assertSucceeds(setDoc(doc(db, "batches/b3"), { ...batch, teacherId: "" }));
+  await assertFails(setDoc(doc(db, "batches/b4"), { ...batch, teacherId: "nobody" }));
+});
+
+test("deletes don't leave records pointing at nothing, and old records get their keys", async () => {
+  // Deleting a batch takes it off every child's list.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await deleteDoc(doc(ctx.firestore(), "batches/b1"));
+  });
+  await waitFor(async () => (((await peek("students/s1")).get("batchIds") as string[]).length === 0 ? true : undefined));
+
+  // Deleting a teacher leaves their batches with no teacher, and frees their number.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "batches/b5"), {
+      name: "Class 8 Science", classLevel: "8", board: "CBSE", subject: "Science", teacherId: "t2", schedule: "",
+      active: true, teacherPhone: OTHER_TEACHER, teacherName: "Ravi Sir", roster: [], studentIds: [],
+    });
+    await deleteDoc(doc(db, "teachers/t2"));
+  });
+  await waitFor(async () => ((await peek("batches/b5")).get("teacherId") === "" ? true : undefined));
+  await waitFor(async () => ((await peek(`uniqueKeys/${keyOf("teachers", { phone: OTHER_TEACHER })}`)).exists() ? undefined : true));
+
+  // A record made before keys existed gets its name key and unique key from the trigger.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "students/old"), child({ name: "Old  Record" }));
+  });
+  await waitFor(async () => ((await peek("students/old")).get("nameKey") === "old record" ? true : undefined));
+  const key = await waitFor(async () => {
+    const snap = await peek(`uniqueKeys/${keyOf("students", child({ name: "Old  Record" }))}`);
+    return snap.exists() ? snap.data() : undefined;
+  });
+  assert.deepEqual(key, { kind: "students", id: "old" });
 });

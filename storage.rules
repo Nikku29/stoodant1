@@ -27,6 +27,7 @@ service firebase.storage {
 
     // Study material: materials/{batchId}/{materialId}/{fileName}. The batch's teacher and the team upload;
     // parents of children in the batch download (batchAccess is kept by Cloud Functions).
+    // Pictures are photos only: no SVG, which can carry script.
     function teaches(batchId) {
       return request.auth != null && request.auth.token.get('phone_number', '') != ''
         && firestore.exists(/databases/(default)/documents/batches/$(batchId))
@@ -42,7 +43,7 @@ service firebase.storage {
       allow read: if isAdmin() || teaches(batchId) || parentOf(batchId);
       allow create: if (isAdmin() || teaches(batchId))
         && request.resource.size < 20 * 1024 * 1024
-        && request.resource.contentType.matches('application/pdf|image/.*|application/msword|application/vnd[.]openxmlformats-officedocument[.].*|application/vnd[.]ms-.*|text/plain');
+        && request.resource.contentType.matches('application/pdf|image/(jpeg|png|webp|gif|heic|heif)|application/msword|application/vnd[.]openxmlformats-officedocument[.].*|application/vnd[.]ms-.*|text/plain');
       allow delete: if isAdmin() || teaches(batchId);
     }
 
