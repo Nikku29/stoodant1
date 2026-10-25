@@ -1,17 +1,18 @@
 # Uptime checks and outage alerts that were first set up by hand on 2026-10-20 (DEPLOY.md step 8).
 resource "google_monitoring_notification_channel" "email" {
-  display_name = "Stoodant team email"
+  display_name = "Stoodant owner email"
   type         = "email"
   labels = {
     email_address = var.alert_email
   }
 }
 
-# The home page must answer 200 with the hero text.
+# The home page must answer 2xx.
 resource "google_monitoring_uptime_check_config" "site" {
-  display_name = "Site home page"
+  display_name = "Stoodant site"
   timeout      = "10s"
   period       = "300s"
+  checker_type = "STATIC_IP_CHECKERS"
 
   http_check {
     path           = "/"
@@ -20,13 +21,8 @@ resource "google_monitoring_uptime_check_config" "site" {
     validate_ssl   = true
     request_method = "GET"
     accepted_response_status_codes {
-      status_value = 200
+      status_class = "STATUS_CLASS_2XX"
     }
-  }
-
-  content_matchers {
-    content = "Learning that moves"
-    matcher = "CONTAINS_STRING"
   }
 
   monitored_resource {
@@ -38,24 +34,22 @@ resource "google_monitoring_uptime_check_config" "site" {
   }
 }
 
-# The demo form backend must be up and refuse a request with no allowed origin (403), which proves the
-# function runs its checks. A 5xx or timeout means parents can't book a demo.
+# The demo form backend must be up and refuse a plain GET with a 4xx, which proves the function runs its
+# checks. A 5xx or timeout means parents can't book a demo.
 resource "google_monitoring_uptime_check_config" "form" {
-  display_name = "Demo form backend"
+  display_name = "Stoodant form backend"
   timeout      = "10s"
   period       = "300s"
+  checker_type = "STATIC_IP_CHECKERS"
 
   http_check {
-    path                = "/submitLead"
-    port                = 443
-    use_ssl             = true
-    validate_ssl        = true
-    request_method      = "POST"
-    content_type        = "USER_PROVIDED"
-    custom_content_type = "application/json"
-    body                = base64encode("{}")
+    path           = "/submitLead"
+    port           = 443
+    use_ssl        = true
+    validate_ssl   = true
+    request_method = "GET"
     accepted_response_status_codes {
-      status_value = 403
+      status_class = "STATUS_CLASS_4XX"
     }
   }
 
@@ -77,22 +71,22 @@ locals {
 
 resource "google_monitoring_alert_policy" "down" {
   for_each     = local.uptime_checks
-  display_name = "${each.value.display_name} is down"
+  display_name = { site = "Stoodant site is down", form = "Stoodant demo form backend is down" }[each.key]
   combiner     = "OR"
 
   conditions {
-    display_name = "Uptime check failing from more than one region"
+    display_name = "Uptime check failing"
     condition_threshold {
-      filter     = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\" AND metric.label.check_id=\"${each.value.uptime_check_id}\""
+      filter     = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND metric.label.check_id=\"${each.value.uptime_check_id}\" AND resource.type=\"uptime_url\""
       comparison = "COMPARISON_GT"
-      # More than one failing region for 5 minutes, so a single flaky checker doesn't page anyone.
+      # More than one failing region for 10 minutes, so a single flaky checker doesn't page anyone.
       threshold_value = 1
-      duration        = "300s"
+      duration        = "600s"
       aggregations {
         alignment_period     = "1200s"
         per_series_aligner   = "ALIGN_NEXT_OLDER"
         cross_series_reducer = "REDUCE_COUNT_FALSE"
-        group_by_fields      = ["resource.label.project_id", "resource.label.host"]
+        group_by_fields      = ["resource.label.*"]
       }
       trigger {
         count = 1
@@ -108,13 +102,14 @@ resource "google_monitoring_alert_policy" "down" {
   notification_channels = [google_monitoring_notification_channel.email.id]
 }
 
-# Any ERROR log line from a function (Error Reporting also groups these).
+# Any ERROR log line from any function (Error Reporting also groups these). The hand-made version only
+# watched submitLead and onLeadCreated; the login, admin and progress functions came later.
 resource "google_monitoring_alert_policy" "function_errors" {
-  display_name = "Backend error logged"
+  display_name = "Stoodant backend errors"
   combiner     = "OR"
 
   conditions {
-    display_name = "Cloud Functions logged an error"
+    display_name = "Error logged by a function"
     condition_matched_log {
       filter = "resource.type=\"cloud_run_revision\" AND severity>=ERROR"
     }
@@ -122,9 +117,9 @@ resource "google_monitoring_alert_policy" "function_errors" {
 
   alert_strategy {
     notification_rate_limit {
-      period = "300s"
+      period = "3600s"
     }
-    auto_close = "1800s"
+    auto_close = "86400s"
   }
 
   notification_channels = [google_monitoring_notification_channel.email.id]

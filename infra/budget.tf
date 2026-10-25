@@ -29,5 +29,6 @@ resource "google_billing_budget" "monthly" {
   all_updates_rule {
     monitoring_notification_channels = [google_monitoring_notification_channel.email.id]
     disable_default_iam_recipients   = false
+    enable_project_level_recipients  = true
   }
 }

@@ -11,20 +11,25 @@ out=imports-discovered.tf
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-gcloud beta monitoring channels list --project "$project" --format=json > "$tmp/channels.json"
-gcloud monitoring uptime list-configs --project "$project" --format=json > "$tmp/uptime.json"
-gcloud beta monitoring policies list --project "$project" --format=json > "$tmp/policies.json"
-gcloud firestore backups schedules list --project "$project" --database='(default)' --format=json > "$tmp/backups.json"
+# REST calls with the gcloud login (no beta/alpha components needed).
+token="$(gcloud auth print-access-token)"
+get() { curl -sfS -H "Authorization: Bearer $token" -H "x-goog-user-project: $project" "$1"; }
+m="https://monitoring.googleapis.com/v3/projects/$project"
+get "$m/notificationChannels" > "$tmp/channels.json"
+get "$m/uptimeCheckConfigs" > "$tmp/uptime.json"
+get "$m/alertPolicies" > "$tmp/policies.json"
+get "https://firestore.googleapis.com/v1/projects/$project/databases/(default)/backupSchedules" > "$tmp/backups.json"
 if [ -n "$billing" ]; then
-  gcloud billing budgets list --billing-account "$billing" --format=json > "$tmp/budgets.json"
+  get "https://billingbudgets.googleapis.com/v1/billingAccounts/$billing/budgets" > "$tmp/budgets.json"
 else
-  echo "[]" > "$tmp/budgets.json"
+  echo "{}" > "$tmp/budgets.json"
 fi
 
 python3 - "$tmp" "$email" "$out" <<'PY'
 import json, sys
 tmp, email, out = sys.argv[1:4]
-load = lambda n: json.load(open(f"{tmp}/{n}.json"))
+keys = {"channels": "notificationChannels", "uptime": "uptimeCheckConfigs", "policies": "alertPolicies", "backups": "backupSchedules", "budgets": "budgets"}
+load = lambda n: json.load(open(f"{tmp}/{n}.json")).get(keys[n], [])
 blocks = []
 def imp(to, id_):
     blocks.append(f'import {{\n  to = {to}\n  id = "{id_}"\n}}\n')
@@ -36,8 +41,8 @@ for c in load("channels"):
 
 checks = {}
 for u in load("uptime"):
-    method = u.get("httpCheck", {}).get("requestMethod", "GET")
-    key = "form" if method == "POST" else "site"
+    host = u.get("monitoredResource", {}).get("labels", {}).get("host", "")
+    key = "form" if "cloudfunctions" in host else "site"
     if key not in checks:
         checks[key] = u
         imp(f"google_monitoring_uptime_check_config.{key}", u["name"])

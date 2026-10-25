@@ -1,8 +1,9 @@
 # Default Firebase Storage bucket (study material). Rules are deployed by the Firebase CLI, not here.
 resource "google_storage_bucket" "default" {
-  name                        = "${var.project_id}.firebasestorage.app"
-  location                    = upper(var.region)
-  uniform_bucket_level_access = true
+  name     = "${var.project_id}.firebasestorage.app"
+  location = upper(var.region)
+  # Firebase creates its default bucket with fine-grained access; keep it that way.
+  uniform_bucket_level_access = false
 
   lifecycle {
     prevent_destroy = true
