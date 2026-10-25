@@ -135,5 +135,10 @@ export function authMessage(error: unknown): string {
   if (code.includes("popup-blocked"))
     return "Your browser blocked the sign-in window. Please allow pop-ups and try again.";
   if (code.includes("network")) return "No internet connection. Please check and try again.";
-  return "Something went wrong. Please try again, or message us on WhatsApp.";
+  // Set-up problems on our side (a new web address not yet allowed in Firebase, the API key's website
+  // list, App Check). The code in brackets tells the team which setting to fix.
+  if (code.includes("unauthorized-domain") || code.includes("requests-from-referer") || code.includes("app-check"))
+    return `Log-in isn't switched on for this web address yet. Please use app.stoodant.com, or message us on WhatsApp. (${code})`;
+  if (typeof console !== "undefined") console.error("auth error", error);
+  return `Something went wrong. Please try again, or message us on WhatsApp.${code ? ` (${code})` : ""}`;
 }
