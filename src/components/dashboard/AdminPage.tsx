@@ -235,6 +235,7 @@ function TeamToday({
   const openLeads = data.leads.filter((l) => !["enrolled", "closed"].includes(l.status)).length;
   const openHelp = data.help.filter((h) => h.status === "open").length;
   const running = classes?.filter((c) => c.status === "scheduled") ?? [];
+  const batches = data.batches.filter((b) => b.active !== false).length;
   const activeStudents = data.students.filter((s) => s.active).length;
   const now = Date.now();
 
@@ -260,7 +261,7 @@ function TeamToday({
           <Tile
             label={home.classesToday}
             value={classes ? String(running.length) : "…"}
-            hint={failed ? "Couldn't load" : `${data.batches.filter((b) => b.active !== false).length} running batches`}
+            hint={failed ? "Couldn't load" : `${batches} running ${batches === 1 ? "batch" : "batches"}`}
             onClick={() => go("batches")}
           />
           <Tile
