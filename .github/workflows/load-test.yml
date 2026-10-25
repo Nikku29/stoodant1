@@ -11,9 +11,6 @@ on:
       form_top_rate:
         description: "Form requests per second at the top (all refused before any write)"
         default: "150"
-  push:
-    branches: [claude/project-thread-30u0w4]
-    paths: [loadtest/**, .github/workflows/load-test.yml]
 
 permissions:
   contents: read
