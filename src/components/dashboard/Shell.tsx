@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Logo } from "@/brand/Logo";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { useSession } from "@/lib/firebase/session";
-import { NavLinks, type Nav } from "./AppNav";
+import { NavLinks, usePullToRefresh, type Nav } from "./AppNav";
 import "./dashboard.css";
 
 /**
@@ -21,8 +21,14 @@ export function Shell<T extends string = string>({
   nav?: Nav<T> | undefined;
   children: ReactNode;
 }) {
+  const pull = usePullToRefresh(nav && nav.active === nav.items[0]?.key ? reload : null);
   return (
     <div className={nav ? "pd pd-has-nav" : "pd"}>
+      {pull > 0 && (
+        <div className="pd-pull" style={{ height: pull * 0.6 }} aria-hidden="true">
+          <span className={pull > 90 ? "pd-pull-dot is-ready" : "pd-pull-dot"} style={{ transform: `rotate(${pull * 3}deg)` }} />
+        </div>
+      )}
       <header className="pd-top">
         <a href="/" className="pd-logo" aria-label="Stoodant home">
           <Logo variant="full" />
@@ -38,7 +44,10 @@ export function Shell<T extends string = string>({
       </header>
       {role && role !== "Team" && <TeamViewBar role={role} />}
       {nav && <NavLinks nav={nav} />}
-      <main className="pd-main">{children}</main>
+      {/* A new key per screen replays the entrance, so moving between screens feels like an app. */}
+      <main className="pd-main" key={nav?.active}>
+        {children}
+      </main>
     </div>
   );
 }
@@ -58,12 +67,21 @@ function TeamViewBar({ role }: { role: string }) {
   );
 }
 
-/** Shown while Firebase checks whether someone is signed in. */
+const reload = () => location.reload();
+
+/** Shown while a screen loads: grey shapes where the content will be, which reads as faster than text. */
 export function Loading() {
   return (
-    <p className="pd-muted" role="status" aria-live="polite">
-      Loading…
-    </p>
+    <div className="pd-skeleton" role="status" aria-live="polite">
+      <span className="pd-sr">Loading…</span>
+      <span className="pd-skel pd-skel-title" />
+      <span className="pd-skel pd-skel-line" />
+      <span className="pd-skel-row">
+        <span className="pd-skel pd-skel-tile" />
+        <span className="pd-skel pd-skel-tile" />
+      </span>
+      <span className="pd-skel pd-skel-card" />
+    </div>
   );
 }
 

@@ -1928,3 +1928,146 @@
   text-decoration: none;
   padding: 8px;
 }
+
+/* A livelier app: screens slide in, loading shows the shape of what's coming, pull down refreshes. */
+@media (prefers-reduced-motion: no-preference) {
+  .pd-has-nav .pd-main {
+    animation: pd-enter 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .pd-tiles > *,
+  .pd-todo > li,
+  .pd-subjects > li,
+  .pd-list > li {
+    animation: pd-rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .pd-tiles > :nth-child(2),
+  .pd-todo > li:nth-child(2),
+  .pd-list > li:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+  .pd-tiles > :nth-child(3),
+  .pd-todo > li:nth-child(3),
+  .pd-list > li:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+  .pd-tiles > :nth-child(n + 4),
+  .pd-todo > li:nth-child(n + 4),
+  .pd-list > li:nth-child(n + 4) {
+    animation-delay: 0.15s;
+  }
+  .pd-nav a[aria-current="page"] .pd-nav-icon {
+    animation: pd-pop 0.3s ease-out;
+  }
+  .pd-lc-next[data-state="open"] .pd-lc-join {
+    animation: pd-glow 1.8s ease-in-out infinite;
+  }
+}
+@keyframes pd-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes pd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes pd-pop {
+  50% {
+    transform: scale(1.12);
+  }
+}
+@keyframes pd-glow {
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--amber) 30%, transparent);
+  }
+}
+.pd-skeleton {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+}
+.pd-skel {
+  display: block;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--grey-1) 25%, #efefef 50%, var(--grey-1) 75%) 0 0 / 200% 100%;
+  animation: pd-shimmer 1.2s linear infinite;
+}
+.pd-skel-title {
+  width: 60%;
+  height: 34px;
+}
+.pd-skel-line {
+  width: 40%;
+  height: 14px;
+}
+.pd-skel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.pd-skel-tile {
+  height: 108px;
+}
+.pd-skel-card {
+  height: 160px;
+}
+@keyframes pd-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.pd-pull {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.pd-pull-dot {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--grey-2);
+  border-top-color: var(--brand-ink);
+  border-radius: 999px;
+}
+.pd-pull-dot.is-ready {
+  border-top-color: var(--amber);
+}
+.pd-tile:active,
+.pd-todo button:active,
+.pd-cta:active,
+.pd-ghost:active {
+  transform: scale(0.97);
+}
+.pd-countdown {
+  display: inline-block;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.pd-meter {
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin: 6px 0 2px;
+  border-radius: 999px;
+  background: var(--grey-1);
+  overflow: hidden;
+}
+.pd-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--amber);
+  transform-origin: left;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pd-meter > span {
+    animation: pd-fill 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+@keyframes pd-fill {
+  from {
+    transform: scaleX(0);
+  }
+}

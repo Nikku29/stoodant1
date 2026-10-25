@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
+import { SITE_CONFIG } from "@/config/siteConfig";
 import type { LiveClass } from "@/lib/firebase/classes";
 import { istParts, joinState, statusLine, time12 } from "@/lib/classes/time";
 import { formatDay } from "@/lib/progress/insights";
@@ -30,10 +31,14 @@ export function TeacherApp({
   today,
   loadClasses,
   practiceClasses,
+  practice = false,
   onSignOut,
 }: {
   name: string;
+  /** Can be empty: a new teacher still gets the whole app, with a note until the team adds a batch. */
   batches: TeacherBatch[];
+  /** Practice mode (sample batch): nothing is saved or sent. */
+  practice?: boolean;
   today: string;
   /** Live classes of every batch here, soonest first. */
   loadClasses: () => Promise<LiveClass[]>;
@@ -60,15 +65,22 @@ export function TeacherApp({
     setStartTab(tab);
     go("batches");
   };
-  const current = batches[Math.min(pick, batches.length - 1)]!;
-  const practice = !current.store;
+  const current = batches[Math.min(pick, batches.length - 1)];
 
   return (
     <Shell role="Teacher" onSignOut={onSignOut} nav={nav}>
       {section === "today" && (
         <TeacherToday name={name} batches={batches} loadClasses={loadClasses} open={open} />
       )}
-      {section === "batches" && (
+      {section === "batches" && !current && (
+        <>
+          <section className="pd-child">
+            <h1>{DASHBOARD_CONFIG.nav.teacher.batches}</h1>
+          </section>
+          <NoBatchYet />
+        </>
+      )}
+      {section === "batches" && current && (
         <TeacherEntry
           key={`${current.id}-${startTab ?? ""}`}
           batch={current.batch}
@@ -106,11 +118,34 @@ export function TeacherApp({
           <HelpBox
             practice={practice}
             startOpen
-            whatsappText={`Hi Stoodant, I need help with ${current.batch.name}.`}
+            whatsappText={
+              current ? `Hi Stoodant, I need help with ${current.batch.name}.` : "Hi Stoodant, I'm a teacher and need help with the app."
+            }
           />
         </>
       )}
     </Shell>
+  );
+}
+
+/** A teacher the team hasn't put in a batch yet: what happens next, and two things to do meanwhile. */
+function NoBatchYet() {
+  return (
+    <section className="pd-card pd-stack pd-welcome">
+      <h2>{DASHBOARD_CONFIG.teacher.noBatchTitle}</h2>
+      <p>{DASHBOARD_CONFIG.teacher.noBatches}</p>
+      <a className="pd-cta" href="/teacher?sample=1">
+        {DASHBOARD_CONFIG.teacher.tryPractice}
+      </a>
+      <a
+        className="pd-ghost pd-ghost-link"
+        href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${encodeURIComponent("Hi Stoodant, please add me to my batch in the app.")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {DASHBOARD_CONFIG.teacher.askToAdd}
+      </a>
+    </section>
   );
 }
 
@@ -272,6 +307,7 @@ function TeacherToday({
 
       <section className="pd-section" aria-labelledby="pd-t-batches">
         <h2 id="pd-t-batches">{copy.yourBatches}</h2>
+        {!batches.length && <NoBatchYet />}
         <div className="pd-tiles">
           {batches.map((b) => (
             <button key={b.id} type="button" className="pd-tile" onClick={() => open(b.id)}>

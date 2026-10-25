@@ -56,6 +56,7 @@ function PracticeTeacher() {
       today={SAMPLE_TODAY}
       loadClasses={practice.load}
       practiceClasses={practice.classes}
+      practice
     />
   );
 }
@@ -121,19 +122,6 @@ function Batches({ session }: { session: Session }) {
         <p className="pd-alert">
           We couldn't load your batches. Please check the internet connection and refresh.
         </p>
-      </Shell>
-    );
-  }
-  if (batches && !batches.length) {
-    return (
-      <Shell role="Teacher" onSignOut={signOut}>
-        <section className="pd-card pd-stack pd-welcome">
-          <h1>{name ? `Welcome, ${name.split(" ")[0]}` : "Welcome"}</h1>
-          <p>{DASHBOARD_CONFIG.teacher.noBatches}</p>
-          <a className="pd-ghost pd-ghost-link" href="/teacher?sample=1">
-            {DASHBOARD_CONFIG.teacher.tryPractice}
-          </a>
-        </section>
       </Shell>
     );
   }
