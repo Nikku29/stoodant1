@@ -4,7 +4,9 @@ import { Loading, RequireLogin, Shell, useSearchFlag } from "@/components/dashbo
 import { TeacherEntry, type TeacherStore } from "@/components/dashboard/TeacherEntry";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { firebaseConfigured } from "@/lib/firebase/app";
+import { changeClass, classesFor, joinedIn, lastLink, scheduleClasses } from "@/lib/firebase/classes";
 import { addMaterial, materialsFor, openUrl, removeMaterial } from "@/lib/firebase/materials";
+import { istIso, istParts } from "@/lib/classes/time";
 import {
   istDay,
   listAll,
@@ -107,6 +109,20 @@ function Batches({ session }: { session: Session }) {
           }),
         removeMaterial,
         openMaterial: openUrl,
+        classes: {
+          list: () => classesFor([batch.id]),
+          lastLink: () => lastLink(batch.id),
+          schedule: (input) => scheduleClasses({ ...input, batchId: batch.id }),
+          change: changeClass,
+        },
+        joinedOn: async (date) => {
+          const dayStart = Date.parse(istIso(date, "00:00"));
+          const ids = (await classesFor([batch.id], dayStart))
+            .filter((c) => c.status === "scheduled" && istParts(c.startAt).date === date)
+            .map((c) => c.id);
+          const joined = ids.length ? await joinedIn(ids) : new Set<string>();
+          return joined.size ? joined : null;
+        },
       },
     [batch, uid, name, session.admin],
   );
@@ -158,6 +174,7 @@ function Batches({ session }: { session: Session }) {
         name: batch.name,
         schedule: batch.schedule,
         subject: batch.subject,
+        durationMinutes: batch.durationMinutes ?? 60,
         students: batch.roster ?? [],
       }}
       store={store}

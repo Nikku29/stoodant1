@@ -5,10 +5,12 @@ import { Loading, RequireLogin, Shell, useSearchFlag } from "@/components/dashbo
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { firebaseConfigured } from "@/lib/firebase/app";
+import { classesFor, markJoined } from "@/lib/firebase/classes";
 import { materialsFor, openUrl } from "@/lib/firebase/materials";
 import { istDay, myChildren, progressOf, type Progress } from "@/lib/firebase/school";
 import { signOutNow, useSession, type Session } from "@/lib/firebase/session";
 import { SAMPLE_MATERIALS, SAMPLE_RECORDS, SAMPLE_TODAY } from "@/lib/progress/sampleData";
+import { sampleClasses } from "@/components/dashboard/practiceClasses";
 
 // Parent dashboard: the signed-in parent's child (or children). `?sample=1` shows the preview with sample
 // records. Used by the /parent route here and by app.stoodant.com (console/), never by the landing page.
@@ -27,12 +29,14 @@ export function ParentPage() {
         today={SAMPLE_TODAY}
         sample
         materials={{ load: loadSampleMaterials }}
+        classes={{ load: loadSampleClasses }}
       />
     );
   return <LiveParent />;
 }
 
 const loadSampleMaterials = async () => SAMPLE_MATERIALS;
+const loadSampleClasses = async () => sampleClasses();
 
 function LiveParent() {
   const session = useSession();
@@ -94,7 +98,16 @@ function Children({ session }: { session: Session }) {
     );
 
   const child = children[Math.min(pick, children.length - 1)]!;
-  return <Child child={child} all={children} pick={pick} setPick={setPick} signOut={signOut} />;
+  return (
+    <Child
+      child={child}
+      all={children}
+      pick={pick}
+      setPick={setPick}
+      signOut={signOut}
+      uid={session.admin ? null : session.user.uid}
+    />
+  );
 }
 
 function Child({
@@ -103,7 +116,9 @@ function Child({
   pick,
   setPick,
   signOut,
+  uid,
 }: {
+  uid: string | null;
   child: Progress;
   all: Progress[];
   pick: number;
@@ -112,6 +127,13 @@ function Child({
 }) {
   const batchIds = (child.student.batchIds ?? []).join(",");
   const load = useCallback(() => materialsFor(batchIds ? batchIds.split(",") : []), [batchIds]);
+  const loadClasses = useCallback(() => classesFor(batchIds ? batchIds.split(",") : []), [batchIds]);
+  const studentId = child.student.id;
+  // The team viewing a child's page doesn't count as the child joining.
+  const onJoin = useCallback(
+    (c: { id: string }) => void (uid && markJoined(c.id, studentId, uid).catch(() => undefined)),
+    [uid, studentId],
+  );
   const picker =
     all.length > 1 ? (
       <div className="pd-picker" role="group" aria-label="Choose a child">
@@ -135,6 +157,7 @@ function Child({
       picker={picker}
       onSignOut={signOut}
       materials={{ load, open: openUrl }}
+      classes={{ load: loadClasses, onJoin }}
     />
   );
 }
