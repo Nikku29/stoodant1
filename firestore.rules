@@ -312,6 +312,31 @@ service cloud.firestore {
 
     // ---- Read by parents on /parent (written only by Cloud Functions) ----
 
+    // Live classes (app.stoodant.com). Written only by the scheduleClasses / changeClass functions, which
+    // check the caller teaches the batch (or is the team). The batch's teacher, its families and the team
+    // read them; the Zoom or Meet link is never visible to anyone else.
+    match /liveClasses/{classId} {
+      function liveClass() {
+        return get(/databases/$(database)/documents/liveClasses/$(classId)).data;
+      }
+      allow read: if isAdmin() || teachesBatch(resource.data.batchId) || parentOfBatch(resource.data.batchId);
+
+      // A family's tap on Join, so the teacher's attendance starts from who actually came. One document
+      // per child, written by that child's parent while the class is on (from 15 minutes before to the end).
+      match /joins/{studentId} {
+        allow read: if isAdmin() || teachesBatch(liveClass().batchId);
+        allow create, update: if signedIn() && phone() != ''
+          && request.resource.data.keys().hasOnly(['at', 'by'])
+          && request.resource.data.at == request.time
+          && request.resource.data.by == request.auth.uid
+          && get(/databases/$(database)/documents/progress/$(studentId)).data.parentPhone == phone()
+          && studentId in batch(liveClass().batchId).get('studentIds', [])
+          && liveClass().status == 'scheduled'
+          && request.time >= liveClass().startAt - duration.value(15, 'm')
+          && request.time <= liveClass().endAt;
+      }
+    }
+
     match /progress/{studentId} {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.parentPhone == phone());
     }
