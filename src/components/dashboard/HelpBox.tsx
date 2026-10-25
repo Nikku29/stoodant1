@@ -11,8 +11,19 @@ const TOPICS = Object.keys(copy.topics) as HelpTopic[];
  * "Need help?" at the foot of the parent and teacher pages. Sends a short request to the team, who get an
  * email and a push straight away. WhatsApp stays as the fallback. In a preview nothing is sent.
  */
-export function HelpBox({ practice, intro, whatsappText }: { practice: boolean; intro?: string; whatsappText: string }) {
-  const [open, setOpen] = useState(false);
+export function HelpBox({
+  practice,
+  intro,
+  whatsappText,
+  startOpen = false,
+}: {
+  practice: boolean;
+  intro?: string;
+  whatsappText: string;
+  /** The Help screen shows the form straight away. */
+  startOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(startOpen);
   const [topic, setTopic] = useState<HelpTopic>("class");
   const [message, setMessage] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
@@ -85,9 +96,11 @@ export function HelpBox({ practice, intro, whatsappText }: { practice: boolean; 
         <button type="submit" className="pd-cta pd-lc-btn" disabled={state === "sending" || message.trim().length < 3}>
           {state === "sending" ? copy.sending : copy.send}
         </button>
-        <button type="button" className="pd-ghost" onClick={() => setOpen(false)}>
-          {copy.back}
-        </button>
+        {!startOpen && (
+          <button type="button" className="pd-ghost" onClick={() => setOpen(false)}>
+            {copy.back}
+          </button>
+        )}
       </div>
       <a className="pd-help-wa" href={whatsapp} target="_blank" rel="noopener noreferrer">
         {copy.whatsapp}

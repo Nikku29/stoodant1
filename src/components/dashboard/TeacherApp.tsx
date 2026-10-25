@@ -1,0 +1,291 @@
+import { useEffect, useMemo, useState } from "react";
+
+import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
+import type { LiveClass } from "@/lib/firebase/classes";
+import { istParts, joinState, statusLine, time12 } from "@/lib/classes/time";
+import { formatDay } from "@/lib/progress/insights";
+import { useSection, type Nav } from "./AppNav";
+import { HelpBox } from "./HelpBox";
+import type { ClassStore } from "./LiveClasses";
+import { Shell } from "./Shell";
+import { TeacherEntry, type Batch, type Tab, type TeacherStore } from "./TeacherEntry";
+
+const copy = DASHBOARD_CONFIG.home;
+type Section = keyof typeof DASHBOARD_CONFIG.nav.teacher;
+const SECTIONS = Object.keys(DASHBOARD_CONFIG.nav.teacher) as Section[];
+const ICON = { today: "sun", batches: "layers", help: "help" } as const;
+// Class reminders and the team's links open a batch: /teacher?batch=...&class=...
+const fromQuery = (q: URLSearchParams): Section | null =>
+  q.has("batch") || q.has("class") ? "batches" : null;
+
+export type TeacherBatch = { id: string; batch: Batch; store?: TeacherStore | undefined };
+
+/**
+ * The teacher's app: Today (the day's classes, what is left to do, every batch), My batches (attendance,
+ * marks, notes, classes and material for one batch) and Help. Without stores it is practice mode.
+ */
+export function TeacherApp({
+  name,
+  batches,
+  today,
+  loadClasses,
+  practiceClasses,
+  onSignOut,
+}: {
+  name: string;
+  batches: TeacherBatch[];
+  today: string;
+  /** Live classes of every batch here, soonest first. */
+  loadClasses: () => Promise<LiveClass[]>;
+  practiceClasses?: ClassStore | undefined;
+  onSignOut?: (() => void) | undefined;
+}) {
+  const [section, go, href] = useSection("/teacher", SECTIONS, fromQuery);
+  const [pick, setPick] = useState(() => {
+    const wanted = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("batch");
+    return Math.max(0, batches.findIndex((b) => b.id === wanted));
+  });
+  const [startTab, setStartTab] = useState<Tab | undefined>(undefined);
+  const nav: Nav<Section> = {
+    items: SECTIONS.map((key) => ({ key, label: DASHBOARD_CONFIG.nav.teacher[key], icon: ICON[key] })),
+    active: section,
+    go: (key) => {
+      setStartTab(undefined);
+      go(key);
+    },
+    href,
+  };
+  const open = (batchId: string, tab?: Tab) => {
+    setPick(Math.max(0, batches.findIndex((b) => b.id === batchId)));
+    setStartTab(tab);
+    go("batches");
+  };
+  const current = batches[Math.min(pick, batches.length - 1)]!;
+  const practice = !current.store;
+
+  return (
+    <Shell role="Teacher" onSignOut={onSignOut} nav={nav}>
+      {section === "today" && (
+        <TeacherToday name={name} batches={batches} loadClasses={loadClasses} open={open} />
+      )}
+      {section === "batches" && (
+        <TeacherEntry
+          key={`${current.id}-${startTab ?? ""}`}
+          batch={current.batch}
+          store={current.store}
+          today={today}
+          startTab={startTab}
+          practiceClasses={practiceClasses}
+          picker={
+            batches.length > 1 ? (
+              <div className="pd-picker" role="group" aria-label="Choose a batch">
+                {batches.map((b, i) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    aria-pressed={i === pick}
+                    onClick={() => {
+                      setStartTab(undefined);
+                      setPick(i);
+                    }}
+                  >
+                    {b.batch.name}
+                  </button>
+                ))}
+              </div>
+            ) : undefined
+          }
+        />
+      )}
+      {section === "help" && (
+        <>
+          <section className="pd-child">
+            <h1>{DASHBOARD_CONFIG.nav.teacher.help}</h1>
+            <p>{DASHBOARD_CONFIG.teacher.help}</p>
+          </section>
+          <HelpBox
+            practice={practice}
+            startOpen
+            whatsappText={`Hi Stoodant, I need help with ${current.batch.name}.`}
+          />
+        </>
+      )}
+    </Shell>
+  );
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
+
+type Todo = { batchId: string; batchName: string; at: number };
+
+/** The teacher's day on one screen. Every row opens the batch, on the right tab. */
+function TeacherToday({
+  name,
+  batches,
+  loadClasses,
+  open,
+}: {
+  name: string;
+  batches: TeacherBatch[];
+  loadClasses: () => Promise<LiveClass[]>;
+  open: (batchId: string, tab?: Tab) => void;
+}) {
+  const [classes, setClasses] = useState<LiveClass[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [todos, setTodos] = useState<Todo[] | null>(null);
+  const now = Date.now();
+  // The real day in India, also in practice mode (whose sample records sit on a fixed date).
+  const today = istParts(now).date;
+
+  useEffect(() => {
+    let live = true;
+    loadClasses()
+      .then((list) => {
+        if (!live) return;
+        const todays = list.filter((c) => c.status === "scheduled" && istParts(c.startAt).date === today);
+        setClasses(todays);
+        // A batch with a class today still needs its attendance once that class has started.
+        const firstByBatch = new Map<string, LiveClass>();
+        for (const c of todays) if (!firstByBatch.has(c.batchId)) firstByBatch.set(c.batchId, c);
+        return Promise.all(
+          [...firstByBatch.values()].map(async (c) => {
+            const b = batches.find((x) => x.id === c.batchId);
+            if (!b) return null;
+            const saved = b.store ? await b.store.loadAttendance(today).catch(() => null) : null;
+            return saved ? null : { batchId: b.id, batchName: b.batch.name, at: c.startAt };
+          }),
+        ).then((rows) => live && setTodos(rows.filter((r): r is Todo => r !== null)));
+      })
+      .catch(() => {
+        if (!live) return;
+        setFailed(true);
+        setTodos([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [loadClasses, batches, today]);
+
+  const students = useMemo(() => batches.reduce((n, b) => n + b.batch.students.length, 0), [batches]);
+  const first = name.trim().split(" ")[0];
+
+  return (
+    <>
+      <section className="pd-child">
+        <p className="pd-hello">
+          {greeting()} · {formatDay(today)}
+        </p>
+        <h1>{first ? `Welcome, ${first}` : "Welcome"}</h1>
+        <p>
+          {batches.length} {batches.length === 1 ? "batch" : "batches"} · {students} {copy.students}
+        </p>
+      </section>
+
+      <section className="pd-section" aria-labelledby="pd-t-classes">
+        <h2 id="pd-t-classes">{copy.teacherToday}</h2>
+        {failed && <p className="pd-alert">{DASHBOARD_CONFIG.classes.loadFailed}</p>}
+        {!classes && !failed && <p className="pd-muted">{DASHBOARD_CONFIG.classes.loading}</p>}
+        {classes && !classes.length && <p className="pd-empty">{copy.noClassToday}</p>}
+        {classes && classes.length > 0 && (
+          <ul className="pd-todo">
+            {classes.map((c) => {
+              const state = joinState(c, now);
+              return (
+                <li key={c.id}>
+                  <div className="pd-todo-row">
+                    <span className="pd-todo-mark" aria-hidden="true">
+                      {state === "ended" ? "✓" : "●"}
+                    </span>
+                    <span>
+                      {time12(c.startAt)} · {c.batchName}
+                      <small>
+                        {c.topic ? `${c.topic} · ` : ""}
+                        {statusLine(c, now)}
+                      </small>
+                    </span>
+                    {state === "open" && c.joinUrl ? (
+                      <a
+                        className="pd-cta pd-today-start"
+                        href={c.joinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Start
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="pd-link pd-todo-go"
+                        onClick={() => open(c.batchId, "classes")}
+                        aria-label={`Open ${c.batchName}'s classes`}
+                      >
+                        →
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="pd-section" aria-labelledby="pd-t-todo">
+        <h2 id="pd-t-todo">{copy.todo}</h2>
+        {!todos ? (
+          <p className="pd-muted">Loading…</p>
+        ) : todos.length ? (
+          <ul className="pd-todo">
+            {todos.map((t) => (
+              <li key={t.batchId}>
+                <button type="button" onClick={() => open(t.batchId, "attendance")}>
+                  <span className="pd-todo-mark" aria-hidden="true">
+                    !
+                  </span>
+                  <span>
+                    {copy.markAttendance}: {t.batchName}
+                    <small>After the {time12(t.at)} class</small>
+                  </span>
+                  <span className="pd-todo-go" aria-hidden="true">
+                    →
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="pd-todo">
+            <li>
+              <div className="pd-todo-row">
+                <span className="pd-todo-mark" data-done aria-hidden="true">
+                  ✓
+                </span>
+                <span>{copy.allDone}</span>
+              </div>
+            </li>
+          </ul>
+        )}
+      </section>
+
+      <section className="pd-section" aria-labelledby="pd-t-batches">
+        <h2 id="pd-t-batches">{copy.yourBatches}</h2>
+        <div className="pd-tiles">
+          {batches.map((b) => (
+            <button key={b.id} type="button" className="pd-tile" onClick={() => open(b.id)}>
+              <span className="pd-tile-label">{b.batch.subject || "Batch"}</span>
+              <strong className="pd-tile-name">{b.batch.name}</strong>
+              <span className="pd-tile-hint">
+                {b.batch.schedule}
+                <br />
+                {b.batch.students.length} {copy.students}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}

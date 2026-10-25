@@ -33,10 +33,13 @@ function useList(load: () => Promise<LiveClass[]>) {
 export function ParentClasses({
   load,
   onJoin,
+  compact = false,
 }: {
   load: () => Promise<LiveClass[]>;
   /** Records the tap; the class opens either way. Left out in the preview. */
   onJoin?: ((c: LiveClass) => void) | undefined;
+  /** The home screen: only the next class, under "Next class". */
+  compact?: boolean;
 }) {
   const now = useNow();
   const { list, failed } = useList(load);
@@ -44,11 +47,11 @@ export function ParentClasses({
   if (!list) return <p className="pd-muted">{copy.loading}</p>;
   const current = list.filter((c) => joinState(c, now) !== "ended");
   const next = current.find((c) => c.status === "scheduled");
-  const later = current.filter((c) => c !== next).slice(0, 4);
+  const later = compact ? [] : current.filter((c) => c !== next).slice(0, 4);
 
   return (
     <section className="pd-section pd-lc" aria-labelledby="pd-lc-title">
-      <h2 id="pd-lc-title">{copy.parentTitle}</h2>
+      <h2 id="pd-lc-title">{compact ? copy.nextTitle : copy.parentTitle}</h2>
       {next ? (
         <article className="pd-lc-next" data-state={joinState(next, now)}>
           <p className="pd-lc-when">{statusLine(next, now)}</p>

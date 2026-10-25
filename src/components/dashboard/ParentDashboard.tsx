@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
@@ -10,6 +10,7 @@ import {
   monthOf,
   overview,
   previousPeriod,
+  testPercent,
   testTimeline,
   weekOf,
   weeklyAttendance,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/progress/insights";
 import { monthlyReport, weeklyReport } from "@/lib/progress/reportText";
 import type { LiveClass } from "@/lib/firebase/classes";
+import { Tile, useSection, type Nav } from "./AppNav";
 import { AttendanceChart, MarksChart } from "./Charts";
 import { HelpBox } from "./HelpBox";
 import { ParentClasses } from "./LiveClasses";
@@ -28,10 +30,15 @@ import { MaterialList } from "./MaterialList";
 import { Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.parent;
+const home = DASHBOARD_CONFIG.home;
 const { attendanceGood, attendanceWatch } = DASHBOARD_CONFIG.insights;
 type PeriodKind = "week" | "month";
+type Section = keyof typeof DASHBOARD_CONFIG.nav.parent;
+const ICON = { home: "home", progress: "chart", classes: "video", material: "book", help: "help" } as const;
+// A class reminder opens /parent?class=..., which is the home screen with the Join button.
+const fromQuery = () => null;
 
-/** The parent's view of one child: the signed-in parent's progress page, or sample records as a preview. */
+/** The parent's app for one child: Home, Progress, Classes, Material and Help. Sample records make it a preview. */
 export function ParentDashboard({
   records,
   today,
@@ -53,46 +60,261 @@ export function ParentDashboard({
         open?: ((m: Material) => Promise<string>) | undefined;
       }
     | undefined;
-  /** Live classes of the child's batches, with the Join button (the app). Left out, no classes section. */
+  /** Live classes of the child's batches, with the Join button (the app). Left out, no classes screen. */
   classes?:
     | { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined }
     | undefined;
 }) {
-  const [kind, setKind] = useState<PeriodKind>("week");
-  const period = kind === "week" ? weekOf(today) : monthOf(today);
-  const data = overview(records, period);
-  const report = kind === "week" ? weeklyReport(records, today) : monthlyReport(records, today);
+  const hasClasses = Boolean(classes);
+  const hasMaterials = Boolean(materials);
+  const sections = useMemo(
+    () =>
+      (Object.keys(DASHBOARD_CONFIG.nav.parent) as Section[]).filter(
+        (s) => (s !== "classes" || hasClasses) && (s !== "material" || hasMaterials),
+      ),
+    [hasClasses, hasMaterials],
+  );
+  const [section, go, href] = useSection("/parent", sections, fromQuery);
+  const nav: Nav<Section> = {
+    items: sections.map((key) => ({ key, label: DASHBOARD_CONFIG.nav.parent[key], icon: ICON[key] })),
+    active: section,
+    go,
+    href,
+  };
   const { student } = records;
-  const periodLabel =
-    kind === "week"
-      ? `${formatDay(period.from)} to ${formatDay(period.to)}`
-      : formatMonth(period.from);
-  const waText = encodeURIComponent(
-    `Hi Stoodant, I have a question about ${student.name}'s progress.`,
+  const waText = encodeURIComponent(`Hi Stoodant, I have a question about ${student.name}'s progress.`);
+  const askTeacher = (
+    <a
+      className="pd-cta"
+      href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${waText}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {copy.askTeacher}
+    </a>
   );
 
   return (
-    <Shell role="Parent" onSignOut={onSignOut}>
+    <Shell role="Parent" onSignOut={onSignOut} nav={nav}>
       {sample && <p className="pd-banner">{copy.sampleBanner}</p>}
       {picker}
+      {section === "home" && (
+        <ParentHome records={records} today={today} classes={classes} go={go} />
+      )}
+      {section === "progress" && (
+        <>
+          <Progress records={records} today={today} />
+          {askTeacher}
+        </>
+      )}
+      {section === "classes" && classes && (
+        <>
+          <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.classes} />
+          <ParentClasses load={classes.load} onJoin={classes.onJoin} />
+          <section className="pd-section" aria-labelledby="pd-classes">
+            <h2 id="pd-classes">Attendance in {formatMonth(monthOf(today).from)}</h2>
+            <ClassStrip records={records} from={monthOf(today).from} to={monthOf(today).to} />
+          </section>
+        </>
+      )}
+      {section === "material" && materials && (
+        <>
+          <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.material} />
+          <StudyMaterial {...materials} />
+        </>
+      )}
+      {section === "help" && (
+        <>
+          <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.help} />
+          <HelpBox practice={sample} startOpen whatsappText="Hi Stoodant, I need help with the app." />
+          {askTeacher}
+        </>
+      )}
+    </Shell>
+  );
+}
 
+function ChildHeading({ records, title }: { records: StudentRecords; title: string }) {
+  const { student } = records;
+  return (
+    <section className="pd-child">
+      <h1>{title}</h1>
+      <p>
+        {student.name} · Class {student.classLevel} · {student.board}
+      </p>
+    </section>
+  );
+}
+
+/** Two seconds for a busy parent: the next class, this month in numbers, and the teacher's latest words. */
+function ParentHome({
+  records,
+  today,
+  classes,
+  go,
+}: {
+  records: StudentRecords;
+  today: string;
+  classes?: { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined } | undefined;
+  go: (s: Section) => void;
+}) {
+  const { student } = records;
+  const month = overview(records, monthOf(today));
+  const latest = latestTest(records, today);
+  const note = [...records.notes]
+    .filter((n) => n.date <= today)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const parent = student.parentName.trim();
+  return (
+    <>
       <section className="pd-child" aria-labelledby="pd-child-name">
+        <p className="pd-hello">
+          {home.parentHello}
+          {parent ? `, ${parent}` : ""}
+        </p>
         <h1 id="pd-child-name">{student.name}</h1>
         <p>
           Class {student.classLevel} · {student.board} · {student.batch}
         </p>
       </section>
 
-      {classes && <ParentClasses load={classes.load} onJoin={classes.onJoin} />}
+      {classes && <ParentClasses load={classes.load} onJoin={classes.onJoin} compact />}
 
-      <div className="pd-toggle" role="group" aria-label="Period">
-        {(["week", "month"] as const).map((k) => (
-          <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
-            {k === "week" ? copy.periodWeek : copy.periodMonth}
-          </button>
-        ))}
+      <section className="pd-section" aria-labelledby="pd-month">
+        <h2 id="pd-month">
+          {home.thisMonth} <span className="pd-muted">({formatMonth(monthOf(today).from)})</span>
+        </h2>
+        <div className="pd-tiles">
+          <Tile
+            label={copy.attendance}
+            value={month.attendance.percent == null ? "–" : `${month.attendance.percent}%`}
+            hint={attendanceHint(month)}
+            tone={attendanceTone(month.attendance.percent) === "good" ? "good" : undefined}
+            onClick={() => go("progress")}
+          />
+          <Tile
+            label={home.latestTest}
+            value={latest ? `${latest.percent}%` : "–"}
+            hint={
+              latest
+                ? `${latest.test.subject}${
+                    latest.delta == null
+                      ? ""
+                      : latest.delta === 0
+                        ? ", same as last test"
+                        : `, ${latest.delta > 0 ? "↑" : "↓"} ${Math.abs(latest.delta)} vs last test`
+                  }`
+                : home.noTestYet
+            }
+            onClick={() => go("progress")}
+          />
+          <Tile
+            label={copy.average}
+            value={month.average == null ? "–" : `${month.average}%`}
+            hint={month.tests.length ? `${month.tests.length} tests this month` : copy.noTests}
+            onClick={() => go("progress")}
+          />
+          <Tile
+            label={copy.improvement}
+            value={month.delta == null ? "–" : `${month.delta > 0 ? "+" : ""}${month.delta}`}
+            hint={DASHBOARD_CONFIG.trendLabels[month.trend]}
+            tone={month.trend === "up" ? "good" : undefined}
+            onClick={() => go("progress")}
+          />
+        </div>
+        <p className="pd-summary">{summarySentence(student.name, month)}</p>
+      </section>
+
+      {note && (
+        <section className="pd-section" aria-labelledby="pd-teacher-says">
+          <h2 id="pd-teacher-says">{home.teacherSays}</h2>
+          <blockquote className="pd-quote">
+            <p>{note.lines.join(". ")}.</p>
+            <p className="pd-quote-by">
+              {note.teacher}, {note.subject} · {formatDay(note.date)}
+            </p>
+          </blockquote>
+        </section>
+      )}
+
+      <button type="button" className="pd-ghost" style={{ marginTop: 24 }} onClick={() => go("progress")}>
+        {home.seeProgress}
+      </button>
+    </>
+  );
+}
+
+/** The latest marked test, and how it compares with the test before it in the same subject. */
+function latestTest(records: StudentRecords, today: string) {
+  const done = records.tests
+    .filter((t) => t.date <= today && testPercent(t) != null)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const test = done[0];
+  if (!test) return null;
+  const before = done.find((t) => t !== test && t.subject === test.subject);
+  const percent = Math.round(testPercent(test)!);
+  const delta = before ? percent - Math.round(testPercent(before)!) : null;
+  return { test, percent, delta };
+}
+
+/** Only one subject's classes, tests and notes, so every number on the screen is about that subject. */
+function forSubject(records: StudentRecords, subject: string | null): StudentRecords {
+  if (!subject) return records;
+  return {
+    student: { ...records.student, subjects: [subject] },
+    attendance: records.attendance.filter((r) => r.subject === subject),
+    tests: records.tests.filter((t) => t.subject === subject),
+    notes: records.notes.filter((n) => n.subject === subject),
+  };
+}
+
+/** Everything in detail, for one subject or all: numbers, what moved, charts, classes, tests, notes, report. */
+function Progress({ records: all, today }: { records: StudentRecords; today: string }) {
+  const [kind, setKind] = useState<PeriodKind>("month");
+  const [subject, setSubject] = useState<string | null>(null);
+  const records = forSubject(all, subject);
+  const period = kind === "week" ? weekOf(today) : monthOf(today);
+  const data = overview(records, period);
+  const report = kind === "week" ? weeklyReport(all, today) : monthlyReport(all, today);
+  const { student } = all;
+  const periodLabel =
+    kind === "week"
+      ? `${formatDay(period.from)} to ${formatDay(period.to)}`
+      : formatMonth(period.from);
+
+  return (
+    <>
+      <ChildHeading records={all} title={DASHBOARD_CONFIG.nav.parent.progress} />
+      <div className="pd-filters">
+        {student.subjects.length > 1 && (
+          <label className="pd-field">
+            {home.subject}
+            <select
+              className="pd-select"
+              value={subject ?? ""}
+              onChange={(e) => setSubject(e.target.value || null)}
+            >
+              <option value="">{home.allSubjects}</option>
+              {student.subjects.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <div className="pd-toggle" role="group" aria-label="Period">
+          {(["week", "month"] as const).map((k) => (
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
+              {k === "week" ? copy.periodWeek : copy.periodMonth}
+            </button>
+          ))}
+        </div>
       </div>
-      <p className="pd-period">{periodLabel}</p>
+      <p className="pd-period">
+        {periodLabel}
+        {subject ? ` · ${subject}` : ""}
+      </p>
 
       <section className="pd-stats" aria-label="Summary">
         <Stat
@@ -123,16 +345,26 @@ export function ParentDashboard({
       <p className="pd-summary">{summarySentence(student.name, data)}</p>
 
       <Improvements records={records} data={data} period={period} kind={kind} />
-      <Charts records={records} today={today} />
+      <Charts key={subject ?? "all"} records={records} today={today} />
 
-      <section className="pd-section" aria-labelledby="pd-subjects">
-        <h2 id="pd-subjects">{copy.subjects}</h2>
-        <ul className="pd-subjects">
-          {data.subjects.map((s) => (
-            <SubjectRow key={s.subject} s={s} focus={data.focus?.subject === s.subject} />
-          ))}
-        </ul>
-      </section>
+      {!subject && (
+        <section className="pd-section" aria-labelledby="pd-subjects">
+          <h2 id="pd-subjects">{copy.subjects}</h2>
+          <ul className="pd-subjects">
+            {data.subjects.map((s) => (
+              <SubjectRow
+                key={s.subject}
+                s={s}
+                focus={data.focus?.subject === s.subject}
+                onOpen={() => {
+                  setSubject(s.subject);
+                  scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="pd-section" aria-labelledby="pd-classes">
         <h2 id="pd-classes">{copy.classes}</h2>
@@ -176,8 +408,6 @@ export function ParentDashboard({
         </section>
       )}
 
-      {materials && <StudyMaterial {...materials} />}
-
       <section className="pd-section" aria-labelledby="pd-report">
         <h2 id="pd-report">{copy.reportTitle}</h2>
         <p className="pd-muted">{kind === "week" ? copy.reportWeekNote : copy.reportMonthNote}</p>
@@ -185,17 +415,7 @@ export function ParentDashboard({
           <WhatsAppText text={report} />
         </div>
       </section>
-
-      <a
-        className="pd-cta"
-        href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${waText}`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {copy.askTeacher}
-      </a>
-      <HelpBox practice={sample} whatsappText="Hi Stoodant, I need help with the app." />
-    </Shell>
+    </>
   );
 }
 
@@ -362,7 +582,7 @@ function Stat({
   );
 }
 
-function SubjectRow({ s, focus }: { s: SubjectSummary; focus: boolean }) {
+function SubjectRow({ s, focus, onOpen }: { s: SubjectSummary; focus: boolean; onOpen: () => void }) {
   return (
     <li className={`pd-subject${focus ? " is-focus" : ""}`}>
       <div className="pd-subject-head">
@@ -383,6 +603,9 @@ function SubjectRow({ s, focus }: { s: SubjectSummary; focus: boolean }) {
           {s.attendance.held > 0 && ` · ${s.attendance.attended}/${s.attendance.held} classes`}
         </small>
       )}
+      <button type="button" className="pd-link pd-subject-more" onClick={onOpen}>
+        {s.subject} in detail →
+      </button>
     </li>
   );
 }

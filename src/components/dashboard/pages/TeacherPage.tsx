@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { practiceClassStore } from "@/components/dashboard/practiceClasses";
 import { Loading, RequireLogin, Shell, useSearchFlag } from "@/components/dashboard/Shell";
-import { TeacherEntry, type TeacherStore } from "@/components/dashboard/TeacherEntry";
+import { TeacherApp, type TeacherBatch } from "@/components/dashboard/TeacherApp";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { firebaseConfigured } from "@/lib/firebase/app";
 import { changeClass, classesFor, joinedIn, lastLink, scheduleClasses } from "@/lib/firebase/classes";
@@ -22,6 +23,7 @@ import {
   type Batch,
 } from "@/lib/firebase/school";
 import { signOutNow, useSession, type Session } from "@/lib/firebase/session";
+import type { TeacherStore } from "@/components/dashboard/TeacherEntry";
 import { SAMPLE_BATCH, SAMPLE_TODAY } from "@/lib/progress/sampleData";
 import { useMoveToApp } from "@/lib/moveToApp";
 
@@ -36,9 +38,26 @@ export function TeacherPage() {
         <Loading />
       </Shell>
     );
-  if (sample || !firebaseConfigured)
-    return <TeacherEntry batch={SAMPLE_BATCH} today={SAMPLE_TODAY} />;
+  if (sample || !firebaseConfigured) return <PracticeTeacher />;
   return <LiveTeacher />;
+}
+
+/** Practice mode: the sample batch, with classes kept in memory. Nothing is saved or sent. */
+function PracticeTeacher() {
+  const practice = useMemo(() => {
+    const classes = practiceClassStore();
+    const batches: TeacherBatch[] = [{ id: "sample", batch: SAMPLE_BATCH }];
+    return { classes, batches, load: () => classes.list() };
+  }, []);
+  return (
+    <TeacherApp
+      name="Priya"
+      batches={practice.batches}
+      today={SAMPLE_TODAY}
+      loadClasses={practice.load}
+      practiceClasses={practice.classes}
+    />
+  );
 }
 
 function LiveTeacher() {
@@ -61,7 +80,6 @@ function LiveTeacher() {
 function Batches({ session }: { session: Session }) {
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [pick, setPick] = useState(0);
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -74,60 +92,27 @@ function Batches({ session }: { session: Session }) {
     const load = session.admin
       ? listAll.batches().then((all) => all.filter((b) => b.active !== false))
       : myBatches(session.phone);
-    load
-      .then((list) => {
-        // The team opens a batch's page from /admin with ?batch=<id>.
-        const wanted = new URLSearchParams(location.search).get("batch");
-        const i = wanted ? list.findIndex((b) => b.id === wanted) : -1;
-        if (i > 0) setPick(i);
-        setBatches(list);
-      })
-      .catch(() => setFailed(true));
+    load.then(setBatches).catch(() => setFailed(true));
   }, [session]);
 
-  const batch = batches?.[Math.min(pick, batches.length - 1)];
   const uid = session.user.uid;
-  const store = useMemo<TeacherStore | undefined>(
-    () =>
-      batch && {
-        loadAttendance: (date) => loadSession(batch.id, date),
-        saveAttendance: (date, status, attendance) =>
-          saveSession(batch, date, status, attendance, uid),
-        saveMarks: (test) => saveAssessment(batch, test, uid),
-        saveNotes: (date, notes) => saveNotes(batch, date, notes, uid),
-        loadHistory: () => batchHistory(batch.id),
-        deleteTest: (id) => deleteAssessment(id),
-        loadNotes: () => batchNotes(batch.id),
-        listMaterials: () => materialsFor([batch.id]),
-        addMaterial: (m) =>
-          addMaterial({
-            ...m,
-            batchId: batch.id,
-            uid,
-            teacherName: (session.admin
-              ? "Stoodant team"
-              : name || batch.teacherName || "Teacher"
-            ).slice(0, 80),
-          }),
-        removeMaterial,
-        openMaterial: openUrl,
-        classes: {
-          list: () => classesFor([batch.id]),
-          lastLink: () => lastLink(batch.id),
-          schedule: (input) => scheduleClasses({ ...input, batchId: batch.id }),
-          change: changeClass,
-        },
-        joinedOn: async (date) => {
-          const dayStart = Date.parse(istIso(date, "00:00"));
-          const ids = (await classesFor([batch.id], dayStart))
-            .filter((c) => c.status === "scheduled" && istParts(c.startAt).date === date)
-            .map((c) => c.id);
-          const joined = ids.length ? await joinedIn(ids) : new Set<string>();
-          return joined.size ? joined : null;
-        },
+  const app = useMemo(() => {
+    if (!batches) return null;
+    const list: TeacherBatch[] = batches.map((batch) => ({
+      id: batch.id,
+      batch: {
+        name: batch.name,
+        schedule: batch.schedule,
+        subject: batch.subject,
+        durationMinutes: batch.durationMinutes ?? 60,
+        students: batch.roster ?? [],
       },
-    [batch, uid, name, session.admin],
-  );
+      store: storeFor(batch, uid, session.admin ? "Stoodant team" : name || batch.teacherName || "Teacher"),
+    }));
+    const ids = batches.map((b) => b.id);
+    // From midnight, so the Today screen also lists this morning's classes.
+    return { list, load: () => classesFor(ids, Date.parse(istIso(istDay(), "00:00"))) };
+  }, [batches, uid, name, session.admin]);
 
   const signOut = () => void signOutNow().then(() => location.assign("/login"));
   if (failed) {
@@ -152,37 +137,50 @@ function Batches({ session }: { session: Session }) {
       </Shell>
     );
   }
-  if (!batch || !store)
+  if (!app)
     return (
       <Shell role="Teacher" onSignOut={signOut}>
         <Loading />
       </Shell>
     );
-
-  const picker =
-    batches!.length > 1 ? (
-      <div className="pd-picker" role="group" aria-label="Choose a batch">
-        {batches!.map((b, i) => (
-          <button key={b.id} type="button" aria-pressed={i === pick} onClick={() => setPick(i)}>
-            {b.name}
-          </button>
-        ))}
-      </div>
-    ) : undefined;
   return (
-    <TeacherEntry
-      key={batch.id}
-      batch={{
-        name: batch.name,
-        schedule: batch.schedule,
-        subject: batch.subject,
-        durationMinutes: batch.durationMinutes ?? 60,
-        students: batch.roster ?? [],
-      }}
-      store={store}
+    <TeacherApp
+      name={session.admin ? "" : name}
+      batches={app.list}
       today={istDay()}
-      picker={picker}
+      loadClasses={app.load}
       onSignOut={signOut}
     />
   );
+}
+
+/** Where one batch's records are read and saved. */
+function storeFor(batch: Batch, uid: string, teacherName: string): TeacherStore {
+  return {
+    loadAttendance: (date) => loadSession(batch.id, date),
+    saveAttendance: (date, status, attendance) => saveSession(batch, date, status, attendance, uid),
+    saveMarks: (test) => saveAssessment(batch, test, uid),
+    saveNotes: (date, notes) => saveNotes(batch, date, notes, uid),
+    loadHistory: () => batchHistory(batch.id),
+    deleteTest: (id) => deleteAssessment(id),
+    loadNotes: () => batchNotes(batch.id),
+    listMaterials: () => materialsFor([batch.id]),
+    addMaterial: (m) => addMaterial({ ...m, batchId: batch.id, uid, teacherName: teacherName.slice(0, 80) }),
+    removeMaterial,
+    openMaterial: openUrl,
+    classes: {
+      list: () => classesFor([batch.id]),
+      lastLink: () => lastLink(batch.id),
+      schedule: (input) => scheduleClasses({ ...input, batchId: batch.id }),
+      change: changeClass,
+    },
+    joinedOn: async (date) => {
+      const dayStart = Date.parse(istIso(date, "00:00"));
+      const ids = (await classesFor([batch.id], dayStart))
+        .filter((c) => c.status === "scheduled" && istParts(c.startAt).date === date)
+        .map((c) => c.id);
+      const joined = ids.length ? await joinedIn(ids) : new Set<string>();
+      return joined.size ? joined : null;
+    },
+  };
 }

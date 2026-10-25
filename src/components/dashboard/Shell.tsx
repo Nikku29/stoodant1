@@ -3,20 +3,26 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Logo } from "@/brand/Logo";
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { useSession } from "@/lib/firebase/session";
+import { NavLinks, type Nav } from "./AppNav";
 import "./dashboard.css";
 
-/** The frame every signed-in page shares: logo home link, who this page is for, and log-out. */
-export function Shell({
+/**
+ * The frame every signed-in page shares: logo home link, who this page is for, and log-out. With `nav`,
+ * the person's menu too: along the bottom on phones, down the side on computers.
+ */
+export function Shell<T extends string = string>({
   role,
   onSignOut,
+  nav,
   children,
 }: {
   role: string;
   onSignOut?: (() => void) | undefined;
+  nav?: Nav<T> | undefined;
   children: ReactNode;
 }) {
   return (
-    <div className="pd">
+    <div className={nav ? "pd pd-has-nav" : "pd"}>
       <header className="pd-top">
         <a href="/" className="pd-logo" aria-label="Stoodant home">
           <Logo variant="full" />
@@ -31,6 +37,7 @@ export function Shell({
         </span>
       </header>
       {role && role !== "Team" && <TeamViewBar role={role} />}
+      {nav && <NavLinks nav={nav} />}
       <main className="pd-main">{children}</main>
     </div>
   );
