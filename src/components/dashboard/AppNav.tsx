@@ -1,0 +1,133 @@
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
+
+// The app's menu: each person's own screens (parent, teacher, team), a bar along the bottom on phones and
+// a side bar on computers. In the app (app.stoodant.com) every screen has its own address, e.g.
+// /parent/progress, so Back and a refresh both work. stoodant.com's old pages keep the screen in memory only,
+// since its router knows nothing of these addresses (and in production those pages move to the app anyway).
+
+const IN_APP = import.meta.env.VITE_CONSOLE === "1";
+
+export type Icon = keyof typeof ICONS;
+export type NavItem<T extends string> = { key: T; label: string; icon: Icon; badge?: number };
+export type Nav<T extends string = string> = {
+  items: NavItem<T>[];
+  active: T;
+  go: (key: T) => void;
+  href: (key: T) => string;
+};
+
+/**
+ * Which screen is open. Old links say `?tab=help` (team notifications) and are mapped with `fromQuery`;
+ * the address is then tidied to /admin/help, keeping the rest of the query (?sample=1, ?batch=...).
+ */
+export function useSection<T extends string>(
+  base: string,
+  sections: readonly T[],
+  fromQuery?: (q: URLSearchParams) => T | null,
+): [T, (key: T) => void, (key: T) => string] {
+  const home = sections[0]!;
+  const href = useCallback(
+    (key: T) => {
+      const q = new URLSearchParams(typeof location === "undefined" ? "" : location.search);
+      q.delete("tab");
+      const query = q.toString();
+      return `${base}${key === home ? "" : `/${key}`}${query ? `?${query}` : ""}`;
+    },
+    [base, home],
+  );
+  const read = useCallback((): T => {
+    if (typeof location === "undefined") return home;
+    const rest = location.pathname.slice(base.length).replace(/^\/+|\/+$/g, "");
+    if (IN_APP && (sections as readonly string[]).includes(rest)) return rest as T;
+    return fromQuery?.(new URLSearchParams(location.search)) ?? home;
+  }, [base, home, sections, fromQuery]);
+  const [section, setSection] = useState<T>(read);
+
+  useEffect(() => {
+    if (!IN_APP) return;
+    const wanted = href(section);
+    if (wanted !== location.pathname + location.search) history.replaceState(null, "", wanted);
+    const onPop = () => setSection(read());
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
+    // Only once: later moves go through `go`, which updates the address itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const go = useCallback(
+    (key: T) => {
+      if (IN_APP && key !== section) history.pushState(null, "", href(key));
+      setSection(key);
+      scrollTo({ top: 0 });
+    },
+    [href, section],
+  );
+  return [section, go, href];
+}
+
+/** The menu links. Real links, so a long press or middle click opens a screen in a new tab in the app. */
+export function NavLinks<T extends string>({ nav }: { nav: Nav<T> }) {
+  const open = (e: MouseEvent, key: T) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    nav.go(key);
+  };
+  return (
+    <nav className="pd-nav" aria-label="Menu">
+      {nav.items.map((item) => (
+        <a
+          key={item.key}
+          href={IN_APP ? nav.href(item.key) : "#"}
+          aria-current={item.key === nav.active ? "page" : undefined}
+          onClick={(e) => open(e, item.key)}
+        >
+          <span className="pd-nav-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d={ICONS[item.icon]} />
+            </svg>
+            {item.badge ? <span className="pd-nav-badge">{item.badge > 9 ? "9+" : item.badge}</span> : null}
+          </span>
+          <span className="pd-nav-label">{item.label}</span>
+          {item.badge ? <span className="pd-sr">, {item.badge} new</span> : null}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+/** A number on a home screen that opens the screen it summarises. */
+export function Tile({
+  label,
+  value,
+  hint,
+  tone,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  tone?: "good" | "alert" | undefined;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="pd-tile" data-tone={tone} onClick={onClick}>
+      <span className="pd-tile-label">{label}</span>
+      <strong className="pd-tile-value">{value}</strong>
+      <span className="pd-tile-hint">{hint}</span>
+    </button>
+  );
+}
+
+// Simple line icons, drawn with a 2px stroke on a 24px grid (styled in dashboard.css).
+const ICONS = {
+  home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
+  chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
+  video: "M3 6h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM16 10l6-3v10l-6-3",
+  book: "M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z",
+  help: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 17.5h.01",
+  sun: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",
+  layers: "M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+  inbox: "M22 12h-6l-2 3h-4l-2-3H2M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z",
+  people:
+    "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
+} as const;

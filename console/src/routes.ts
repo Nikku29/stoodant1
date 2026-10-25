@@ -1,6 +1,6 @@
 import type { Role } from "@/lib/firebase/session";
 
-/** Every page of the app. Anything else shows the not-found page. */
+/** Every page of the app. Each person's screens sit under their page, e.g. /parent/progress. */
 export type Page = "login" | "parent" | "teacher" | "admin" | "missing";
 
 const PAGES: Record<string, Page> = {
@@ -11,9 +11,12 @@ const PAGES: Record<string, Page> = {
   "/admin": "admin",
 };
 
+const SCREENS = /^\/(parent|teacher|admin)\/[a-z]+$/;
+
 export function pageFor(pathname: string): Page {
   const path = pathname.replace(/\/+$/, "") || "/";
-  return PAGES[path] ?? "missing";
+  const screen = SCREENS.exec(path);
+  return screen ? (screen[1] as Page) : (PAGES[path] ?? "missing");
 }
 
 /** Each person's own home page. */

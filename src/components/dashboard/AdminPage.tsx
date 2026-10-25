@@ -23,7 +23,10 @@ import {
 import { closeHelp, listHelp, type HelpRequest } from "@/lib/firebase/help";
 import { indianMobile, signOutNow, useSession, type Session } from "@/lib/firebase/session";
 import { overview } from "@/lib/progress/insights";
+import { classesFor, type LiveClass } from "@/lib/firebase/classes";
+import { istIso, statusLine, time12 } from "@/lib/classes/time";
 import { Overview } from "./AdminReports";
+import { Tile, useSection, type Nav } from "./AppNav";
 import { Loading, RequireLogin, Shell } from "./Shell";
 import { useMoveToApp } from "@/lib/moveToApp";
 
@@ -69,14 +72,26 @@ export type Data = {
   help: HelpRequest[];
 };
 
-/** A notification opens a tab directly, e.g. /admin?tab=help. */
-function startTab(): Tab {
+type Section = keyof typeof DASHBOARD_CONFIG.nav.admin;
+type People = keyof typeof DASHBOARD_CONFIG.home.peopleTabs;
+const SECTIONS = Object.keys(DASHBOARD_CONFIG.nav.admin) as Section[];
+const ICON = { today: "sun", leads: "inbox", people: "people", batches: "layers", help: "help" } as const;
+const home = DASHBOARD_CONFIG.home;
+
+/** Old links and notifications name a tab, e.g. /admin?tab=help or ?tab=teachers. */
+const fromQuery = (q: URLSearchParams): Section | null => {
+  const t = q.get("tab");
+  if (t === "students" || t === "teachers" || t === "team") return "people";
+  return t && t in DASHBOARD_CONFIG.nav.admin ? (t as Section) : null;
+};
+const startPeople = (): People => {
   const t = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("tab");
-  return t && t in copy.tabs ? (t as Tab) : "overview";
-}
+  return t === "teachers" || t === "team" ? t : "students";
+};
 
 function Admin({ session }: { session: Session }) {
-  const [tab, setTab] = useState<Tab>(startTab);
+  const [section, go, href] = useSection("/admin", SECTIONS, fromQuery);
+  const [people, setPeople] = useState<People>(startPeople);
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,27 +135,47 @@ function Admin({ session }: { session: Session }) {
   };
 
   const openHelp = data?.help.filter((h) => h.status === "open").length ?? 0;
+  const newLeads = data?.leads.filter((l) => l.status === "new").length ?? 0;
+  const nav: Nav<Section> = {
+    items: SECTIONS.map((key) => ({
+      key,
+      label: DASHBOARD_CONFIG.nav.admin[key],
+      icon: ICON[key],
+      badge: key === "help" ? openHelp : key === "leads" ? newLeads : 0,
+    })),
+    active: section,
+    go,
+    href,
+  };
+  const title = {
+    today: "Stoodant team",
+    leads: copy.tabs.leads,
+    people: DASHBOARD_CONFIG.nav.admin.people,
+    batches: copy.tabs.batches,
+    help: copy.tabs.help,
+  }[section];
 
   return (
-    <Shell role="Team" onSignOut={signOut}>
+    <Shell role="Team" onSignOut={signOut} nav={nav}>
       <section className="pd-child">
-        <h1>Stoodant team</h1>
-        <p>{session.user.email}</p>
+        {section === "today" && <p className="pd-hello">{session.user.email}</p>}
+        <h1>{title}</h1>
       </section>
-      <div className="pd-tabs" role="tablist" aria-label="Records">
-        {(Object.keys(copy.tabs) as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-          >
-            {copy.tabs[t]}
-            {t === "help" && openHelp > 0 && <span className="pd-count">{openHelp}</span>}
-          </button>
-        ))}
-      </div>
+      {section === "people" && (
+        <div className="pd-tabs" role="tablist" aria-label="People">
+          {(Object.keys(home.peopleTabs) as People[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={people === t}
+              onClick={() => setPeople(t)}
+            >
+              {home.peopleTabs[t]}
+            </button>
+          ))}
+        </div>
+      )}
       {error && (
         <p className="pd-alert" role="alert" style={{ marginTop: 14 }}>
           {error}
@@ -149,17 +184,125 @@ function Admin({ session }: { session: Session }) {
       {!data ? (
         <Loading />
       ) : (
-        <div role="tabpanel">
-          {tab === "overview" && <Overview data={data} />}
-          {tab === "leads" && <Leads leads={data.leads} act={act} uid={session.user.uid} />}
-          {tab === "students" && <Students data={data} act={act} />}
-          {tab === "teachers" && <Teachers data={data} act={act} />}
-          {tab === "batches" && <Batches data={data} act={act} />}
-          {tab === "team" && <Team data={data} act={act} me={session.user.email ?? ""} />}
-          {tab === "help" && <Help help={data.help} act={act} uid={session.user.uid} />}
+        <div>
+          {section === "today" && (
+            <TeamToday data={data} go={go} openPeople={(p) => (setPeople(p), go("people"))} />
+          )}
+          {section === "leads" && <Leads leads={data.leads} act={act} uid={session.user.uid} />}
+          {section === "people" && people === "students" && <Students data={data} act={act} />}
+          {section === "people" && people === "teachers" && <Teachers data={data} act={act} />}
+          {section === "people" && people === "team" && (
+            <Team data={data} act={act} me={session.user.email ?? ""} />
+          )}
+          {section === "batches" && <Batches data={data} act={act} />}
+          {section === "help" && <Help help={data.help} act={act} uid={session.user.uid} />}
         </div>
       )}
     </Shell>
+  );
+}
+
+/** The team's morning check: what needs a call back, who needs help, which classes run today. */
+function TeamToday({
+  data,
+  go,
+  openPeople,
+}: {
+  data: Data;
+  go: (s: Section) => void;
+  openPeople: (p: People) => void;
+}) {
+  const [classes, setClasses] = useState<LiveClass[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const today = istDay();
+  const ids = useMemo(
+    () => data.batches.filter((b) => b.active !== false).map((b) => b.id).join(","),
+    [data.batches],
+  );
+  useEffect(() => {
+    let live = true;
+    const from = Date.parse(istIso(today, "00:00"));
+    const to = Date.parse(istIso(today, "23:59"));
+    classesFor(ids ? ids.split(",") : [], from)
+      .then((list) => live && setClasses(list.filter((c) => c.startAt <= to)))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [ids, today]);
+
+  const newLeads = data.leads.filter((l) => l.status === "new").length;
+  const openLeads = data.leads.filter((l) => !["enrolled", "closed"].includes(l.status)).length;
+  const openHelp = data.help.filter((h) => h.status === "open").length;
+  const running = classes?.filter((c) => c.status === "scheduled") ?? [];
+  const activeStudents = data.students.filter((s) => s.active).length;
+  const now = Date.now();
+
+  return (
+    <>
+      <section className="pd-section" aria-labelledby="pd-team-today">
+        <h2 id="pd-team-today">{home.teamToday}</h2>
+        <div className="pd-tiles">
+          <Tile
+            label={home.newDemos}
+            value={String(newLeads)}
+            hint={`${openLeads} open in total`}
+            tone={newLeads ? "alert" : undefined}
+            onClick={() => go("leads")}
+          />
+          <Tile
+            label={home.openHelp}
+            value={String(openHelp)}
+            hint={openHelp ? "Call them back" : "Nobody waiting"}
+            tone={openHelp ? "alert" : undefined}
+            onClick={() => go("help")}
+          />
+          <Tile
+            label={home.classesToday}
+            value={classes ? String(running.length) : "…"}
+            hint={failed ? "Couldn't load" : `${data.batches.filter((b) => b.active !== false).length} running batches`}
+            onClick={() => go("batches")}
+          />
+          <Tile
+            label={home.activeStudents}
+            value={String(activeStudents)}
+            hint={`${data.teachers.filter((t) => t.active !== false).length} teachers`}
+            onClick={() => openPeople("students")}
+          />
+        </div>
+      </section>
+
+      {running.length > 0 && (
+        <section className="pd-section" aria-labelledby="pd-team-classes">
+          <h2 id="pd-team-classes">{home.classesToday}</h2>
+          <ul className="pd-todo">
+            {running.map((c) => (
+              <li key={c.id}>
+                <a className="pd-todo-row" href={`/teacher?batch=${c.batchId}&class=${c.id}`}>
+                  <span className="pd-todo-mark" aria-hidden="true">
+                    ●
+                  </span>
+                  <span>
+                    {time12(c.startAt)} · {c.batchName}
+                    <small>
+                      {c.teacherName} · {statusLine(c, now)}
+                    </small>
+                  </span>
+                  <span className="pd-todo-go" aria-hidden="true">
+                    →
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="pd-section" aria-labelledby="pd-team-month">
+        <h2 id="pd-team-month">{home.month}</h2>
+        <Overview data={data} />
+      </section>
+    </>
   );
 }
 

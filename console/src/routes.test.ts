@@ -9,6 +9,14 @@ describe("pageFor", () => {
     expect(pageFor("/admin")).toBe("admin");
     expect(pageFor("/nope")).toBe("missing");
   });
+
+  it("keeps each person's screens on their own page", () => {
+    expect(pageFor("/parent/progress")).toBe("parent");
+    expect(pageFor("/teacher/batches/")).toBe("teacher");
+    expect(pageFor("/admin/help")).toBe("admin");
+    expect(pageFor("/login/extra")).toBe("missing");
+    expect(pageFor("/parent/a/b")).toBe("missing");
+  });
 });
 
 describe("redirectFor", () => {

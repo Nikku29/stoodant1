@@ -12,14 +12,12 @@ import {
 import { formatDay } from "@/lib/progress/insights";
 import { SAMPLE_BATCH_NOTES, SAMPLE_HISTORY, SAMPLE_MATERIALS } from "@/lib/progress/sampleData";
 import { TeacherClasses, type ClassStore } from "./LiveClasses";
-import { HelpBox } from "./HelpBox";
 import { practiceClassStore } from "./practiceClasses";
-import { Shell } from "./Shell";
 import { Materials, StudentReport, type BatchNote, type NewMaterial } from "./TeacherExtras";
 
 const copy = DASHBOARD_CONFIG.teacher;
-type Tab = keyof typeof copy.tabs;
-type Batch = {
+export type Tab = keyof typeof copy.tabs;
+export type Batch = {
   name: string;
   schedule: string;
   subject?: string;
@@ -59,29 +57,38 @@ export type TeacherStore = {
 type Save = (task: () => Promise<void>, message: string) => void;
 
 /**
- * The teacher's whole job in three taps: attendance (everyone present unless tapped), test marks
- * (one number per child, checked as they type) and a quick note picked from ready-made lines.
+ * One batch on the teacher's "My batches" screen. The teacher's whole job in three taps: attendance
+ * (everyone present unless tapped), test marks (one number per child, checked as they type) and a quick
+ * note picked from ready-made lines. The app frame (menu, Help) is TeacherApp's.
  */
 export function TeacherEntry({
   batch,
   store,
   today,
   picker,
-  onSignOut,
+  startTab,
+  practiceClasses,
 }: {
   batch: Batch;
   store?: TeacherStore | undefined;
   today: string;
   picker?: ReactNode | undefined;
-  onSignOut?: (() => void) | undefined;
+  /** The tab to open first, e.g. Attendance from a "Mark attendance" reminder on the Today screen. */
+  startTab?: Tab | undefined;
+  /** Practice mode's in-memory classes, shared with the Today screen so both show the same list. */
+  practiceClasses?: ClassStore | undefined;
 }) {
   const hasClasses = !store || Boolean(store.classes);
   const tabs = (Object.keys(copy.tabs) as Tab[]).filter((t) => t !== "classes" || hasClasses);
   const [tab, setTab] = useState<Tab>(() => {
+    if (startTab && tabs.includes(startTab)) return startTab;
     const wanted = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("class");
     return wanted && hasClasses ? "classes" : "attendance";
   });
-  const classStore = useMemo(() => store?.classes ?? practiceClassStore(), [store]);
+  const classStore = useMemo(
+    () => store?.classes ?? practiceClasses ?? practiceClassStore(),
+    [store, practiceClasses],
+  );
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,7 +116,7 @@ export function TeacherEntry({
   };
 
   return (
-    <Shell role="Teacher" onSignOut={onSignOut}>
+    <>
       <p className="pd-banner">{store ? copy.liveBanner : copy.sampleBanner}</p>
       {picker}
       <section className="pd-child">
@@ -163,8 +170,7 @@ export function TeacherEntry({
           {error}
         </p>
       )}
-      <HelpBox practice={!store} intro={copy.help} whatsappText={`Hi Stoodant, I need help with ${batch.name}.`} />
-    </Shell>
+    </>
   );
 }
 

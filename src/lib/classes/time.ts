@@ -43,7 +43,7 @@ export function joinState(c: { startAt: number; endAt: number; status: string },
   return "upcoming";
 }
 
-const time12 = (ms: number) => {
+export const time12 = (ms: number) => {
   const { time } = istParts(ms);
   const [h, m] = time.split(":").map(Number) as [number, number];
   return `${((h + 11) % 12) + 1}:${pad(m)} ${h < 12 ? "am" : "pm"}`;
