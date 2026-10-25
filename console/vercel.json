@@ -4,8 +4,6 @@
   "installCommand": "cd .. && bun install --frozen-lockfile",
   "buildCommand": "cd .. && bun run build:app",
   "outputDirectory": "dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
