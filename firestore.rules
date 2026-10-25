@@ -365,6 +365,17 @@ service cloud.firestore {
       }
     }
 
+    // ---- Help requests from the app (askForHelp writes them) ----
+    // The team reads them and marks them done; nobody else reads or writes them from the browser.
+    match /helpRequests/{requestId} {
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && changed().hasOnly(['status', 'closedBy', 'closedAt'])
+        && request.resource.data.status in ['open', 'done']
+        && request.resource.data.closedBy == request.auth.uid
+        && request.resource.data.closedAt == request.time;
+    }
+
     match /consentLog/{entryId} {
       allow read: if isAdmin();
     }

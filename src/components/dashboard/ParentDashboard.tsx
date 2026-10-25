@@ -22,6 +22,7 @@ import {
 import { monthlyReport, weeklyReport } from "@/lib/progress/reportText";
 import type { LiveClass } from "@/lib/firebase/classes";
 import { AttendanceChart, MarksChart } from "./Charts";
+import { HelpBox } from "./HelpBox";
 import { ParentClasses } from "./LiveClasses";
 import { MaterialList } from "./MaterialList";
 import { Shell } from "./Shell";
@@ -193,6 +194,7 @@ export function ParentDashboard({
       >
         {copy.askTeacher}
       </a>
+      <HelpBox practice={sample} whatsappText="Hi Stoodant, I need help with the app." />
     </Shell>
   );
 }

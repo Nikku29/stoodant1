@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
-import { SITE_CONFIG } from "@/config/siteConfig";
 import type { Material } from "@/lib/firebase/materials";
 import type { Mark, RosterEntry } from "@/lib/firebase/school";
 import {
@@ -13,6 +12,7 @@ import {
 import { formatDay } from "@/lib/progress/insights";
 import { SAMPLE_BATCH_NOTES, SAMPLE_HISTORY, SAMPLE_MATERIALS } from "@/lib/progress/sampleData";
 import { TeacherClasses, type ClassStore } from "./LiveClasses";
+import { HelpBox } from "./HelpBox";
 import { practiceClassStore } from "./practiceClasses";
 import { Shell } from "./Shell";
 import { Materials, StudentReport, type BatchNote, type NewMaterial } from "./TeacherExtras";
@@ -163,16 +163,7 @@ export function TeacherEntry({
           {error}
         </p>
       )}
-      <p className="pd-help">
-        {copy.help}{" "}
-        <a
-          href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${encodeURIComponent(`Hi Stoodant, I need help with ${batch.name}.`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {copy.helpLink}
-        </a>
-      </p>
+      <HelpBox practice={!store} intro={copy.help} whatsappText={`Hi Stoodant, I need help with ${batch.name}.`} />
     </Shell>
   );
 }

@@ -6,6 +6,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./config.js";
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
+import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleClaimAdmin, handleTeamRemoved } from "./school/admin.js";
 import { sendClassReminders } from "./classes/reminders.js";
 import { handleChangeClass, handleScheduleClasses } from "./classes/schedule.js";
@@ -71,4 +72,11 @@ export const classReminders = onSchedule(
   async () => {
     await sendClassReminders();
   },
+);
+
+// "Need help?" from parents and teachers: saved, then the team gets an email and a push.
+export const askForHelp = onCall({ cors: true }, handleAskForHelp);
+export const onHelpRequested = onDocumentCreated(
+  { document: "helpRequests/{requestId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
+  handleHelpRequested,
 );

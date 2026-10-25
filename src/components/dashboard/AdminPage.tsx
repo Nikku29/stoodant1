@@ -20,6 +20,7 @@ import {
   type Teacher,
   type TeamMember,
 } from "@/lib/firebase/school";
+import { closeHelp, listHelp, type HelpRequest } from "@/lib/firebase/help";
 import { indianMobile, signOutNow, useSession, type Session } from "@/lib/firebase/session";
 import { overview } from "@/lib/progress/insights";
 import { Overview } from "./AdminReports";
@@ -63,24 +64,33 @@ export type Data = {
   batches: Batch[];
   team: TeamMember[];
   progress: Progress[];
+  help: HelpRequest[];
 };
 
+/** A notification opens a tab directly, e.g. /admin?tab=help. */
+function startTab(): Tab {
+  const t = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("tab");
+  return t && t in copy.tabs ? (t as Tab) : "overview";
+}
+
 function Admin({ session }: { session: Session }) {
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(startTab);
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const [leads, students, teachers, batches, team, progress] = await Promise.all([
+      const [leads, students, teachers, batches, team, progress, help] = await Promise.all([
         listAll.leads(),
         listAll.students(),
         listAll.teachers(),
         listAll.batches(),
         listAll.team(),
         allProgress(),
+        // Help requests are new; a project without their rules yet still opens the rest of the page.
+        listHelp().catch(() => []),
       ]);
-      setData({ leads, students, teachers, batches, team, progress });
+      setData({ leads, students, teachers, batches, team, progress, help });
       setError(null);
     } catch {
       setError("Couldn't load the records. Please check the internet connection and refresh.");
@@ -107,6 +117,8 @@ function Admin({ session }: { session: Session }) {
     }
   };
 
+  const openHelp = data?.help.filter((h) => h.status === "open").length ?? 0;
+
   return (
     <Shell role="Team" onSignOut={signOut}>
       <section className="pd-child">
@@ -123,6 +135,7 @@ function Admin({ session }: { session: Session }) {
             onClick={() => setTab(t)}
           >
             {copy.tabs[t]}
+            {t === "help" && openHelp > 0 && <span className="pd-count">{openHelp}</span>}
           </button>
         ))}
       </div>
@@ -141,6 +154,7 @@ function Admin({ session }: { session: Session }) {
           {tab === "teachers" && <Teachers data={data} act={act} />}
           {tab === "batches" && <Batches data={data} act={act} />}
           {tab === "team" && <Team data={data} act={act} me={session.user.email ?? ""} />}
+          {tab === "help" && <Help help={data.help} act={act} uid={session.user.uid} />}
         </div>
       )}
     </Shell>
@@ -980,5 +994,42 @@ function Team({ data, act, me }: { data: Data; act: Act; me: string }) {
       </ul>
       <p className="pd-muted">{copy.teamOwners}</p>
     </>
+  );
+}
+
+function Help({ help, act, uid }: { help: HelpRequest[]; act: Act; uid: string }) {
+  if (!help.length) return <p className="pd-empty">{copy.helpEmpty}</p>;
+  const topics = DASHBOARD_CONFIG.help.topics;
+  return (
+    <ul className="pd-list">
+      {help.map((h) => (
+        <li key={h.id} className="pd-item" data-done={h.status === "done" || undefined}>
+          <div className="pd-item-head">
+            <strong>
+              {copy.helpRoles[h.role] ?? copy.helpRoles.unknown} {h.role === "unknown" || !h.name ? h.phone : h.name}
+            </strong>
+            <span>{h.status === "done" ? copy.helpDone : copy.helpOpen}</span>
+          </div>
+          <span className="pd-muted">
+            {topics[h.topic] ?? h.topic}
+            {h.createdAt && ` · ${h.createdAt.toDate().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`}
+          </span>
+          <p className="pd-help-msg">{h.message}</p>
+          <div className="pd-actions">
+            <a className="pd-link" href={`tel:${h.phone}`}>
+              Call {h.phone}
+            </a>
+            <a className="pd-link" href={`https://wa.me/${h.phone.replace(/^\+/, "")}`} target="_blank" rel="noopener noreferrer">
+              WhatsApp
+            </a>
+            {h.status === "open" && (
+              <button type="button" className="pd-link" onClick={() => void act(() => closeHelp(h.id, uid))}>
+                {copy.helpClose}
+              </button>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

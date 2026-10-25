@@ -1582,3 +1582,30 @@
 .pd-lc-change { margin-top: 4px; padding: 14px; }
 .pd-lc-danger { background: #8a1c1c; }
 .pd-alert ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* ---- Need help? ---- */
+.pd-help .pd-link { padding: 0; font-size: inherit; font-weight: 700; text-decoration: underline; }
+.pd-help-sent { color: var(--brand-ink); font-weight: 600; }
+.pd-help-form { margin-top: 28px; }
+.pd-help-form h2 { margin: 0; font-size: 18px; }
+.pd-help-form .pd-lc-actions { margin-top: 4px; }
+.pd-help-wa {
+  justify-self: center;
+  color: var(--brand-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.pd-count {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--amber);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.pd-help-msg { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pd-item[data-done] { opacity: 0.6; }
