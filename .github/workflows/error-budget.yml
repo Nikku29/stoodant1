@@ -25,7 +25,9 @@ jobs:
           node-version: 22
       # Read-only account (monitoring.viewer only), never the deployer. Skipped until the variables exist
       # and for pull requests from forks, which can't get a token.
+      # If Google Cloud refuses the token (for example the account isn't created yet), the gate warns instead of blocking.
       - id: auth
+        continue-on-error: true
         if: vars.GCP_WIF_PROVIDER != '' && vars.GCP_SLO_SA != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: google-github-actions/auth@v3
         with:

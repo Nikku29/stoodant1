@@ -47,7 +47,7 @@ if (process.env.DEPLOY_FREEZE === "true") {
 }
 
 if (!process.env.ACCESS_TOKEN) {
-  out("::warning::Error budget not checked: GitHub variables GCP_WIF_PROVIDER and GCP_SLO_SA are not set yet (DEVOPS.md, level 7).");
+  out("::warning::Error budget not checked: no Google Cloud token (GitHub variables GCP_WIF_PROVIDER and GCP_SLO_SA missing, or the github-slo-reader account not created yet; DEVOPS.md, level 7).");
 } else {
   out("| Target | Budget left | Downtime left this month |\n|---|---|---|");
   for (const [name, slo] of Object.entries(slos)) {
