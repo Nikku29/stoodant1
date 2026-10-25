@@ -26,6 +26,8 @@ import type { Doubt } from "@/lib/firebase/doubts";
 import { Tile, useSection, type Nav } from "./AppNav";
 import { AttendanceChart, MarksChart } from "./Charts";
 import { FamilyDoubts, unseenAnswers, type FamilyDoubtStore } from "./Doubts";
+import { FamilyFees, type FamilyFeeStore } from "./Fees";
+import { rupees, type Fee } from "@/lib/firebase/fees";
 import { HelpBox } from "./HelpBox";
 import { ParentClasses } from "./LiveClasses";
 import { MaterialList } from "./MaterialList";
@@ -37,7 +39,14 @@ const home = DASHBOARD_CONFIG.home;
 const { attendanceGood, attendanceWatch } = DASHBOARD_CONFIG.insights;
 type PeriodKind = "week" | "month";
 type Section = keyof typeof DASHBOARD_CONFIG.nav.parent;
-const ICON = { home: "home", progress: "chart", classes: "video", material: "book", help: "chat" } as const;
+const ICON = {
+  home: "home",
+  progress: "chart",
+  classes: "video",
+  help: "chat",
+  material: "book",
+  fees: "rupee",
+} as const;
 // A class reminder opens /parent?class=..., which is the home screen with the Join button.
 const fromQuery = () => null;
 
@@ -58,7 +67,10 @@ function markSeen(studentId: string) {
   }
 }
 
-/** The parent's app for one child: Home, Progress, Classes, Material and Ask (doubts and help). Sample records make it a preview. */
+/**
+ * The parent's app for one child: Home, Progress, Classes, Ask (doubts and help), Study material and Fees.
+ * Sample records make it a preview.
+ */
 export function ParentDashboard({
   records,
   today,
@@ -69,6 +81,7 @@ export function ParentDashboard({
   classes,
   notices,
   doubts,
+  fees,
 }: {
   records: StudentRecords;
   today: string;
@@ -84,21 +97,26 @@ export function ParentDashboard({
     | undefined;
   /** Live classes of the child's batches, with the Join button (the app). Left out, no classes screen. */
   classes?:
-    | { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined }
-    | undefined;
+    { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined } | undefined;
   /** Homework and notices from the child's teachers, on Home. */
   notices?: FamilyNoticeStore | undefined;
   /** Doubts the family asks the child's teachers, on the Ask screen. */
   doubts?: FamilyDoubtStore | undefined;
+  /** Fees to pay by UPI, with receipts. Left out, no Fees screen. */
+  fees?: FamilyFeeStore | undefined;
 }) {
   const hasClasses = Boolean(classes);
   const hasMaterials = Boolean(materials);
+  const hasFees = Boolean(fees);
   const sections = useMemo(
     () =>
       (Object.keys(DASHBOARD_CONFIG.nav.parent) as Section[]).filter(
-        (s) => (s !== "classes" || hasClasses) && (s !== "material" || hasMaterials),
+        (s) =>
+          (s !== "classes" || hasClasses) &&
+          (s !== "material" || hasMaterials) &&
+          (s !== "fees" || hasFees),
       ),
-    [hasClasses, hasMaterials],
+    [hasClasses, hasMaterials, hasFees],
   );
   const [section, go, href] = useSection("/parent", sections, fromQuery);
   const studentId = records.student.id;
@@ -114,6 +132,21 @@ export function ParentDashboard({
       live = false;
     };
   }, [doubts, studentId]);
+  // Fees still to pay, as a badge on Fees and a note on Home. Loaded again after visiting Fees.
+  const [due, setDue] = useState<Fee[]>([]);
+  useEffect(() => {
+    if (!fees || section === "fees") return;
+    let live = true;
+    fees.list().then(
+      (list) =>
+        live &&
+        setDue(list.filter((f) => f.status === "due").sort((a, b) => a.due.localeCompare(b.due))),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [fees, section]);
   useEffect(() => {
     if (section !== "help" || !unseen.length) return;
     markSeen(studentId);
@@ -124,14 +157,16 @@ export function ParentDashboard({
       key,
       label: DASHBOARD_CONFIG.nav.parent[key],
       icon: ICON[key],
-      badge: key === "help" ? unseen.length : 0,
+      badge: key === "help" ? unseen.length : key === "fees" ? due.length : 0,
     })),
     active: section,
     go,
     href,
   };
   const { student } = records;
-  const waText = encodeURIComponent(`Hi Stoodant, I have a question about ${student.name}'s progress.`);
+  const waText = encodeURIComponent(
+    `Hi Stoodant, I have a question about ${student.name}'s progress.`,
+  );
   const askTeacher = (
     <a
       className="pd-cta"
@@ -154,6 +189,7 @@ export function ParentDashboard({
           classes={classes}
           notices={notices}
           unseen={unseen}
+          due={due}
           go={go}
         />
       )}
@@ -173,6 +209,12 @@ export function ParentDashboard({
           </section>
         </>
       )}
+      {section === "fees" && fees && (
+        <>
+          <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.fees} />
+          <FamilyFees store={fees} childName={student.name} />
+        </>
+      )}
       {section === "material" && materials && (
         <>
           <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.material} />
@@ -183,7 +225,11 @@ export function ParentDashboard({
         <>
           <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.help} />
           {doubts && <FamilyDoubts store={doubts} />}
-          <HelpBox practice={sample} startOpen whatsappText="Hi Stoodant, I need help with the app." />
+          <HelpBox
+            practice={sample}
+            startOpen
+            whatsappText="Hi Stoodant, I need help with the app."
+          />
           {askTeacher}
         </>
       )}
@@ -210,12 +256,15 @@ function ParentHome({
   classes,
   notices,
   unseen,
+  due,
   go,
 }: {
   records: StudentRecords;
   today: string;
   unseen: Doubt[];
-  classes?: { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined } | undefined;
+  due: Fee[];
+  classes?:
+    { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined } | undefined;
   notices?: FamilyNoticeStore | undefined;
   go: (s: Section) => void;
 }) {
@@ -239,6 +288,15 @@ function ParentHome({
         </p>
       </section>
 
+      {due.length > 0 && (
+        <button type="button" className="pd-newans pd-feedue" onClick={() => go("fees")}>
+          <span>
+            {home.feeDue.replace("{amount}", rupees(due.reduce((n, f) => n + f.payable, 0)))}
+            <small> {home.feeDueHint.replace("{date}", formatDay(due[0]!.due))}</small>
+          </span>
+          <span className="pd-link">{home.payFee} →</span>
+        </button>
+      )}
       {unseen.length > 0 && (
         <button type="button" className="pd-newans" onClick={() => go("help")}>
           <span>
@@ -312,7 +370,12 @@ function ParentHome({
         </section>
       )}
 
-      <button type="button" className="pd-ghost" style={{ marginTop: 24 }} onClick={() => go("progress")}>
+      <button
+        type="button"
+        className="pd-ghost"
+        style={{ marginTop: 24 }}
+        onClick={() => go("progress")}
+      >
         {home.seeProgress}
       </button>
     </>
@@ -657,7 +720,15 @@ function Stat({
   );
 }
 
-function SubjectRow({ s, focus, onOpen }: { s: SubjectSummary; focus: boolean; onOpen: () => void }) {
+function SubjectRow({
+  s,
+  focus,
+  onOpen,
+}: {
+  s: SubjectSummary;
+  focus: boolean;
+  onOpen: () => void;
+}) {
   return (
     <li className={`pd-subject${focus ? " is-focus" : ""}`}>
       <div className="pd-subject-head">

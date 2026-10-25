@@ -25,6 +25,8 @@ import { indianMobile, signOutNow, useSession, type Session } from "@/lib/fireba
 import { overview } from "@/lib/progress/insights";
 import { classesFor, type LiveClass } from "@/lib/firebase/classes";
 import { istIso, statusLine, time12 } from "@/lib/classes/time";
+import { allFees, type Fee } from "@/lib/firebase/fees";
+import { AdminFees } from "./AdminFees";
 import { Overview } from "./AdminReports";
 import { Tile, useSection, type Nav } from "./AppNav";
 import { Loading, RequireLogin, Shell } from "./Shell";
@@ -70,12 +72,13 @@ export type Data = {
   team: TeamMember[];
   progress: Progress[];
   help: HelpRequest[];
+  fees: Fee[];
 };
 
 type Section = keyof typeof DASHBOARD_CONFIG.nav.admin;
 type People = keyof typeof DASHBOARD_CONFIG.home.peopleTabs;
 const SECTIONS = Object.keys(DASHBOARD_CONFIG.nav.admin) as Section[];
-const ICON = { today: "sun", leads: "inbox", people: "people", batches: "layers", help: "help" } as const;
+const ICON = { today: "sun", leads: "inbox", people: "people", fees: "rupee", batches: "layers", help: "help" } as const;
 const home = DASHBOARD_CONFIG.home;
 
 /** Old links and notifications name a tab, e.g. /admin?tab=help or ?tab=teachers. */
@@ -97,7 +100,7 @@ function Admin({ session }: { session: Session }) {
 
   const reload = useCallback(async () => {
     try {
-      const [leads, students, teachers, batches, team, progress, help] = await Promise.all([
+      const [leads, students, teachers, batches, team, progress, help, fees] = await Promise.all([
         listAll.leads(),
         listAll.students(),
         listAll.teachers(),
@@ -106,8 +109,10 @@ function Admin({ session }: { session: Session }) {
         allProgress(),
         // Help requests are new; a project without their rules yet still opens the rest of the page.
         listHelp().catch(() => []),
+        // Likewise fees, until their rules are live.
+        allFees().catch(() => []),
       ]);
-      setData({ leads, students, teachers, batches, team, progress, help });
+      setData({ leads, students, teachers, batches, team, progress, help, fees });
       setError(null);
     } catch {
       setError("Couldn't load the records. Please check the internet connection and refresh.");
@@ -136,12 +141,13 @@ function Admin({ session }: { session: Session }) {
 
   const openHelp = data?.help.filter((h) => h.status === "open").length ?? 0;
   const newLeads = data?.leads.filter((l) => l.status === "new").length ?? 0;
+  const toCheck = data?.fees.filter((f) => f.status === "submitted").length ?? 0;
   const nav: Nav<Section> = {
     items: SECTIONS.map((key) => ({
       key,
       label: DASHBOARD_CONFIG.nav.admin[key],
       icon: ICON[key],
-      badge: key === "help" ? openHelp : key === "leads" ? newLeads : 0,
+      badge: key === "help" ? openHelp : key === "leads" ? newLeads : key === "fees" ? toCheck : 0,
     })),
     active: section,
     go,
@@ -151,6 +157,7 @@ function Admin({ session }: { session: Session }) {
     today: "Stoodant team",
     leads: copy.tabs.leads,
     people: DASHBOARD_CONFIG.nav.admin.people,
+    fees: DASHBOARD_CONFIG.nav.admin.fees,
     batches: copy.tabs.batches,
     help: copy.tabs.help,
   }[section];
@@ -193,6 +200,16 @@ function Admin({ session }: { session: Session }) {
           {section === "people" && people === "teachers" && <Teachers data={data} act={act} />}
           {section === "people" && people === "team" && (
             <Team data={data} act={act} me={session.user.email ?? ""} />
+          )}
+          {section === "fees" && (
+            <AdminFees
+              fees={data.fees}
+              students={data.students}
+              batches={data.batches}
+              act={act}
+              uid={session.user.uid}
+              today={istDay()}
+            />
           )}
           {section === "batches" && <Batches data={data} act={act} />}
           {section === "help" && <Help help={data.help} act={act} uid={session.user.uid} />}

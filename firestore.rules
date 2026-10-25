@@ -408,6 +408,87 @@ service cloud.firestore {
       allow delete: if isAdmin() || (ownChild(resource.data.studentId) && resource.data.status == 'open');
     }
 
+    // ---- Fees, paid by UPI; coupons; the team's UPI details ----
+    // The team creates a fee per child and marks it paid after checking the bank account. The family only
+    // says "I've paid" with the UPI reference. Coupon fields (couponCode, couponPercent, discount, payable
+    // after a coupon) are written by the applyCoupon function only, which also keeps the codes secret.
+    match /fees/{feeId} {
+      function ownChild(studentId) {
+        return signedIn() && phone() != ''
+          && get(/databases/$(database)/documents/progress/$(studentId)).data.parentPhone == phone();
+      }
+      function validFee() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['studentId', 'studentName', 'batchId', 'title', 'amount', 'discount', 'payable',
+               'due', 'status', 'createdBy', 'createdAt'])
+          && exists(/databases/$(database)/documents/students/$(d.studentId))
+          && shortText(d.studentName, 80)
+          && d.batchId is string && d.batchId.size() <= 40
+          && shortText(d.title, 80)
+          && d.amount is int && d.amount > 0 && d.amount <= 200000
+          && d.discount == 0 && d.payable == d.amount
+          && isDay(d.due)
+          && d.status == 'due'
+          && d.createdBy == request.auth.uid
+          && d.createdAt == request.time;
+      }
+      function teamUpdate() {
+        let d = request.resource.data;
+        return isAdmin()
+          && changed().hasOnly(['status', 'note', 'paidAt', 'paidBy'])
+          && d.status in ['due', 'paid', 'cancelled']
+          && (!('note' in d) || (d.note is string && d.note.size() <= 200))
+          && (d.status != 'paid' || (d.paidAt == request.time && d.paidBy == request.auth.uid));
+      }
+      function familyPaid() {
+        let d = request.resource.data;
+        return ownChild(resource.data.studentId)
+          && resource.data.status == 'due'
+          && changed().hasOnly(['status', 'utr', 'submittedBy', 'submittedAt'])
+          && d.status == 'submitted'
+          && d.utr is string && d.utr.matches('^[A-Za-z0-9]{6,30}$')
+          && d.submittedBy == request.auth.uid
+          && d.submittedAt == request.time;
+      }
+      allow read: if isAdmin() || ownChild(resource.data.studentId);
+      allow create: if isAdmin() && validFee();
+      allow update: if teamUpdate() || familyPaid();
+      // A paid fee stays as the record of the payment.
+      allow delete: if isAdmin() && resource.data.status != 'paid';
+    }
+
+    // Coupon codes: the document id is the code itself (capitals and digits). Only the team reads them;
+    // `uses` is counted by the applyCoupon function.
+    match /coupons/{code} {
+      allow read, delete: if isAdmin();
+      allow create: if isAdmin()
+        && code.matches('^[A-Z0-9]{3,20}$')
+        && request.resource.data.keys().hasOnly(['percent', 'maxUses', 'expires', 'active', 'uses', 'createdBy', 'createdAt'])
+        && request.resource.data.percent is int && request.resource.data.percent >= 1 && request.resource.data.percent <= 100
+        && request.resource.data.maxUses is int && request.resource.data.maxUses >= 0
+        && (request.resource.data.expires == '' || isDay(request.resource.data.expires))
+        && request.resource.data.active == true
+        && request.resource.data.uses == 0
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && changed().hasOnly(['active'])
+        && request.resource.data.active is bool;
+    }
+
+    // Where families pay: the team's UPI ID and name. Anyone signed in may read it (it is printed on the
+    // QR code anyway); only the team changes it.
+    match /settings/payments {
+      allow read: if signedIn();
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['upiId', 'payeeName', 'note', 'updatedBy', 'updatedAt'])
+        && request.resource.data.upiId.matches('^[a-zA-Z0-9.\\-_]{2,256}@[a-zA-Z]{2,64}$')
+        && shortText(request.resource.data.payeeName, 60)
+        && request.resource.data.note is string && request.resource.data.note.size() <= 200
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+
     match /progress/{studentId} {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.parentPhone == phone());
     }
