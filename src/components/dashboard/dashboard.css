@@ -2,6 +2,9 @@
    Class names carry a pd- prefix so they never collide with the landing styles. */
 .pd {
   min-height: 100vh;
+  /* Screen-reader tables (.pd-sr) keep their natural width; without this the phone page slides sideways. */
+  position: relative;
+  overflow-x: clip;
   background: var(--off-white);
   color: var(--brand-ink);
   font-family: var(--font-body);

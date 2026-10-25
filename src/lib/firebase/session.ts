@@ -97,7 +97,16 @@ export async function signInTeam(): Promise<boolean> {
   return true;
 }
 
-export const signOutNow = () => signOut(firebase().auth);
+// Work to finish while still signed in, such as forgetting this phone for push notifications.
+const beforeSignOut = new Set<() => Promise<void>>();
+export function onBeforeSignOut(task: () => Promise<void>) {
+  beforeSignOut.add(task);
+}
+
+export async function signOutNow() {
+  await Promise.all([...beforeSignOut].map((task) => task().catch(() => undefined)));
+  await signOut(firebase().auth);
+}
 
 /** Plain words for the errors people actually hit. */
 export function authMessage(error: unknown): string {

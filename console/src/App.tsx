@@ -6,6 +6,8 @@ import { rolesFor } from "@/lib/firebase/school";
 import { useSession } from "@/lib/firebase/session";
 import { pageFor, redirectFor } from "./routes";
 
+const Setup = lazy(() => import("./Setup").then((m) => ({ default: m.Setup })));
+
 // Each person downloads only their own page: a parent never loads the team's code, and so on.
 const LoginPage = lazy(() =>
   import("@/components/dashboard/LoginPage").then((m) => ({ default: m.LoginPage })),
@@ -62,7 +64,8 @@ function Waiting() {
  */
 function RoleGate({ page, children }: { page: "parent" | "teacher" | "admin"; children: ReactNode }) {
   const session = useSession();
-  const sample = new URLSearchParams(location.search).has("sample");
+  const params = new URLSearchParams(location.search);
+  const sample = params.has("sample");
   const [allowed, setAllowed] = useState(sample || !firebaseConfigured);
 
   useEffect(() => {
@@ -81,5 +84,15 @@ function RoleGate({ page, children }: { page: "parent" | "teacher" | "admin"; ch
     };
   }, [allowed, session, page]);
 
-  return allowed ? children : <Waiting />;
+  if (!allowed) return <Waiting />;
+  return (
+    <>
+      {children}
+      {((session && !sample) || (sample && params.has("setup"))) && (
+        <Suspense>
+          <Setup session={sample ? null : (session ?? null)} />
+        </Suspense>
+      )}
+    </>
+  );
 }

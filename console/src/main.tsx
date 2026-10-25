@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { BRAND_CSS } from "@/brand/brandCss";
 import { App } from "./App";
+import { watchInstall } from "./install";
 import "./console.css";
 
 // Logo and mascot styles, the same rules stoodant.com inlines in its pages.
@@ -11,6 +12,8 @@ brand.textContent = BRAND_CSS;
 document.head.append(brand);
 // The website's splash plays only on its home page; the app never shows it.
 document.documentElement.setAttribute("data-splash", "off");
+
+watchInstall();
 
 createRoot(document.getElementById("app")!).render(
   <StrictMode>

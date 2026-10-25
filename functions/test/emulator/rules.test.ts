@@ -80,3 +80,31 @@ test("storage: public variants readable, originals admin-only with size and type
   await assertFails(uploadBytes(ref(adminStorage, "originals/teachers/t1/a.exe"), new Uint8Array([1]), { contentType: "application/octet-stream" }));
   await assertFails(uploadBytes(ref(adminStorage, "originals/students/s1/a.jpg"), new Uint8Array([1]), { contentType: "image/jpeg" }));
 });
+
+test("push devices: each phone saves only its own token, as itself; nobody reads them", async () => {
+  const { createHash } = await import("node:crypto");
+  const token = "fcm-token-abc";
+  const id = createHash("sha256").update(token).digest("hex");
+  const parentPhone = "+919876543210";
+  const parent = env.authenticatedContext("p1", { phone_number: parentPhone }).firestore();
+  const device = (over: Record<string, unknown> = {}) => ({
+    uid: "p1", phone: parentPhone, admin: false, token, platform: "android", updatedAt: serverTimestamp(), ...over,
+  });
+  await assertSucceeds(setDoc(doc(parent, "pushDevices", id), device()));
+  // Refreshing on the next open is an update of the same document.
+  await assertSucceeds(setDoc(doc(parent, "pushDevices", id), device({ platform: "android" })));
+  // The id must be the token's hash, the uid and phone must be the caller's, and nobody may claim team alerts.
+  await assertFails(setDoc(doc(parent, "pushDevices", "someone-elses-id"), device()));
+  await assertFails(setDoc(doc(parent, "pushDevices", id), device({ uid: "p2" })));
+  await assertFails(setDoc(doc(parent, "pushDevices", id), device({ phone: "+919999999999" })));
+  await assertFails(setDoc(doc(parent, "pushDevices", id), device({ admin: true })));
+  await assertFails(setDoc(doc(parent, "pushDevices", id), device({ extra: 1 })));
+  await assertFails(getDoc(doc(parent, "pushDevices", id)));
+  // The team's phones are marked admin, which is what team alerts look for.
+  const team = env.authenticatedContext("owner", { admin: true }).firestore();
+  const teamId = createHash("sha256").update("team-token").digest("hex");
+  await assertSucceeds(setDoc(doc(team, "pushDevices", teamId), { uid: "owner", phone: "", admin: true, token: "team-token", platform: "desktop", updatedAt: serverTimestamp() }));
+  // Only the person signed in on the phone can remove it (on log-out).
+  await assertFails(deleteDoc(doc(team, "pushDevices", id)));
+  await assertSucceeds(deleteDoc(doc(parent, "pushDevices", id)));
+});

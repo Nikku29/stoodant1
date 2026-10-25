@@ -87,6 +87,24 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ---- Phones that receive push notifications (app.stoodant.com) ----
+    // One document per browser push token; its id is the token's SHA-256, so only the browser that holds
+    // the token can write it. It names who is signed in on that phone; Cloud Functions read these to send
+    // class reminders to a batch's parents and alerts to the team. Nobody reads them from the browser.
+    match /pushDevices/{deviceId} {
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'phone', 'admin', 'token', 'platform', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.phone == phone()
+        && request.resource.data.admin == (request.auth.token.get('admin', false) == true)
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 0 && request.resource.data.token.size() <= 4096
+        && hashing.sha256(request.resource.data.token).toHexString().lower() == deviceId
+        && request.resource.data.platform in ['android', 'ios', 'desktop']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     // ---- Set up by the team on /admin ----
 
     // Google addresses that may open /admin, one document per address (id = the address, lower case).
