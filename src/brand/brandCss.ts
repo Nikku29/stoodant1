@@ -141,19 +141,16 @@ html:not([data-perf=high]) .ant-celebrate{animation:none}
 @media (max-width:767px){.cta-scene{width:100%;margin:24px auto 0}}
 
 .ps-ant{color:var(--ass-1, #f5f5f5)}
-.ps-ant-dim,.ps-ant-school{color:#737373;--ant-eye:#a3a3a3;--ant-bag:#a3a3a3;--ant-bag-light:#d4d4d4;--ant-bag-deep:#737373}
+.ps-ant-dim,.ps-ant-school{filter:grayscale(1) brightness(.8);opacity:.85}
 .aw{opacity:0}
 ${slideAntSwaps()}
 ${STORY_CSS}
 
-.au-leg-l,.au-leg-r,.au-arm-l,.au-arm-r,.au-body{transform-box:view-box}
-.au-leg-l{transform-origin:36px 77px;animation:au-step ${s(R.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}
-.au-leg-r{transform-origin:44px 77px;animation:au-step ${s(R.step)} linear ${s(-R.step / 2)} infinite;animation-play-state:var(--ant-walk,paused)}
-.au-arm-r{transform-origin:47px 48px;animation:au-step ${s(R.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}
+.au-leg-l,.au-leg-r,.au-body{transform-box:view-box}
+.au-leg-l{transform-origin:35px 67px;animation:au-step ${s(R.step)} linear infinite;animation-play-state:var(--ant-walk,paused)}
+.au-leg-r{transform-origin:47px 67px;animation:au-step ${s(R.step)} linear ${s(-R.step / 2)} infinite;animation-play-state:var(--ant-walk,paused)}
 .au-body{animation:ant-bob ${s(R.step / 2)} ease-in-out infinite alternate;animation-play-state:var(--ant-walk,paused)}
-.au-arm-l{transform-origin:33px 47px;animation:au-wave ${s(R.step * 1.5)} ease-in-out infinite alternate;animation-play-state:var(--ant-wave,paused)}
-@keyframes au-step{0%,100%{transform:none}25%{transform:rotate(14deg)}75%{transform:rotate(-14deg)}}
-@keyframes au-wave{to{transform:rotate(-28deg)}}
+@keyframes au-step{0%,100%{transform:none}25%{transform:rotate(9deg)}75%{transform:rotate(-9deg)}}
 
 .hl{position:relative;display:inline-block;isolation:isolate;white-space:nowrap}
 .hl-swoosh{position:absolute;z-index:-1;left:-.08em;width:calc(100% + .16em);top:.4em;height:.6em;overflow:visible}
