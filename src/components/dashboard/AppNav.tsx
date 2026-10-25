@@ -65,34 +65,81 @@ export function useSection<T extends string>(
   return [section, go, href];
 }
 
+/** A phone's bottom bar fits five; with more screens, the last place is "More", which lists the rest. */
+const BAR = 5;
+
 /** The menu links. Real links, so a long press or middle click opens a screen in a new tab in the app. */
 export function NavLinks<T extends string>({ nav }: { nav: Nav<T> }) {
+  const [more, setMore] = useState(false);
+  const overflow = nav.items.length > BAR;
+  const extra = overflow ? nav.items.slice(BAR - 1) : [];
+  const extraActive = extra.some((i) => i.key === nav.active);
+  const extraBadge = extra.reduce((n, i) => n + (i.badge ?? 0), 0);
+  useEffect(() => {
+    if (!more) return;
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMore(false);
+    addEventListener("keydown", esc);
+    return () => removeEventListener("keydown", esc);
+  }, [more]);
   const open = (e: MouseEvent, key: T) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
+    setMore(false);
     if (key !== nav.active) navigator.vibrate?.(8);
     nav.go(key);
   };
+  const link = (item: NavItem<T>, className?: string) => (
+    <a
+      key={item.key}
+      className={className}
+      href={IN_APP ? nav.href(item.key) : "#"}
+      aria-current={item.key === nav.active ? "page" : undefined}
+      onClick={(e) => open(e, item.key)}
+    >
+      <NavIcon icon={item.icon} badge={item.badge} />
+      <span className="pd-nav-label">{item.label}</span>
+      {item.badge ? <span className="pd-sr">, {item.badge} new</span> : null}
+    </a>
+  );
   return (
-    <nav className="pd-nav" aria-label="Menu">
-      {nav.items.map((item) => (
-        <a
-          key={item.key}
-          href={IN_APP ? nav.href(item.key) : "#"}
-          aria-current={item.key === nav.active ? "page" : undefined}
-          onClick={(e) => open(e, item.key)}
-        >
-          <span className="pd-nav-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d={ICONS[item.icon]} />
-            </svg>
-            {item.badge ? <span className="pd-nav-badge">{item.badge > 9 ? "9+" : item.badge}</span> : null}
-          </span>
-          <span className="pd-nav-label">{item.label}</span>
-          {item.badge ? <span className="pd-sr">, {item.badge} new</span> : null}
-        </a>
-      ))}
-    </nav>
+    <>
+      <nav className="pd-nav" aria-label="Menu">
+        {/* Computers show every screen in the side bar; phones hide the extra ones behind More. */}
+        {nav.items.map((item, i) => link(item, overflow && i >= BAR - 1 ? "pd-nav-extra" : undefined))}
+        {overflow && (
+          <button
+            type="button"
+            className="pd-nav-more"
+            aria-expanded={more}
+            aria-haspopup="true"
+            data-active={extraActive || undefined}
+            onClick={() => setMore((m) => !m)}
+          >
+            <NavIcon icon="more" badge={extraBadge} />
+            <span className="pd-nav-label">More</span>
+          </button>
+        )}
+      </nav>
+      {more && (
+        <>
+          <button type="button" className="pd-more-backdrop" aria-label="Close menu" onClick={() => setMore(false)} />
+          <div className="pd-more-sheet" role="menu">
+            {extra.map((item) => link(item))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+function NavIcon({ icon, badge }: { icon: Icon; badge?: number | undefined }) {
+  return (
+    <span className="pd-nav-icon">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d={ICONS[icon]} />
+      </svg>
+      {badge ? <span className="pd-nav-badge">{badge > 9 ? "9+" : badge}</span> : null}
+    </span>
   );
 }
 
@@ -205,6 +252,11 @@ const ICONS = {
   chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   video: "M3 6h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM16 10l6-3v10l-6-3",
   book: "M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
+  pen: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
+  check: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
+  rupee: "M6 4h12M6 9h12M14 20 7 13h2a4.5 4.5 0 0 0 0-9",
+  tag: "M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01",
   chat: "M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12zM8 10h8M8 14h5",
   help: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 17.5h.01",
   sun: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",

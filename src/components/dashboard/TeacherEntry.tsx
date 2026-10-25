@@ -19,6 +19,29 @@ import { Materials, StudentReport, type BatchNote, type NewMaterial } from "./Te
 
 const copy = DASHBOARD_CONFIG.teacher;
 export type Tab = keyof typeof copy.tabs;
+/**
+ * Each part of the teacher's app is its own screen in the menu: Records (attendance, marks, notes and
+ * reports, which belong together), Classes, Homework, Doubts and Study material.
+ */
+export type Area = "records" | "classes" | "homework" | "doubts" | "material";
+export const RECORD_TABS = [
+  "attendance",
+  "marks",
+  "notes",
+  "overview",
+  "recent",
+] as const satisfies readonly Tab[];
+/** Which screen a tab lives on: a reminder can then open the right screen and tab. */
+export const areaOf = (tab: Tab): Area =>
+  tab === "classes"
+    ? "classes"
+    : tab === "homework"
+      ? "homework"
+      : tab === "doubts"
+        ? "doubts"
+        : tab === "materials"
+          ? "material"
+          : "records";
 export type Batch = {
   name: string;
   schedule: string;
@@ -63,11 +86,13 @@ export type TeacherStore = {
 type Save = (task: () => Promise<void>, message: string) => void;
 
 /**
- * One batch on the teacher's "My batches" screen. The teacher's whole job in three taps: attendance
- * (everyone present unless tapped), test marks (one number per child, checked as they type) and a quick
- * note picked from ready-made lines. The app frame (menu, Help) is TeacherApp's.
+ * One batch on one of the teacher's screens. On Records, the teacher's whole job in three taps:
+ * attendance (everyone present unless tapped), test marks (one number per child, checked as they type)
+ * and a quick note picked from ready-made lines. The app frame (menu, Today, Help) is TeacherApp's.
  */
 export function TeacherEntry({
+  area,
+  title,
   batch,
   store,
   today,
@@ -75,6 +100,9 @@ export function TeacherEntry({
   startTab,
   practiceClasses,
 }: {
+  area: Area;
+  /** The screen's name, e.g. "Doubts". */
+  title: string;
   batch: Batch;
   store?: TeacherStore | undefined;
   today: string;
@@ -84,15 +112,11 @@ export function TeacherEntry({
   /** Practice mode's in-memory classes, shared with the Today screen so both show the same list. */
   practiceClasses?: ClassStore | undefined;
 }) {
-  const hasClasses = !store || Boolean(store.classes);
-  const tabs = (Object.keys(copy.tabs) as Tab[]).filter((t) => t !== "classes" || hasClasses);
-  const [tab, setTab] = useState<Tab>(() => {
-    if (startTab && tabs.includes(startTab)) return startTab;
-    const q = new URLSearchParams(typeof location === "undefined" ? "" : location.search);
-    // A doubt's push opens /teacher?batch=...&doubt=...
-    if (q.has("doubt")) return "doubts";
-    return q.get("class") && hasClasses ? "classes" : "attendance";
-  });
+  const tabs: readonly Tab[] =
+    area === "records" ? RECORD_TABS : [area === "material" ? "materials" : area];
+  const [tab, setTab] = useState<Tab>(() =>
+    startTab && tabs.includes(startTab) ? startTab : tabs[0]!,
+  );
   const classStore = useMemo(
     () => store?.classes ?? practiceClasses ?? practiceClassStore(),
     [store, practiceClasses],
@@ -127,30 +151,39 @@ export function TeacherEntry({
 
   return (
     <>
-      <p className="pd-banner">{store ? copy.liveBanner : copy.sampleBanner}</p>
-      {picker}
+      {!store && <p className="pd-banner">{copy.sampleBanner}</p>}
       <section className="pd-child">
-        <h1>{batch.name}</h1>
-        <p>{batch.schedule}</p>
+        <h1>{title}</h1>
+        <p>
+          {batch.name} · {batch.schedule}
+        </p>
       </section>
+      {picker}
 
-      <div className="pd-tabs" role="tablist" aria-label="What to enter">
-        {tabs.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            id={`pd-tab-${t}`}
-            aria-selected={tab === t}
-            aria-controls={`pd-panel-${t}`}
-            onClick={() => show(t)}
-          >
-            {copy.tabs[t]}
-          </button>
-        ))}
-      </div>
+      {tabs.length > 1 && (
+        <div className="pd-tabs" role="tablist" aria-label="What to enter">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              id={`pd-tab-${t}`}
+              aria-selected={tab === t}
+              aria-controls={`pd-panel-${t}`}
+              onClick={() => show(t)}
+            >
+              {copy.tabs[t]}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <div role="tabpanel" id={`pd-panel-${tab}`} aria-labelledby={`pd-tab-${tab}`}>
+      {store && area === "records" && <p className="pd-hint">{copy.liveBanner}</p>}
+      <div
+        role={tabs.length > 1 ? "tabpanel" : undefined}
+        id={`pd-panel-${tab}`}
+        aria-labelledby={tabs.length > 1 ? `pd-tab-${tab}` : undefined}
+      >
         {tab === "classes" && (
           <TeacherClasses
             store={classStore}

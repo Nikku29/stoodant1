@@ -15,7 +15,15 @@ export const DASHBOARD_CONFIG = {
   // The menu of each person's app, in order; the first screen is their home.
   nav: {
     parent: { home: "Home", progress: "Progress", classes: "Classes", material: "Material", help: "Ask" },
-    teacher: { today: "Today", batches: "My batches", help: "Help" },
+    teacher: {
+      today: "Today",
+      records: "Records",
+      homework: "Homework",
+      doubts: "Doubts",
+      classes: "Classes",
+      material: "Study material",
+      help: "Help",
+    },
     admin: { today: "Today", leads: "Demos", people: "People", batches: "Batches", help: "Help" },
   },
   home: {
@@ -87,6 +95,7 @@ export const DASHBOARD_CONFIG = {
     allSubjects: "All subjects",
   },
   teacher: {
+    materialNav: "Material",
     sampleBanner: "Practice mode. Nothing is saved yet, so feel free to try it.",
     tabs: {
       classes: "Classes",
@@ -95,7 +104,7 @@ export const DASHBOARD_CONFIG = {
       homework: "Homework",
       doubts: "Doubts",
       notes: "Notes",
-      overview: "Class",
+      overview: "Class report",
       recent: "Recent",
       materials: "Study material",
     },
