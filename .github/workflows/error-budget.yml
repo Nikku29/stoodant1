@@ -1,0 +1,39 @@
+# DevOps level 7: while the 99.9% availability targets have error budget left, pull requests merge and ship as
+# usual. Once a budget is used up this check fails, which (with "Error budget" required in branch protection)
+# freezes merges to main, and so Vercel and Firebase deploys, except pull requests labelled "reliability".
+name: Error budget
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budget:
+    name: Error budget
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # Read-only account (monitoring.viewer only), never the deployer. Skipped until the variables exist
+      # and for pull requests from forks, which can't get a token.
+      - id: auth
+        if: vars.GCP_WIF_PROVIDER != '' && vars.GCP_SLO_SA != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SLO_SA }}
+          token_format: access_token
+      - run: node scripts/error-budget.mjs
+        env:
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          DEPLOY_FREEZE: ${{ vars.DEPLOY_FREEZE }}
