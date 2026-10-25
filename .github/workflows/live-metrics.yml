@@ -1,0 +1,28 @@
+# DevOps level 6: every Monday, measure the live site on a mid-range phone profile and compare with its normal.
+# A failed run (GitHub emails the owner) means something got slower or heavier since the baseline.
+name: Live site metrics
+
+on:
+  schedule:
+    - cron: "30 3 * * 1" # Monday 09:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npx -y @lhci/cli@0.15.1 collect --no-lighthouserc --url=https://stoodant.com/ --numberOfRuns=5 --settings.chromeFlags="--no-sandbox --headless=new"
+      - run: node scripts/compare-lighthouse.mjs .lighthouseci
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-live
+          path: .lighthouseci
+          retention-days: 30
