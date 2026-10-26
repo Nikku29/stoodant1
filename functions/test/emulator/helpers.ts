@@ -11,6 +11,20 @@ export async function clearFirestore(): Promise<void> {
   if (!response.ok) throw new Error(`clear failed: ${response.status}`);
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Empties the database between tests. Triggers from the last test get a moment to finish first. Then,
+ * after the clear, its own delete triggers get a moment too: the clear fires one for every document, and
+ * one that ran after the next seed would undo it (a teacher's delete clears the phone on the new batch,
+ * a student's delete removes the new progress page). On an empty database they change nothing.
+ */
+export async function freshDatabase(env: { clearFirestore(): Promise<void> }) {
+  await sleep(1000);
+  await env.clearFirestore();
+  await sleep(1500);
+}
+
 export function leadBody(overrides: Record<string, unknown> = {}) {
   return {
     idempotencyKey: randomUUID(),

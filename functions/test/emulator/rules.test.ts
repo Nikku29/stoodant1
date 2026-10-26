@@ -5,7 +5,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref, getBytes, uploadBytes } from "firebase/storage";
-import { PROJECT_ID } from "./helpers.ts";
+import { PROJECT_ID, freshDatabase } from "./helpers.ts";
 
 let env: RulesTestEnvironment;
 const rules = (file: string) => readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
@@ -22,7 +22,7 @@ before(async () => {
 after(() => env.cleanup());
 
 beforeEach(async () => {
-  await env.clearFirestore();
+  await freshDatabase(env);
   await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), "leads/l1"), { status: "new", parentName: "A", parentPhoneE164: "+919876543210", consent: { by: "parent" } });
     await setDoc(doc(ctx.firestore(), "consentLog/c1"), { subjectId: "l1" });

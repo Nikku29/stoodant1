@@ -8,7 +8,7 @@ import {
   collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, where, type DocumentData,
 } from "firebase/firestore";
 import { initializeApp as initAdmin, getApps } from "firebase-admin/app";
-import { PROJECT_ID } from "./helpers.ts";
+import { PROJECT_ID, freshDatabase } from "./helpers.ts";
 import { sendClassReminders } from "../../lib/classes/reminders.js";
 
 // Live classes: scheduling through the functions (who may, links, clashes, series), what the rules let
@@ -32,8 +32,7 @@ before(async () => {
 after(() => env.cleanup());
 
 beforeEach(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  await env.clearFirestore();
+  await freshDatabase(env);
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     const batch = (id: string, over: DocumentData) => setDoc(doc(db, "batches", id), {

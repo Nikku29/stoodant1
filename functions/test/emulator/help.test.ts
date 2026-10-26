@@ -5,7 +5,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
-import { PROJECT_ID, waitFor } from "./helpers.ts";
+import { PROJECT_ID, waitFor, freshDatabase } from "./helpers.ts";
 
 // "Need help?": who may ask, what is saved, the per-hour limit, the team alert, and who may read it.
 
@@ -23,8 +23,7 @@ before(async () => {
 after(() => env.cleanup());
 
 beforeEach(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  await env.clearFirestore();
+  await freshDatabase(env);
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, "teachers/t1"), { name: "Priya Ma'am", nameKey: "priya ma'am", phone: TEACHER, subjects: ["Maths"], active: true });
