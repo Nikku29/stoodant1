@@ -259,6 +259,7 @@ export const SITE_CONFIG = {
     // Linked from the footer; the pages' text lives in pagesConfig.ts so it stays out of the landing page.
     pages: [
       { label: "About Stoodant", href: "/about" },
+      { label: "Blog", href: "/blog" },
       { label: "Privacy policy", href: "/privacy" },
       { label: "Terms of service", href: "/terms" },
       { label: "Refund policy", href: "/refund-policy" },

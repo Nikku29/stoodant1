@@ -32,6 +32,12 @@ export const PAGES_CONFIG = {
           "We started Stoodant to give this stage the attention it deserves: small batches, teachers who explain clearly, and a pace that fits each child.",
         ],
       },
+      {
+        heading: "About the name",
+        paragraphs: [
+          "Stoodant is spelled S-T-O-O-D-A-N-T. It's a play on \"student\", because everything we do starts with the student, and it's our brand name, not a typo. If a search engine changes it to \"student\", choose \"search instead for stoodant\" or go straight to stoodant.com.",
+        ],
+      },
     ],
     foundersHeading: "Founders",
     // Founder details for founders who aren't in the teacher list (teachers' highlights and quotes come from siteConfig).

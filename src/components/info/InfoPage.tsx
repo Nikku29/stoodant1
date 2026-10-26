@@ -25,8 +25,8 @@ function Section({ section }: { section: InfoSection }) {
   );
 }
 
-/** Plain, readable layout shared by About, Privacy, Terms and Refund. */
-export function InfoPage({ page, path, showUpdated = false, children }: { page: InfoPageContent; path: string; showUpdated?: boolean; children?: ReactNode }) {
+/** Plain, readable layout shared by About, Privacy, Terms, Refund and the blog. */
+export function InfoPage({ page, path, showUpdated = false, byline, children }: { page: InfoPageContent; path: string; showUpdated?: boolean; byline?: string; children?: ReactNode }) {
   const links = SITE_CONFIG.footer.pages;
   return (
     <div className="min-h-screen bg-white text-[var(--ink)]">
@@ -39,6 +39,7 @@ export function InfoPage({ page, path, showUpdated = false, children }: { page: 
       <main className="mx-auto max-w-3xl px-4 py-12 sm:py-16">
         <h1 className="font-[family-name:var(--font-display)] text-4xl font-extrabold leading-tight sm:text-5xl">{page.heading}</h1>
         {showUpdated && <p className="mt-3 text-sm text-neutral-500">{PAGES_CONFIG.lastUpdatedLabel}: {PAGES_CONFIG.lastUpdated}</p>}
+        {byline && <p className="mt-3 text-sm text-neutral-500">{byline}</p>}
         <p className="mt-6 text-lg leading-8">{fillText(page.intro)}</p>
         {page.sections.map((section) => <Section key={section.heading} section={section} />)}
         {children}

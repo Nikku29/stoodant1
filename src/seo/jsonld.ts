@@ -40,6 +40,8 @@ export function homeJsonLd() {
       "@type": "EducationalOrganization",
       "@id": ORG_ID,
       name: SITE_CONFIG.brand.name,
+      // The brand is often autocorrected to "student"; alternate names help search engines and AI tools tie it to this site.
+      alternateName: [`${SITE_CONFIG.brand.name} Online Tuition`, "stoodant.com"],
       url: `${site}/`,
       logo: `${site}/apple-touch-icon.png`,
       image: `${site}/og-image.png`,
@@ -85,6 +87,7 @@ export function homeJsonLd() {
       "@type": "WebSite",
       "@id": `${site}/#website`,
       name: SITE_CONFIG.brand.name,
+      alternateName: "stoodant.com",
       url: `${site}/`,
       inLanguage: "en-IN",
       publisher: { "@id": ORG_ID },

@@ -3,6 +3,7 @@ import { SITE_CONFIG } from "@/config/siteConfig";
 import { faqAnswer } from "@/lib/faq";
 import { homeJsonLd } from "@/seo/jsonld";
 import { llmsTxt, robotsTxt, sitemapXml } from "@/seo/files";
+import { BLOG_POSTS, blogPostPath } from "@/content/blog";
 
 describe("SEO output", () => {
   it("fills every FAQ placeholder", () => {
@@ -21,6 +22,14 @@ describe("SEO output", () => {
     expect(robotsTxt()).toContain(`Sitemap: ${SITE_CONFIG.siteUrl}/sitemap.xml`);
     expect(sitemapXml()).not.toMatch(/login|parent|teacher|admin/);
     expect(llmsTxt()).toContain(SITE_CONFIG.contact.phone);
+  });
+
+  it("lists every blog post in the sitemap and llms.txt, with unique slugs", () => {
+    expect(new Set(BLOG_POSTS.map((post) => post.slug)).size).toBe(BLOG_POSTS.length);
+    for (const post of BLOG_POSTS) {
+      expect(sitemapXml()).toContain(`${SITE_CONFIG.siteUrl}${blogPostPath(post.slug)}<`);
+      expect(llmsTxt()).toContain(blogPostPath(post.slug));
+    }
   });
 });
 
