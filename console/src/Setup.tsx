@@ -1,30 +1,46 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { enableNotifications, permission, registerDevice } from "@/lib/firebase/push";
 import type { Session } from "@/lib/firebase/session";
 import { browserKind, canPrompt, isInstalled, onInstallChange, promptInstall } from "./install";
 import "./setup.css";
 
-const LATER = "stoodant-setup-later";
-const later = () => {
+const SEEN = "stoodant-setup-seen";
+const seen = () => {
   try {
-    return sessionStorage.getItem(LATER) === "1";
+    return localStorage.getItem(SEEN) === "1";
   } catch {
     return false;
   }
 };
+/** The header keeps a slot for the setup icon (see Shell), so it never covers the menu or the page. */
+const SLOT = "pd-setup-slot";
+function useSlot() {
+  const [slot, setSlot] = useState<HTMLElement | null>(() => document.getElementById(SLOT));
+  useEffect(() => {
+    const find = () => setSlot(document.getElementById(SLOT));
+    const watch = new MutationObserver(find);
+    watch.observe(document.body, { childList: true, subtree: true });
+    find();
+    return () => watch.disconnect();
+  }, []);
+  return slot;
+}
 
 /**
- * Right after log-in: install the app, then allow notifications, so class reminders reach the phone.
- * Shown on every open until both are done. "Later" hides it until the app is next opened, leaving a small
- * "Finish setup" button. iPhones only allow notifications once the app is on the home screen.
+ * After log-in: install the app, then allow notifications, so class reminders reach the phone. The steps
+ * open by themselves only the first time on each phone; after that a small bell in the header opens them,
+ * until both are done. They close with Not now, the cross, Escape or a tap outside, so they never block
+ * the page. iPhones only allow notifications once the app is on the home screen.
  * In practice mode (`?sample=1&setup=1`) it shows with nobody signed in, for demos and tests.
  */
 export function Setup({ session }: { session: Session | null }) {
   const promptReady = useSyncExternalStore(onInstallChange, canPrompt, () => false);
   const [installed, setInstalled] = useState(isInstalled);
   const [allowed, setAllowed] = useState(permission);
-  const [open, setOpen] = useState(() => !later());
+  const [open, setOpen] = useState(() => !seen());
+  const slot = useSlot();
   const [busy, setBusy] = useState(false);
   const kind = browserKind();
 
@@ -37,13 +53,19 @@ export function Setup({ session }: { session: Session | null }) {
   const installPossible = kind !== "desktop" || promptReady;
   const needInstall = !installed && installPossible;
   const needNotify = allowed !== "granted" && !(allowed === "unsupported" && kind === "desktop");
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && hide();
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [open]);
   if (!needInstall && !needNotify) return null;
 
   const hide = () => {
     try {
-      sessionStorage.setItem(LATER, "1");
+      localStorage.setItem(SEEN, "1");
     } catch {
-      // Private mode: it simply shows again next time.
+      // Private mode: it opens again next time.
     }
     setOpen(false);
   };
@@ -61,16 +83,29 @@ export function Setup({ session }: { session: Session | null }) {
   };
 
   if (!open)
-    return (
-      <button type="button" className="st-later" onClick={() => setOpen(true)}>
-        <Bell /> Finish setup: get class reminders
-      </button>
-    );
+    return slot
+      ? createPortal(
+          <button
+            type="button"
+            className="st-bell"
+            onClick={() => setOpen(true)}
+            aria-label="Finish setup: install the app and get class reminders"
+            title="Install the app and get class reminders"
+          >
+            <Bell />
+            <span className="st-dot" aria-hidden="true" />
+          </button>,
+          slot,
+        )
+      : null;
 
   const iosWaiting = kind.startsWith("ios") && !installed;
   return (
-    <div className="st-backdrop">
+    <div className="st-backdrop" onClick={(e) => e.target === e.currentTarget && hide()}>
       <section className="st-sheet" role="dialog" aria-modal="true" aria-labelledby="st-title">
+        <button type="button" className="st-close" onClick={hide} aria-label="Close">
+          ×
+        </button>
         <h2 id="st-title">Set up the Stoodant app</h2>
         <p className="st-lead">Two quick steps so you never miss a class.</p>
 
@@ -112,8 +147,9 @@ export function Setup({ session }: { session: Session | null }) {
         </Step>
 
         <button type="button" className="st-skip" onClick={hide}>
-          Later
+          Not now
         </button>
+        <p className="st-note">You can do this any time from the bell at the top.</p>
       </section>
     </div>
   );

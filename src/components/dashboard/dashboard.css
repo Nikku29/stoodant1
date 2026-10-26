@@ -2593,3 +2593,12 @@
 .pd-tabs .pd-count {
   margin-left: 6px;
 }
+.pd-setup-slot {
+  display: contents;
+}
+/* Small phones: with the setup bell and Log out, the role label is what gives way. */
+@media (max-width: 400px) {
+  .pd-top-end:has(.st-bell) .pd-role {
+    display: none;
+  }
+}
