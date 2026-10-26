@@ -27,14 +27,16 @@ import { Tile, useSection, type Nav } from "./AppNav";
 import { AttendanceChart, MarksChart } from "./Charts";
 import { FamilyDoubts, unseenAnswers, type FamilyDoubtStore } from "./Doubts";
 import { FamilyFees, type FamilyFeeStore } from "./Fees";
+import { Paywall, longDay, usePlan, type PlanState } from "./Plan";
 import { rupees, type Fee } from "@/lib/firebase/fees";
 import { HelpBox } from "./HelpBox";
 import { ParentClasses } from "./LiveClasses";
 import { MaterialList } from "./MaterialList";
 import { FamilyNotices, type FamilyNoticeStore } from "./Notices";
-import { Shell } from "./Shell";
+import { Loading, Shell } from "./Shell";
 
 const copy = DASHBOARD_CONFIG.parent;
+const planCopy = DASHBOARD_CONFIG.plan;
 const home = DASHBOARD_CONFIG.home;
 const { attendanceGood, attendanceWatch } = DASHBOARD_CONFIG.insights;
 type PeriodKind = "week" | "month";
@@ -82,6 +84,7 @@ export function ParentDashboard({
   notices,
   doubts,
   fees,
+  payFirst = false,
 }: {
   records: StudentRecords;
   today: string;
@@ -104,6 +107,8 @@ export function ParentDashboard({
   doubts?: FamilyDoubtStore | undefined;
   /** Fees to pay by UPI, with receipts. Left out, no Fees screen. */
   fees?: FamilyFeeStore | undefined;
+  /** Until the child's plan is paid (or after it pauses), only the payment screen shows. */
+  payFirst?: boolean;
 }) {
   const hasClasses = Boolean(classes);
   const hasMaterials = Boolean(materials);
@@ -132,7 +137,8 @@ export function ParentDashboard({
       live = false;
     };
   }, [doubts, studentId]);
-  // Fees still to pay, as a badge on Fees and a note on Home. Loaded again after visiting Fees.
+  // Fees still to pay, as a badge on Fees and a note on Home. Loaded again after visiting Fees. A plan
+  // payment the family started and left is not nagged about: the plan's own note on Home covers renewing.
   const [due, setDue] = useState<Fee[]>([]);
   useEffect(() => {
     if (!fees || section === "fees") return;
@@ -140,13 +146,19 @@ export function ParentDashboard({
     fees.list().then(
       (list) =>
         live &&
-        setDue(list.filter((f) => f.status === "due").sort((a, b) => a.due.localeCompare(b.due))),
+        setDue(
+          list
+            .filter((f) => f.status === "due" && f.kind !== "plan")
+            .sort((a, b) => a.due.localeCompare(b.due)),
+        ),
       () => undefined,
     );
     return () => {
       live = false;
     };
   }, [fees, section]);
+  const [plan, reloadPlan] = usePlan(fees, today);
+  const renew = plan?.status === "ending" || plan?.status === "grace";
   useEffect(() => {
     if (section !== "help" || !unseen.length) return;
     markSeen(studentId);
@@ -157,7 +169,7 @@ export function ParentDashboard({
       key,
       label: DASHBOARD_CONFIG.nav.parent[key],
       icon: ICON[key],
-      badge: key === "help" ? unseen.length : key === "fees" ? due.length : 0,
+      badge: key === "help" ? unseen.length : key === "fees" ? due.length + (renew ? 1 : 0) : 0,
     })),
     active: section,
     go,
@@ -178,6 +190,30 @@ export function ParentDashboard({
     </a>
   );
 
+  if (payFirst && fees && plan === undefined)
+    return (
+      <Shell role="Parent" onSignOut={onSignOut}>
+        <Loading />
+      </Shell>
+    );
+  if (payFirst && fees && plan && !plan.open)
+    return (
+      <Shell role="Parent" onSignOut={onSignOut}>
+        {sample && <p className="pd-banner">{copy.sampleBanner}</p>}
+        {picker}
+        <Paywall records={records} state={plan} hello={home.parentHello}>
+          <FamilyFees
+            store={fees}
+            childName={student.name}
+            planState={plan}
+            paywall
+            today={today}
+            onChanged={reloadPlan}
+          />
+        </Paywall>
+      </Shell>
+    );
+
   return (
     <Shell role="Parent" onSignOut={onSignOut} nav={nav}>
       {sample && <p className="pd-banner">{copy.sampleBanner}</p>}
@@ -190,6 +226,7 @@ export function ParentDashboard({
           notices={notices}
           unseen={unseen}
           due={due}
+          plan={plan}
           go={go}
         />
       )}
@@ -212,7 +249,13 @@ export function ParentDashboard({
       {section === "fees" && fees && (
         <>
           <ChildHeading records={records} title={DASHBOARD_CONFIG.nav.parent.fees} />
-          <FamilyFees store={fees} childName={student.name} />
+          <FamilyFees
+            store={fees}
+            childName={student.name}
+            planState={plan}
+            today={today}
+            onChanged={reloadPlan}
+          />
         </>
       )}
       {section === "material" && materials && (
@@ -257,12 +300,14 @@ function ParentHome({
   notices,
   unseen,
   due,
+  plan,
   go,
 }: {
   records: StudentRecords;
   today: string;
   unseen: Doubt[];
   due: Fee[];
+  plan?: PlanState | null | undefined;
   classes?:
     { load: () => Promise<LiveClass[]>; onJoin?: ((c: LiveClass) => void) | undefined } | undefined;
   notices?: FamilyNoticeStore | undefined;
@@ -288,6 +333,17 @@ function ParentHome({
         </p>
       </section>
 
+      {plan && (plan.status === "ending" || plan.status === "grace") && (
+        <button type="button" className="pd-newans pd-feedue" onClick={() => go("fees")}>
+          <span>
+            {(plan.status === "ending" ? planCopy.homeEnding : planCopy.homeGrace)
+              .replace("{child}", student.name.split(" ")[0] ?? student.name)
+              .replace("{date}", longDay(plan.billing?.paidUntil ?? ""))}
+          </span>
+          <span className="pd-link">{planCopy.renewShort} →</span>
+        </button>
+      )}
+      {plan?.status === "checking" && <p className="pd-hint">{planCopy.homeChecking}</p>}
       {due.length > 0 && (
         <button type="button" className="pd-newans pd-feedue" onClick={() => go("fees")}>
           <span>

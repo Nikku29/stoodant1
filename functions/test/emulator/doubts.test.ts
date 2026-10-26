@@ -7,7 +7,7 @@ import {
 import {
   collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, type DocumentData,
 } from "firebase/firestore";
-import { PROJECT_ID, waitFor, freshDatabase } from "./helpers.ts";
+import { PROJECT_ID, waitFor, freshDatabase, paidPlan, plansBuilt } from "./helpers.ts";
 
 // Doubts: a family asks a teacher of their own child's batch, reads only their child's doubts and can take
 // one back until it is answered; the batch's teacher answers. The functions fill in the batch details.
@@ -37,6 +37,8 @@ beforeEach(async () => {
     await setDoc(doc(db, "teachers/t2"), { name: "Ravi Sir", nameKey: "ravi sir", phone: OTHER_TEACHER, subjects: ["Science"], active: true });
     await batch("b1", { name: "Class 7 Maths A", subject: "Maths", teacherId: "t1", teacherPhone: TEACHER, roster: [{ id: "s1", name: "Aarav" }], studentIds: ["s1"] });
     await batch("b3", { name: "Class 8 Maths B", subject: "Maths", teacherId: "t2", teacherPhone: OTHER_TEACHER, roster: [{ id: "s2", name: "Diya" }], studentIds: ["s2"] });
+    await setDoc(doc(db, "fees/plan-s1"), paidPlan("s1"));
+    await setDoc(doc(db, "fees/plan-s2"), paidPlan("s2"));
     await setDoc(doc(db, "students/s1"), { name: "Aarav", nameKey: "aarav", parentPhone: PARENT, batchIds: ["b1"], active: true });
     await setDoc(doc(db, "students/s2"), { name: "Diya", nameKey: "diya", parentPhone: OTHER_PARENT, batchIds: ["b3"], active: true });
     await setDoc(doc(db, "progress/s1"), { parentPhone: PARENT });
@@ -44,6 +46,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "batchAccess/b1"), { parentPhones: [PARENT] });
     await setDoc(doc(db, "batchAccess/b3"), { parentPhones: [OTHER_PARENT] });
   });
+  await plansBuilt(["s1", "s2"]);
 });
 
 const as = (uid: string, phone: string) => env.authenticatedContext(uid, { phone_number: phone }).firestore();

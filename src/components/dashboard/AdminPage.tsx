@@ -705,6 +705,21 @@ function Students({ data, act }: { data: Data; act: Act }) {
           placeholder="98765 43210"
         />
         <PhoneCheck phone={phone} />
+        <Text
+          label="Monthly fee in rupees (the family pays this in the app)"
+          inputMode="numeric"
+          value={form.monthlyFee ? String(form.monthlyFee) : ""}
+          onChange={(v) => {
+            const n = Number(v.replace(/[^0-9]/g, "").slice(0, 6));
+            set({ monthlyFee: n > 200000 ? 200000 : n });
+          }}
+          placeholder="2999"
+        />
+        {!form.monthlyFee && (
+          <p className="pd-muted" style={{ margin: 0 }}>
+            Without a monthly fee the family sees "fee being set up" and can't pay yet.
+          </p>
+        )}
         <fieldset className="pd-stack" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="pd-field">Batches</legend>
           {data.batches.length ? (

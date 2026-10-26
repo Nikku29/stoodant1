@@ -3,6 +3,8 @@ import { logger } from "firebase-functions/v2";
 import type { Change, DocumentSnapshot, FirestoreEvent } from "firebase-functions/v2/firestore";
 import { syncKeys } from "./keys.js";
 import { rebuildProgress } from "./progress.js";
+import { refreshRoster } from "./roster.js";
+import { rebuildBilling } from "../billing/billing.js";
 
 // Teachers and the admin write the raw records; these triggers keep the derived fields that rules and
 // dashboards rely on: each batch's roster and teacher phone, and each child's `progress` page.
@@ -31,38 +33,6 @@ async function rebuildAll(studentIds: Iterable<string>) {
   for (const id of new Set(studentIds)) await rebuildProgress(db, id);
 }
 
-/**
- * Recomputes a batch's roster from the students who list it, so teachers never read parents' details.
- * The parents' numbers go to `batchAccess/{batchId}` instead, which only the rules read (study material).
- */
-async function refreshRoster(batchId: string) {
-  const db = getFirestore();
-  const batchRef = db.doc(`batches/${batchId}`);
-  const accessRef = db.doc(`batchAccess/${batchId}`);
-  const [batch, students] = await Promise.all([
-    batchRef.get(),
-    db.collection("students").where("batchIds", "array-contains", batchId).get(),
-  ]);
-  if (!batch.exists) {
-    await accessRef.delete();
-    return;
-  }
-  const enrolled = students.docs.filter((s) => s.get("active") !== false);
-  const parentPhones = [...new Set(enrolled.map((s) => String(s.get("parentPhone") ?? "")).filter(Boolean))].sort();
-  const access = await accessRef.get();
-  if (!sameList(ids(access.get("parentPhones")), parentPhones)) await accessRef.set({ parentPhones });
-  // Two children can share a name; the id keeps their order the same on every rebuild.
-  const roster = enrolled
-    .map((s) => ({ id: s.id, name: String(s.get("name") ?? "") }))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  const studentIds = roster.map((s) => s.id);
-  const current = batch.data()!;
-  const sameRoster =
-    sameList(ids(current.studentIds), studentIds) &&
-    sameList((current.roster ?? []).map((s: { name?: string }) => s.name ?? ""), roster.map((s) => s.name));
-  if (!sameRoster) await batchRef.update({ roster, studentIds, updatedAt: FieldValue.serverTimestamp() });
-}
-
 export async function handleStudentWritten(event: Written) {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
@@ -77,6 +47,8 @@ export async function handleStudentWritten(event: Written) {
     !before || !after || before.name !== after.name || before.active !== after.active ||
     before.parentPhone !== after.parentPhone ||
     !sameList(ids(before.batchIds), ids(after.batchIds));
+  // The plan first: the roster lets in only families whose classes are open.
+  await rebuildBilling(db, studentId);
   if (rosterChanged) for (const id of batchIds) await refreshRoster(id);
   await rebuildProgress(db, studentId);
 }

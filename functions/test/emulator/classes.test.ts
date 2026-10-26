@@ -8,7 +8,7 @@ import {
   collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, where, type DocumentData,
 } from "firebase/firestore";
 import { initializeApp as initAdmin, getApps } from "firebase-admin/app";
-import { PROJECT_ID, freshDatabase } from "./helpers.ts";
+import { PROJECT_ID, freshDatabase, paidPlan, plansBuilt } from "./helpers.ts";
 import { sendClassReminders } from "../../lib/classes/reminders.js";
 
 // Live classes: scheduling through the functions (who may, links, clashes, series), what the rules let
@@ -44,6 +44,8 @@ beforeEach(async () => {
     await batch("b1", { name: "Class 7 Maths A", subject: "Maths", teacherId: "t1", teacherPhone: TEACHER, teacherName: "Priya Ma'am", roster: [{ id: "s1", name: "Aarav" }], studentIds: ["s1"] });
     await batch("b2", { name: "Class 7 Science A", subject: "Science", teacherId: "t2", teacherPhone: OTHER_TEACHER, teacherName: "Ravi Sir", roster: [{ id: "s1", name: "Aarav" }], studentIds: ["s1"] });
     await batch("b3", { name: "Class 8 Maths B", subject: "Maths", teacherId: "t1", teacherPhone: TEACHER, teacherName: "Priya Ma'am", roster: [{ id: "s2", name: "Diya" }], studentIds: ["s2"] });
+    await setDoc(doc(db, "fees/plan-s1"), paidPlan("s1"));
+    await setDoc(doc(db, "fees/plan-s2"), paidPlan("s2"));
     await setDoc(doc(db, "students/s1"), { name: "Aarav", nameKey: "aarav", parentPhone: PARENT, batchIds: ["b1", "b2"], active: true });
     await setDoc(doc(db, "students/s2"), { name: "Diya", nameKey: "diya", parentPhone: OTHER_PARENT, batchIds: ["b3"], active: true });
     await setDoc(doc(db, "progress/s1"), { parentPhone: PARENT });
@@ -52,6 +54,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "batchAccess/b2"), { parentPhones: [PARENT] });
     await setDoc(doc(db, "batchAccess/b3"), { parentPhones: [OTHER_PARENT] });
   });
+  await plansBuilt(["s1", "s2"]);
 });
 
 /** An unsigned ID token, which the emulators accept, for calling the functions as someone. */

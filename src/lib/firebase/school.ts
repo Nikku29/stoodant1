@@ -55,6 +55,8 @@ export type Student = {
   batchIds: string[];
   whatsappOptIn: boolean;
   active: boolean;
+  /** Whole rupees a month; 0 or missing = not set (the family can't pay yet). */
+  monthlyFee?: number;
 };
 export type Lead = {
   id: string;
@@ -303,7 +305,7 @@ type Editable = "teachers" | "students" | "batches";
 /** The fields the team edits. Anything else on a loaded record (id, rosters, nameKey) is never sent back. */
 const EDITABLE: Record<Editable, string[]> = {
   teachers: ["name", "phone", "subjects", "active"],
-  students: ["name", "classLevel", "board", "parentName", "parentPhone", "batchIds", "whatsappOptIn", "active"],
+  students: ["name", "classLevel", "board", "parentName", "parentPhone", "batchIds", "whatsappOptIn", "active", "monthlyFee"],
   batches: ["name", "classLevel", "board", "subject", "teacherId", "schedule", "durationMinutes", "active"],
 };
 

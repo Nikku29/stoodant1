@@ -9,7 +9,7 @@ import {
   type DocumentSnapshot, type Firestore,
 } from "firebase/firestore";
 import { getBytes, ref, uploadBytes } from "firebase/storage";
-import { PROJECT_ID, waitFor, freshDatabase } from "./helpers.ts";
+import { PROJECT_ID, waitFor, freshDatabase, paidPlan, plansBuilt } from "./helpers.ts";
 import { keyOf } from "../../src/school/keys.ts";
 
 let env: RulesTestEnvironment;
@@ -47,6 +47,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "uniqueKeys", keyOf("students", s1)!), { kind: "students", id: "s1" });
     await setDoc(doc(db, "teachers/t1"), t1);
     await setDoc(doc(db, "teachers/t2"), t2);
+    await setDoc(doc(db, "fees/plan-s1"), paidPlan("s1"));
     await setDoc(doc(db, "students/s1"), s1);
     await setDoc(doc(db, "batches/b1"), {
       name: "Class 7 Maths A", classLevel: "7", board: "CBSE", subject: "Maths", teacherId: "t1", schedule: "Mon Wed 5pm",
@@ -56,6 +57,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "batchAccess/b1"), { parentPhones: [PARENT] });
     await setDoc(doc(db, "leads/l1"), { parentName: "Test", status: "new" });
   });
+  await plansBuilt(["s1"]);
 });
 
 /** Reads past the rules (withSecurityRulesDisabled itself resolves to nothing). */
@@ -257,7 +259,13 @@ test("progress pages and rosters follow what teachers and the team enter", async
     return ids?.length === 2 ? ids : undefined;
   });
   assert.deepEqual(roster, ["s1", "s2"]);
-  // Parents' numbers go to batchAccess (for study material), never onto the batch teachers read.
+  // Parents' numbers go to batchAccess (for study material), never onto the batch teachers read; a family
+  // is let in once their child's plan is paid.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  assert.deepEqual((await peek("batchAccess/b1")).get("parentPhones"), [PARENT]);
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "fees/plan-s2"), paidPlan("s2"));
+  });
   const phones = await waitFor(async () => {
     const list = (await peek("batchAccess/b1")).get("parentPhones") as string[] | undefined;
     return list?.length === 2 ? list : undefined;
