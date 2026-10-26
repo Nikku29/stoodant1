@@ -4,7 +4,7 @@ import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import {
   GRACE_DAYS,
-  PLAN_MONTHS,
+  MAX_PLAN_MONTHS,
   addDays,
   billingStatus,
   nextPeriod,
@@ -129,7 +129,7 @@ export function PlanCard({
   );
 }
 
-/** 1, 3, 6 or 12 months: the price, any discount for paying ahead, and the days each one covers. */
+/** Months to pay for (1 to 12), with the price worked out line by line and the days it covers. */
 export function PlanPicker({
   billing,
   pay,
@@ -148,12 +148,12 @@ export function PlanPicker({
   onCancel?: (() => void) | undefined;
 }) {
   const [months, setMonths] = useState<number>(1);
-  const options = PLAN_MONTHS.map((m) => ({
-    m,
-    price: planPrice(billing.monthlyFee, m, pay?.planOff),
-    period: nextPeriod(today, billing.paidUntil, billing.anchor, m),
-  }));
-  const chosen = options.find((o) => o.m === months) ?? options[0]!;
+  const price = planPrice(billing.monthlyFee, months, pay?.planOff);
+  const period = nextPeriod(today, billing.paidUntil, billing.anchor, months);
+  const quick = [1, 3, 6, 12].map((m) => ({ m, percent: planPrice(1, m, pay?.planOff).percent }));
+  const set = (m: number) => setMonths(Math.min(MAX_PLAN_MONTHS, Math.max(1, m)));
+  // The batches' fees line by line, unless the team set one amount for this child.
+  const lines = billing.feeOverride > 0 ? [] : billing.batches.filter((b) => b.monthlyFee > 0);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!busy) onContinue(months);
@@ -162,33 +162,64 @@ export function PlanPicker({
     <form className="pd-card pd-stack pd-plan-pick" onSubmit={submit}>
       <fieldset className="pd-plans">
         <legend>{copy.pick}</legend>
-        {options.map((o) => (
-          <label key={o.m} className="pd-plan-opt" data-on={o.m === months || undefined}>
-            <input
-              type="radio"
-              name="pd-plan-months"
-              value={o.m}
-              checked={o.m === months}
-              onChange={() => setMonths(o.m)}
-            />
-            <span className="pd-plan-len">{monthsLabel(o.m)}</span>
-            <strong className="pd-plan-price">{rupees(o.price.amount)}</strong>
-            {o.price.percent > 0 && (
-              <span className="pd-plan-save">
-                {copy.save.replace("{percent}", String(o.price.percent))}
-              </span>
-            )}
-            <small className="pd-muted">
-              {o.m > 1 &&
-                `${copy.perMonth.replace("{amount}", rupees(Math.round(o.price.amount / o.m)))} · `}
-              {copy.covers
-                .replace("{from}", longDay(o.period.from))
-                .replace("{to}", longDay(o.period.to))}
-            </small>
-          </label>
-        ))}
+        <div className="pd-plan-step">
+          <button
+            type="button"
+            aria-label={copy.fewer}
+            disabled={months <= 1}
+            onClick={() => set(months - 1)}
+          >
+            −
+          </button>
+          <output aria-live="polite">{monthsLabel(months)}</output>
+          <button
+            type="button"
+            aria-label={copy.more}
+            disabled={months >= MAX_PLAN_MONTHS}
+            onClick={() => set(months + 1)}
+          >
+            +
+          </button>
+        </div>
+        <div className="pd-plan-quick" role="group" aria-label={copy.quick}>
+          {quick.map((q) => (
+            <button key={q.m} type="button" aria-pressed={months === q.m} onClick={() => set(q.m)}>
+              {monthsLabel(q.m)}
+              {q.percent > 0 && <small> −{q.percent}%</small>}
+            </button>
+          ))}
+        </div>
       </fieldset>
-      {billing.paidUntil && chosen.period.from > today && (
+      <dl className="pd-pay-sum">
+        {lines.length > 0 &&
+          lines.map((b) => (
+            <div key={b.id} className="pd-plan-line">
+              <dt>{b.name}</dt>
+              <dd>{copy.perMonth.replace("{amount}", rupees(b.monthlyFee))}</dd>
+            </div>
+          ))}
+        <div>
+          <dt>
+            {rupees(billing.monthlyFee)} × {monthsLabel(months)}
+          </dt>
+          <dd>{rupees(price.list)}</dd>
+        </div>
+        {price.percent > 0 && (
+          <div className="pd-pay-off">
+            <dt>{copy.save.replace("{percent}", String(price.percent))}</dt>
+            <dd>−{rupees(price.list - price.amount)}</dd>
+          </div>
+        )}
+        <div className="pd-pay-total">
+          <dt>{copy.total}</dt>
+          <dd>{rupees(price.amount)}</dd>
+        </div>
+      </dl>
+      <p className="pd-muted" style={{ margin: 0 }}>
+        {copy.classes}:{" "}
+        {copy.covers.replace("{from}", longDay(period.from)).replace("{to}", longDay(period.to))}
+      </p>
+      {billing.paidUntil && period.from > today && (
         <p className="pd-hint" style={{ margin: 0 }}>
           {copy.ahead.replace("{date}", longDay(billing.paidUntil))}
         </p>
@@ -199,7 +230,7 @@ export function PlanPicker({
         </p>
       )}
       <button type="submit" className="pd-save" disabled={busy}>
-        {busy ? copy.starting : copy.continue.replace("{amount}", rupees(chosen.price.amount))}
+        {busy ? copy.starting : copy.continue.replace("{amount}", rupees(price.amount))}
       </button>
       {onCancel && (
         <button type="button" className="pd-link" onClick={onCancel}>
@@ -229,6 +260,8 @@ export function Paywall({
   const first = student.name.split(" ")[0] ?? student.name;
   const paused = state.status === "paused";
   const parent = student.parentName.trim();
+  const batches = state.billing?.batches ?? [];
+  const override = (state.billing?.feeOverride ?? 0) > 0;
   return (
     <>
       <section className="pd-child" aria-labelledby="pd-paywall-title">
@@ -254,8 +287,24 @@ export function Paywall({
         </div>
         <div>
           <dt>{copy.batches}</dt>
-          <dd>{student.batch || copy.noBatch}</dd>
+          <dd>
+            {batches.length
+              ? batches
+                  .map((b) =>
+                    b.monthlyFee > 0 && !override
+                      ? `${b.name} (${copy.perMonth.replace("{amount}", rupees(b.monthlyFee))})`
+                      : b.name,
+                  )
+                  .join(", ")
+              : student.batch || copy.noBatch}
+          </dd>
         </div>
+        {(state.billing?.monthlyFee ?? 0) > 0 && (
+          <div>
+            <dt>{copy.monthlyFee}</dt>
+            <dd>{rupees(state.billing!.monthlyFee)}</dd>
+          </div>
+        )}
         {student.subjects.length > 0 && (
           <div>
             <dt>{copy.subjects}</dt>

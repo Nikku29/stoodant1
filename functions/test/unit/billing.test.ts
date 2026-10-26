@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { addMonths, billingStatus, nextPeriod, reminderStage, replay } from "../../lib/billing/period.js";
 import { reminderText } from "../../lib/billing/billing.js";
-import { planPrice } from "../../lib/billing/period.js";
+import { monthlyFeeOf, planPrice } from "../../lib/billing/period.js";
 
 const pay = (id: string, payDay: string, months = 1) => ({ id, payDay, months, order: 0 });
 
@@ -63,4 +63,10 @@ test("plan price with the team's discount for paying ahead", () => {
   assert.deepEqual(planPrice(2999, 3, { "3": 5 }), { list: 8997, percent: 5, amount: 8547 });
   assert.deepEqual(planPrice(2999, 6, undefined), { list: 17994, percent: 0, amount: 17994 });
   assert.equal(planPrice(1000, 12, { "12": 90 }).percent, 50); // capped
+  // Any number of months: the best discount for that many months or fewer.
+  assert.equal(planPrice(1000, 5, { "3": 5, "6": 8 }).percent, 5);
+  assert.equal(planPrice(1000, 2, { "3": 5 }).percent, 0);
+  assert.equal(planPrice(1000, 7, { "3": 5, "6": 8, "12": 12 }).amount, 6440);
+  assert.equal(monthlyFeeOf(0, [1500, 1499]), 2999);
+  assert.equal(monthlyFeeOf(2500, [1500, 1499]), 2500); // the team's own amount for this child
 });

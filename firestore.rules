@@ -141,7 +141,8 @@ service cloud.firestore {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.teacherPhone == phone());
       allow create, update: if isAdmin()
         && request.resource.data.keys().hasOnly(['name', 'classLevel', 'board', 'subject', 'teacherId', 'schedule',
-             'durationMinutes', 'active', 'createdAt', 'updatedAt', 'teacherPhone', 'teacherName', 'roster', 'studentIds'])
+             'durationMinutes', 'active', 'monthlyFee', 'createdAt', 'updatedAt', 'teacherPhone', 'teacherName', 'roster',
+             'studentIds'])
         && (resource == null
             ? !request.resource.data.keys().hasAny(['teacherPhone', 'teacherName', 'roster', 'studentIds'])
             : !changed().hasAny(['teacherPhone', 'teacherName', 'roster', 'studentIds']))
@@ -157,6 +158,10 @@ service cloud.firestore {
         && (!('durationMinutes' in request.resource.data)
             || (request.resource.data.durationMinutes is int
                 && request.resource.data.durationMinutes >= 15 && request.resource.data.durationMinutes <= 300))
+        // Each student's fee for this batch, whole rupees a month (0 or missing = not set).
+        && (!('monthlyFee' in request.resource.data)
+            || (request.resource.data.monthlyFee is int && request.resource.data.monthlyFee >= 0
+                && request.resource.data.monthlyFee <= 200000))
         && request.resource.data.active is bool
         && fresh(request.resource.data)
         && request.resource.data.updatedAt == request.time;
@@ -169,7 +174,8 @@ service cloud.firestore {
       allow create, update: if isAdmin()
         && request.resource.data.keys().hasOnly(['name', 'nameKey', 'classLevel', 'board', 'parentName', 'parentPhone',
              'batchIds', 'whatsappOptIn', 'active', 'monthlyFee', 'createdAt', 'updatedAt'])
-        // Whole rupees a month; 0 or missing = not set yet (the family can't pay until it is).
+        // The team's own monthly amount for this child (sibling discount, special rate), in whole rupees;
+        // 0 or missing = the fees of the child's batches added up.
         && (!('monthlyFee' in request.resource.data)
             || (request.resource.data.monthlyFee is int && request.resource.data.monthlyFee >= 0
                 && request.resource.data.monthlyFee <= 200000))

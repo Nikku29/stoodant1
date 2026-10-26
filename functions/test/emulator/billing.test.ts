@@ -102,7 +102,7 @@ test("a new family is kept out until they pay; checking opens classes, the team'
   // Someone else's child, and a plan length that isn't offered, are refused.
   const kabir = { uid: "up3", phone_number: NEW_PARENT };
   assert.equal((await call("startPayment", { studentId: "s1", months: 1 }, kabir)).error?.status, "PERMISSION_DENIED");
-  assert.equal((await call("startPayment", { studentId: "s3", months: 2 }, kabir)).error?.status, "INVALID_ARGUMENT");
+  assert.equal((await call("startPayment", { studentId: "s3", months: 13 }, kabir)).error?.status, "INVALID_ARGUMENT");
 
   const first = await call("startPayment", { studentId: "s3", months: 1 }, kabir);
   const feeId = String(first.result?.feeId);
@@ -165,4 +165,47 @@ test("a family can't start paying before the team sets the monthly fee", async (
   const r = await call("startPayment", { studentId: "s3", months: 1 }, { uid: "up3", phone_number: NEW_PARENT });
   assert.equal(r.error?.status, "FAILED_PRECONDITION");
   assert.match(String(r.error?.message), /isn't set up/);
+});
+
+test("a child's fee is their batches' fees added up; with no batch there is nothing to pay yet", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "batches/b2"), {
+      name: "Class 7 Science A", classLevel: "7", board: "CBSE", subject: "Science", teacherId: "t1", schedule: "", active: true,
+      monthlyFee: 1499, roster: [], studentIds: [],
+    });
+    await updateDoc(doc(db, "batches/b1"), { monthlyFee: 1500 });
+    // No special fee for Kabir any more: he pays for his batches.
+    await updateDoc(doc(db, "students/s3"), { monthlyFee: 0, batchIds: ["b1", "b2"] });
+  });
+  const plan = await waitFor(async () => {
+    const b = await peek("billing/s3");
+    return b?.monthlyFee === 2999 ? b : undefined;
+  });
+  assert.deepEqual(plan.batches.map((b: DocumentData) => [b.id, b.monthlyFee]), [["b1", 1500], ["b2", 1499]]);
+  // The team only sets a batch fee in whole rupees.
+  await assertFails(updateDoc(doc(team(), "batches/b1"), { monthlyFee: 99.5, updatedAt: serverTimestamp() }));
+
+  // Any number of months from 1 to 12; 5 months gets the 3-month discount.
+  const kabir = { uid: "up3", phone_number: NEW_PARENT };
+  const feeId = String((await call("startPayment", { studentId: "s3", months: 5 }, kabir)).result?.feeId);
+  const fee = await peek(`fees/${feeId}`);
+  assert.deepEqual([fee?.months, fee?.listAmount, fee?.planPercent, fee?.payable], [5, 14995, 10, 13495]);
+  assert.deepEqual(fee?.batches.map((b: DocumentData) => b.id), ["b1", "b2"]);
+
+  // A changed batch fee reaches the plan of every child in the batch.
+  await waitFor(async () => (((await peek("batches/b2"))?.studentIds ?? []).includes("s3") ? true : undefined));
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), "batches/b2"), { monthlyFee: 1000 });
+  });
+  await waitFor(async () => ((await peek("billing/s3"))?.monthlyFee === 2500 ? true : undefined));
+
+  // Out of every batch: nothing to pay until the team adds the child to one.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), "students/s3"), { batchIds: [] });
+  });
+  await waitFor(async () => ((await peek("billing/s3"))?.monthlyFee === 0 ? true : undefined));
+  const r = await call("startPayment", { studentId: "s3", months: 1 }, kabir);
+  assert.equal(r.error?.status, "FAILED_PRECONDITION");
+  assert.match(String(r.error?.message), /batch is being set up/);
 });

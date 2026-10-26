@@ -25,7 +25,8 @@ import { indianMobile, signOutNow, useSession, type Session } from "@/lib/fireba
 import { overview } from "@/lib/progress/insights";
 import { classesFor, type LiveClass } from "@/lib/firebase/classes";
 import { istIso, statusLine, time12 } from "@/lib/classes/time";
-import { allFees, type Fee } from "@/lib/firebase/fees";
+import { monthlyFeeOf } from "@/lib/billing/period";
+import { allFees, rupees, type Fee } from "@/lib/firebase/fees";
 import { AdminFees } from "./AdminFees";
 import { Overview } from "./AdminReports";
 import { Tile, useSection, type Nav } from "./AppNav";
@@ -655,6 +656,12 @@ function Students({ data, act }: { data: Data; act: Act }) {
     const set = (patch: Partial<StudentForm>) =>
       setEditing({ ...editing, form: { ...form, ...patch } });
     const phone = indianMobile(form.parentPhone);
+    const batchTotal = monthlyFeeOf(
+      0,
+      data.batches
+        .filter((b) => b.active !== false && form.batchIds.includes(b.id))
+        .map((b) => b.monthlyFee ?? 0),
+    );
     return (
       <Editor
         title={editing.id ? "Edit student" : "Add a student"}
@@ -706,20 +713,24 @@ function Students({ data, act }: { data: Data; act: Act }) {
         />
         <PhoneCheck phone={phone} />
         <Text
-          label="Monthly fee in rupees (the family pays this in the app)"
+          label="Special monthly fee for this child (optional, rupees)"
           inputMode="numeric"
           value={form.monthlyFee ? String(form.monthlyFee) : ""}
           onChange={(v) => {
             const n = Number(v.replace(/[^0-9]/g, "").slice(0, 6));
             set({ monthlyFee: n > 200000 ? 200000 : n });
           }}
-          placeholder="2999"
+          placeholder={batchTotal ? String(batchTotal) : "Leave empty to use the batch fees"}
         />
-        {!form.monthlyFee && (
-          <p className="pd-muted" style={{ margin: 0 }}>
-            Without a monthly fee the family sees "fee being set up" and can't pay yet.
-          </p>
-        )}
+        <p className="pd-muted" style={{ margin: 0 }}>
+          {form.monthlyFee
+            ? `The family pays ${rupees(form.monthlyFee)} a month instead of the batch fees.`
+            : form.batchIds.length
+              ? batchTotal
+                ? `The family pays ${rupees(batchTotal)} a month: the fees of the batches below added up.`
+                : "The batches below have no monthly fee yet: the family can't pay until one is set."
+              : "Add the child to a batch: the family can pay once they're in one."}
+        </p>
         <fieldset className="pd-stack" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="pd-field">Batches</legend>
           {data.batches.length ? (
@@ -966,7 +977,7 @@ function Teachers({ data, act }: { data: Data; act: Act }) {
 type BatchForm = Pick<
   Batch,
   "name" | "classLevel" | "board" | "subject" | "teacherId" | "schedule" | "active"
-> & { minutes: string };
+> & { minutes: string; fee: string };
 
 function Batches({ data, act }: { data: Data; act: Act }) {
   const [editing, setEditing] = useState<{ id: string | null; form: BatchForm } | null>(null);
@@ -982,13 +993,17 @@ function Batches({ data, act }: { data: Data; act: Act }) {
         valid={Boolean(form.name.trim() && form.subject.trim())}
         onCancel={() => setEditing(null)}
         onSave={async () => {
-          const { minutes, ...rest } = form;
+          const { minutes, fee, ...rest } = form;
           const fields = {
             ...rest,
             name: form.name.trim(),
             subject: form.subject.trim(),
             schedule: form.schedule.trim().slice(0, 120),
             durationMinutes: classMinutes(minutes),
+            // Sent only when there is or was a fee, so batches without one save as before.
+            ...(fee || data.batches.find((b) => b.id === editing.id)?.monthlyFee
+              ? { monthlyFee: Math.min(200000, Number(fee) || 0) }
+              : {}),
           };
           if (await act(() => saveRecord("batches", editing.id, fields))) setEditing(null);
         }}
@@ -1044,6 +1059,13 @@ function Batches({ data, act }: { data: Data; act: Act }) {
           onChange={(m) => set({ minutes: m.replace(/\D/g, "").slice(0, 3) })}
           placeholder="60"
         />
+        <Text
+          label="Monthly fee for each student, in rupees (families pay this in the app)"
+          inputMode="numeric"
+          value={form.fee}
+          onChange={(v) => set({ fee: v.replace(/\D/g, "").slice(0, 6) })}
+          placeholder="1500"
+        />
         <Check label="Running now" checked={form.active} onChange={(active) => set({ active })} />
       </Editor>
     );
@@ -1057,6 +1079,7 @@ function Batches({ data, act }: { data: Data; act: Act }) {
     schedule: "",
     active: true,
     minutes: "60",
+    fee: "",
   };
   return (
     <>
@@ -1077,7 +1100,8 @@ function Batches({ data, act }: { data: Data; act: Act }) {
             </div>
             <span>
               {teacherName(b.teacherId)} · {b.schedule || "No schedule yet"} ·{" "}
-              {b.durationMinutes ?? 60} min
+              {b.durationMinutes ?? 60} min ·{" "}
+              {b.monthlyFee ? `${rupees(b.monthlyFee)} a month` : "No monthly fee set"}
             </span>
             <span className="pd-muted">
               {b.roster?.length ? b.roster.map((s) => s.name).join(", ") : "No students yet"}
@@ -1095,6 +1119,7 @@ function Batches({ data, act }: { data: Data; act: Act }) {
                     schedule: b.schedule,
                     active: b.active,
                     minutes: String(b.durationMinutes ?? 60),
+                    fee: b.monthlyFee ? String(b.monthlyFee) : "",
                   },
                 })
               }

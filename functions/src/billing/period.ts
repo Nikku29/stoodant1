@@ -16,8 +16,9 @@
 export const GRACE_DAYS = 3;
 /** Days before the end of a plan when the family is reminded to renew. */
 export const SOON_DAYS = 5;
-/** The plan lengths a family can choose, in months. */
-export const PLAN_MONTHS = [1, 3, 6, 12] as const;
+/** A family pays for 1 to this many months at once. */
+export const MAX_PLAN_MONTHS = 12;
+export const isPlanMonths = (n: number) => Number.isInteger(n) && n >= 1 && n <= MAX_PLAN_MONTHS;
 
 const DAY = 86_400_000;
 const parse = (day: string) => Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10));
@@ -103,17 +104,29 @@ export function reminderStage(status: BillingStatus, daysLeft: number | null): S
   return null;
 }
 
-/** Price of a plan: the monthly fee times the months, less the team's percent off for paying ahead (max 50%). */
+/**
+ * A child's monthly fee: the fees of their running batches added up, or the team's own amount for that child
+ * when one is set (a sibling discount, a special rate). 0 = nothing to pay yet (no batch with a fee).
+ */
+export function monthlyFeeOf(override: number, batchFees: number[]) {
+  if (override > 0) return override;
+  return batchFees.reduce((sum, fee) => sum + (fee > 0 ? fee : 0), 0);
+}
+
+/**
+ * Price of a plan: the monthly fee times the months, less the team's percent off for paying ahead. The
+ * discount for 3, 6 or 12 months applies from that many months up (4 months gets the 3-month one); max 50%.
+ */
 export function planPrice(
   monthlyFee: number,
   months: number,
   planOff: Record<string, unknown> | undefined,
 ) {
   const list = monthlyFee * months;
-  const off = planOff?.[String(months)];
-  const percent = Math.min(
-    50,
-    Math.max(0, Math.round(typeof off === "number" && Number.isFinite(off) ? off : 0)),
-  );
+  let best = 0;
+  for (const [key, value] of Object.entries(planOff ?? {}))
+    if (Number(key) <= months && typeof value === "number" && Number.isFinite(value))
+      best = Math.max(best, value);
+  const percent = Math.min(50, Math.max(0, Math.round(best)));
   return { list, percent, amount: list - Math.round((list * percent) / 100) };
 }

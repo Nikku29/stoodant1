@@ -34,6 +34,8 @@ export type Batch = {
   schedule: string;
   /** Length of one class, for the team's hours report. 60 when not set. */
   durationMinutes?: number;
+  /** What each student pays a month for this batch, whole rupees; 0 or missing = not set. */
+  monthlyFee?: number;
   active: boolean;
   roster?: RosterEntry[];
   studentIds?: string[];
@@ -306,7 +308,7 @@ type Editable = "teachers" | "students" | "batches";
 const EDITABLE: Record<Editable, string[]> = {
   teachers: ["name", "phone", "subjects", "active"],
   students: ["name", "classLevel", "board", "parentName", "parentPhone", "batchIds", "whatsappOptIn", "active", "monthlyFee"],
-  batches: ["name", "classLevel", "board", "subject", "teacherId", "schedule", "durationMinutes", "active"],
+  batches: ["name", "classLevel", "board", "subject", "teacherId", "schedule", "durationMinutes", "monthlyFee", "active"],
 };
 
 /** "  Aarav   Sharma " and "aarav sharma" are the same name (firestore.rules normName). */

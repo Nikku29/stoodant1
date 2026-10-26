@@ -72,7 +72,11 @@ export type Billing = {
   parentName: string;
   parentPhone: string;
   active: boolean;
+  /** What the child pays a month: their batches' fees added up, or feeOverride when the team set one. */
   monthlyFee: number;
+  feeOverride: number;
+  /** The child's running batches, each with its monthly fee. */
+  batches: { id: string; name: string; subject: string; monthlyFee: number }[];
   /** Last day classes are paid for, YYYY-MM-DD, or "" when never paid. */
   paidUntil: string;
   anchor: number;
@@ -161,6 +165,13 @@ function toBilling(d: Record<string, unknown>): Billing {
     parentPhone: str(d["parentPhone"]),
     active: d["active"] !== false,
     monthlyFee: num(d["monthlyFee"]),
+    feeOverride: num(d["feeOverride"]),
+    batches: list(d["batches"]).map((b: Record<string, unknown>) => ({
+      id: str(b?.["id"]),
+      name: str(b?.["name"]),
+      subject: str(b?.["subject"]),
+      monthlyFee: num(b?.["monthlyFee"]),
+    })),
     paidUntil: str(d["paidUntil"]),
     anchor: num(d["anchor"]),
     status: status ?? "new",

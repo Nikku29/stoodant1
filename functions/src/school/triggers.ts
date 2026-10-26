@@ -103,6 +103,10 @@ export async function handleBatchWritten(event: Written) {
   if (!after || before?.name !== after.name || before?.subject !== after.subject || before?.active !== after.active) {
     await rebuildAll([...ids(before?.studentIds), ...ids(after?.studentIds)]);
   }
+  // A batch's monthly fee (or the batch stopping) changes what its families pay.
+  if ((before?.monthlyFee ?? 0) !== (after?.monthlyFee ?? 0) || before?.active !== after?.active) {
+    for (const id of new Set([...ids(before?.studentIds), ...ids(after?.studentIds)])) await rebuildBilling(db, id);
+  }
 }
 
 /** Sessions hold an `attendance` map and assessments a `scores` map, both keyed by student id. */

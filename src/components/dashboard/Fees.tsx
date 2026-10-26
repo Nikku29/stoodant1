@@ -132,7 +132,9 @@ export function FamilyFees({
   const duePlan = fees?.find((f) => f.kind === "plan" && f.status === "due");
   const sentPlan = fees?.some((f) => f.kind === "plan" && f.status === "submitted");
   const billing: Billing | null = planState?.billing ?? null;
-  const canPay = Boolean(billing && billing.monthlyFee > 0 && billing.active);
+  const canPay = Boolean(
+    billing && billing.active && billing.batches.length > 0 && billing.monthlyFee > 0,
+  );
   const day0 = today ?? new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
   const showPicker = canPay && !sentPlan && fees !== null && (picking || (paywall && !duePlan));
   const start = async (months: number) => {
@@ -178,7 +180,9 @@ export function FamilyFees({
         />
       )}
       {paywall && billing && !canPay && (
-        <p className="pd-alert">{billing.active ? plan.notSet : plan.left}</p>
+        <p className="pd-alert">
+          {!billing.active ? plan.left : billing.batches.length ? plan.notSet : plan.noBatchYet}
+        </p>
       )}
       {paywall && !billing && planState && <p className="pd-alert">{plan.notSet}</p>}
       {showPicker && billing && (
@@ -542,9 +546,12 @@ function Receipt({
           ],
         ] as [string, string][])
       : ([[copy.fee, rupees(fee.amount)]] as [string, string][])),
-    ...(fee.discount > 0
-      ? ([[`${copy.coupon} ${fee.couponCode}`, `−${rupees(fee.discount)}`]] as [string, string][])
-      : []),
+    fee.couponCode
+      ? [
+          `${copy.coupon} ${fee.couponCode} (${fee.couponPercent}% off)`,
+          `−${rupees(fee.discount)}`,
+        ]
+      : [copy.coupon, copy.noCoupon],
     [copy.amountPaid, rupees(fee.payable)],
     fee.method && fee.method !== "upi"
       ? [copy.method, plan.methods[fee.method as keyof typeof plan.methods] ?? fee.method]
@@ -644,6 +651,11 @@ export function previewFeeStore(today: string, fresh = false): FamilyFeeStore {
     parentPhone: "+919876543210",
     active: true,
     monthlyFee,
+    feeOverride: 0,
+    batches: [
+      { id: "b1", name: "Class 7 Maths A", subject: "Maths", monthlyFee: 1500 },
+      { id: "b2", name: "Class 7 Science A", subject: "Science", monthlyFee: 1499 },
+    ],
     paidUntil: fresh ? "" : until,
     anchor: fresh ? 0 : Number(from.slice(8, 10)),
     status: fresh ? "new" : "ending",

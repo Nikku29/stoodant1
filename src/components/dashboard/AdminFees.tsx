@@ -24,7 +24,7 @@ import {
 } from "@/lib/firebase/fees";
 import type { Batch, Student } from "@/lib/firebase/school";
 import { formatDay } from "@/lib/progress/insights";
-import { billingStatus, type BillingStatus } from "@/lib/billing/period";
+import { billingStatus, monthlyFeeOf, type BillingStatus } from "@/lib/billing/period";
 import { UpiQr } from "./Fees";
 import { longDay, monthsLabel } from "./Plan";
 
@@ -177,6 +177,12 @@ function Payments({ fees, act, uid }: { fees: Fee[]; act: Act; uid: string }) {
                 {f.planPercent > 0 && ` · ${f.planPercent}% off ${rupees(f.listAmount)}`}
               </small>
             )}
+            <small className="pd-muted">
+              {copy.couponUsed}{" "}
+              {f.couponCode
+                ? `${f.couponCode} (${f.couponPercent}% off, −${rupees(f.discount)})`
+                : DASHBOARD_CONFIG.fees.noCoupon}
+            </small>
             {f.submittedPhone && (
               <small className="pd-muted">
                 {copy.loggedIn} {f.submittedPhone}
@@ -681,6 +687,7 @@ function Plans({
   const [billing, setBilling] = useState<Map<string, Billing> | null>(null);
   const [filter, setFilter] = useState<PlanFilter>("attention");
   const [recording, setRecording] = useState<string | null>(null);
+  const [batchFilter, setBatchFilter] = useState("");
   const load = useCallback(() => {
     allBilling().then(
       (list) => setBilling(new Map(list.map((b) => [b.studentId, b]))),
@@ -703,10 +710,27 @@ function Plans({
           const checking =
             Boolean(b?.checking) ||
             fees.some((f) => f.studentId === s.id && f.kind === "plan" && f.status === "submitted");
-          const fee = s.monthlyFee ?? 0;
-          return { s, b, fee, ...billingStatus(today, b?.paidUntil ?? "", checking) };
-        }),
-    [students, billing, fees, today],
+          // The batches' fees added up, or the child's own amount (as the server works it out).
+          const running = batches.filter((x) => x.active !== false && s.batchIds.includes(x.id));
+          const fee = running.length
+            ? monthlyFeeOf(s.monthlyFee ?? 0, running.map((x) => x.monthlyFee ?? 0))
+            : 0;
+          const paid = fees.filter(
+            (f) => f.studentId === s.id && f.kind === "plan" && f.status === "paid",
+          );
+          const months = paid.reduce((n, f) => n + f.months, 0);
+          const amount = paid.reduce((n, f) => n + f.payable, 0);
+          return {
+            s,
+            b,
+            fee,
+            months,
+            amount,
+            ...billingStatus(today, b?.paidUntil ?? "", checking),
+          };
+        })
+        .filter((r) => !batchFilter || r.s.batchIds.includes(batchFilter)),
+    [students, billing, fees, today, batches, batchFilter],
   );
   const pick = (f: PlanFilter) =>
     rows.filter((r) =>
@@ -719,13 +743,24 @@ function Plans({
             : r.fee > 0 && NEEDS.includes(r.status),
     );
   const shown = pick(filter);
-  const batchName = (id: string) => batches.find((b) => b.id === id)?.name ?? "";
 
   if (!billing) return <p className="pd-muted">Loading…</p>;
   return (
     <>
       <p className="pd-hint">{copy.plansHint}</p>
-      <div className="pd-picker" role="group" aria-label="Show">
+      <label className="pd-field">
+        {copy.batchFilter}
+        <select value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
+          <option value="">{copy.allBatches}</option>
+          {batches.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name}
+              {x.monthlyFee ? ` (${rupees(x.monthlyFee)} a month)` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="pd-picker" role="group" aria-label="Show" style={{ marginTop: 12 }}>
         {(Object.keys(copy.plansFilters) as PlanFilter[]).map((f) => (
           <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
             {copy.plansFilters[f]} ({pick(f).length})
@@ -734,7 +769,7 @@ function Plans({
       </div>
       {!shown.length && <p className="pd-empty">{copy.emptyFilter}</p>}
       <ul className="pd-list">
-        {shown.map(({ s, b, fee, status }) => (
+        {shown.map(({ s, b, fee, status, months, amount }) => (
           <li key={s.id} className="pd-item pd-plan" data-status={status}>
             <div className="pd-item-head">
               <strong>{s.name}</strong>
@@ -745,7 +780,13 @@ function Plans({
             <small className="pd-muted">
               Class {s.classLevel} {s.board}
               {s.batchIds.length > 0 &&
-                ` · ${s.batchIds.map(batchName).filter(Boolean).join(", ")}`}
+                ` · ${s.batchIds
+                  .map((id) => {
+                    const x = batches.find((y) => y.id === id);
+                    return x ? `${x.name}${x.monthlyFee ? ` ${rupees(x.monthlyFee)}` : ""}` : "";
+                  })
+                  .filter(Boolean)
+                  .join(", ")}`}
               {` · ${s.parentName} ${s.parentPhone}`}
             </small>
             {fee > 0 ? (
@@ -755,10 +796,18 @@ function Plans({
                 {b?.paidUntil
                   ? copy.paidUntil.replace("{date}", longDay(b.paidUntil))
                   : copy.neverPaid}
+                {(s.monthlyFee ?? 0) > 0 && <small className="pd-muted"> ({copy.special})</small>}
               </span>
             ) : (
               <small className="pd-alert" style={{ margin: 0 }}>
-                {copy.noFee}
+                {s.batchIds.length ? copy.noFee : copy.noBatch}
+              </small>
+            )}
+            {months > 0 && (
+              <small className="pd-muted">
+                {copy.paidSoFar
+                  .replace("{months}", monthsLabel(months))
+                  .replace("{amount}", rupees(amount))}
               </small>
             )}
             {recording === s.id ? (

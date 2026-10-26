@@ -4,7 +4,7 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { pushToPhones } from "../notify/push.js";
 import { refreshRoster } from "../school/roster.js";
 import {
-  PLAN_MONTHS, STAGES, billingStatus, nextPeriod, planPrice, reminderStage, replay, type PlanPayment, type Stage,
+  STAGES, billingStatus, isPlanMonths, monthlyFeeOf, nextPeriod, planPrice, reminderStage, replay, type PlanPayment, type Stage,
 } from "./period.js";
 
 // Monthly plans (owner request 2026-10-26). The team sets each child's monthly fee; the family picks how
@@ -28,6 +28,21 @@ export function payDayOf(fee: FirebaseFirestore.DocumentData): string {
 
 type Options = { today?: string; remind?: boolean };
 
+export type PlanBatch = { id: string; name: string; subject: string; monthlyFee: number };
+
+/**
+ * What a child pays a month: each running batch they're in has its own monthly fee, added up; a fee the team
+ * set on the child replaces the total. A child in no batch has nothing to pay yet.
+ */
+export async function feeFor(db: Firestore, student: FirebaseFirestore.DocumentData) {
+  const ids: string[] = Array.isArray(student.batchIds) ? student.batchIds.filter((id: unknown): id is string => typeof id === "string") : [];
+  const snaps = ids.length ? await db.getAll(...ids.map((id) => db.doc(`batches/${id}`))) : [];
+  const batches: PlanBatch[] = snaps
+    .filter((b) => b.exists && b.get("active") !== false)
+    .map((b) => ({ id: b.id, name: str(b.get("name")), subject: str(b.get("subject")), monthlyFee: num(b.get("monthlyFee")) }));
+  return { batches, monthlyFee: batches.length ? monthlyFeeOf(num(student.monthlyFee), batches.map((b) => b.monthlyFee)) : 0 };
+}
+
 /**
  * Rebuilds a child's plan from their payments: paid-until date, status, and each payment's period. When
  * the classes open or close, the child's batches are refreshed so the family gains or loses access at once.
@@ -45,6 +60,7 @@ export async function rebuildBilling(db: Firestore, studentId: string, options: 
     if (before.exists) await ref.delete();
     return;
   }
+  const { batches, monthlyFee } = await feeFor(db, student);
   const plans = feeSnaps.docs.filter((f) => num(f.get("months")) > 0);
   const paid: PlanPayment[] = plans
     .filter((f) => f.get("status") === "paid")
@@ -72,7 +88,10 @@ export async function rebuildBilling(db: Firestore, studentId: string, options: 
     parentName: str(student.parentName),
     parentPhone: str(student.parentPhone),
     active: student.active !== false,
-    monthlyFee: num(student.monthlyFee),
+    monthlyFee,
+    // The child's own amount, when the team set one instead of the batches' fees.
+    feeOverride: num(student.monthlyFee),
+    batches,
     paidUntil,
     anchor,
     status,
@@ -132,7 +151,7 @@ export async function handleStartPayment(request: CallableRequest) {
   const studentId = str(data.studentId);
   const months = num(data.months);
   if (!/^[A-Za-z0-9]{1,40}$/.test(studentId)) throw new HttpsError("invalid-argument", "Unknown child.");
-  if (!(PLAN_MONTHS as readonly number[]).includes(months)) throw new HttpsError("invalid-argument", "Please choose a plan.");
+  if (!isPlanMonths(months)) throw new HttpsError("invalid-argument", "Please choose 1 to 12 months.");
 
   const db = getFirestore();
   const [page, studentSnap, settings, billing, open] = await Promise.all([
@@ -145,7 +164,9 @@ export async function handleStartPayment(request: CallableRequest) {
   if (page.get("parentPhone") !== phone) throw new HttpsError("permission-denied", "This child isn't on your account.");
   const student = studentSnap.data();
   if (!student || student.active === false) throw new HttpsError("failed-precondition", "Please message us to restart classes.");
-  const monthlyFee = num(student.monthlyFee);
+  const { batches, monthlyFee } = await feeFor(db, student);
+  if (!batches.length)
+    throw new HttpsError("failed-precondition", "Your child's batch is being set up. We'll message you when you can pay.");
   if (monthlyFee <= 0)
     throw new HttpsError("failed-precondition", "Your fee isn't set up yet. Please message us and we'll sort it out.");
   if (open.docs.some((f) => num(f.get("months")) > 0 && f.get("status") === "submitted"))
@@ -162,9 +183,9 @@ export async function handleStartPayment(request: CallableRequest) {
     parentName: str(student.parentName),
     classLevel: str(student.classLevel),
     board: str(student.board),
-    batchId: "",
-    batches: Array.isArray(page_.batches) ? page_.batches : [],
-    subjects: Array.isArray(page_.subjects) ? page_.subjects : [],
+    batchId: batches[0]!.id,
+    batches,
+    subjects: Array.isArray(page_.subjects) && page_.subjects.length ? page_.subjects : [...new Set(batches.map((b) => b.subject).filter(Boolean))],
     title: months === 1 ? "1 month of classes" : `${months} months of classes`,
     months,
     monthlyFee,
@@ -228,6 +249,7 @@ export async function handleRecordPayment(request: CallableRequest) {
   const student = studentSnap.data();
   if (!student) throw new HttpsError("not-found", "Unknown child.");
   const page = (await db.doc(`progress/${studentId}`).get()).get("student") ?? {};
+  const { batches, monthlyFee } = await feeFor(db, student);
   const ref = db.collection("fees").doc();
   await ref.set({
     kind: "plan",
@@ -236,12 +258,12 @@ export async function handleRecordPayment(request: CallableRequest) {
     parentName: str(student.parentName),
     classLevel: str(student.classLevel),
     board: str(student.board),
-    batchId: "",
-    batches: Array.isArray(page.batches) ? page.batches : [],
+    batchId: batches[0]?.id ?? "",
+    batches,
     subjects: Array.isArray(page.subjects) ? page.subjects : [],
     title: months === 1 ? "1 month of classes" : `${months} months of classes`,
     months,
-    monthlyFee: num(student.monthlyFee),
+    monthlyFee,
     listAmount: amount,
     planPercent: 0,
     amount,
