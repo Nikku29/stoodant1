@@ -10,6 +10,7 @@ import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
 import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
 import { handleApplyCoupon, handleFeeWritten } from "./fees/fees.js";
+import { handleRecordPayment, handleStartPayment, runBillingDay } from "./billing/billing.js";
 import { handleClaimAdmin, handleTeamRemoved } from "./school/admin.js";
 import { sendClassReminders } from "./classes/reminders.js";
 import { handleChangeClass, handleScheduleClasses } from "./classes/schedule.js";
@@ -88,8 +89,20 @@ export const onHelpRequested = onDocumentCreated(
 // added or confirmed, the team when a family says they've paid.
 export const applyCoupon = onCall({ cors: true, timeoutSeconds: 20 }, handleApplyCoupon);
 export const onFeeWritten = onDocumentWritten(
-  { document: "fees/{feeId}", timeoutSeconds: 30, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
+  { document: "fees/{feeId}", timeoutSeconds: 60, secrets: [EMAIL_API_KEY, WHATSAPP_TOKEN] },
   handleFeeWritten,
+);
+
+// Monthly plans: the family picks how many months and pays (startPayment works out the amount); the team
+// records cash or bank payments and free months. Every morning plans move along (ending, a few grace days,
+// paused) and families get one reminder per step.
+export const startPayment = onCall({ cors: true, timeoutSeconds: 20 }, handleStartPayment);
+export const recordPayment = onCall({ cors: true, timeoutSeconds: 30 }, handleRecordPayment);
+export const billingDaily = onSchedule(
+  { schedule: "every day 08:00", timeZone: "Asia/Kolkata", timeoutSeconds: 540, maxInstances: 1, retryCount: 1 },
+  async () => {
+    await runBillingDay();
+  },
 );
 
 // Doubts: the teacher gets a push when a family asks, and the family when the teacher answers.

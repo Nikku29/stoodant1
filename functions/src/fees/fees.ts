@@ -4,6 +4,7 @@ import type { Change, FirestoreEvent } from "firebase-functions/v2/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { pushToPhones } from "../notify/push.js";
 import { alertTeam } from "../notify/team.js";
+import { rebuildBilling } from "../billing/billing.js";
 
 // Fees paid by UPI (fees/{id}). applyCoupon checks a coupon code for a family and lowers their fee: the codes
 // live in coupons/{CODE}, which only the team can read. onFeeWritten tells the family when a fee is added or
@@ -14,6 +15,8 @@ export const MAX_TRIES = 10;
 
 const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
 const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+const niceDay = (day: string) =>
+  new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export type CouponDoc = { percent?: unknown; active?: unknown; maxUses?: unknown; uses?: unknown; expires?: unknown };
 
@@ -95,11 +98,16 @@ export function feePush(
   if (!after) return null;
   const amount = rupees(Number(after.payable ?? after.amount) || 0);
   const child = String(after.studentName ?? "").split(" ")[0] ?? "";
+  // A plan payment is started by the family themselves: no "fee due" news for it.
   if (!before && after.status === "due")
-    return { to: "family", title: `Fee due: ${amount}`, body: `${after.title} for ${child}. Pay by UPI in the app.` };
-  if (before?.status === "due" && after.status === "submitted")
-    return { to: "team", title: `Payment to check: ${amount}`, body: `${after.studentName}, ${after.title}. UPI ref ${after.utr}` };
-  if (before && before.status !== "paid" && after.status === "paid")
+    return after.kind === "plan"
+      ? null
+      : { to: "family", title: `Fee due: ${amount}`, body: `${after.title} for ${child}. Pay by UPI in the app.` };
+  if (before?.status === "due" && after.status === "submitted") {
+    const cls = after.classLevel ? ` (Class ${after.classLevel} ${after.board ?? ""})`.replace(" )", ")") : "";
+    return { to: "team", title: `Payment to check: ${amount}`, body: `${after.studentName}${cls}, ${after.title}. UPI ref ${after.utr}` };
+  }
+  if (before?.status !== "paid" && after.status === "paid")
     return { to: "family", title: `Payment received: ${amount}`, body: `${after.title} for ${child}. Thank you!` };
   if (before?.status === "submitted" && after.status === "due")
     return { to: "family", title: "Payment not found yet", body: `We couldn't find ${amount} for ${after.title}. Please check the UPI reference.` };
@@ -111,10 +119,23 @@ export async function handleFeeWritten(
 ) {
   const before = event.data?.before.exists ? event.data.before.data() : undefined;
   const after = event.data?.after.exists ? event.data.after.data() : undefined;
-  const push = feePush(before, after);
-  if (!push || !after) return;
   const db = getFirestore();
   const id = event.params.feeId;
+  // A plan payment changing state moves the child's paid-until date and opens or pauses classes.
+  const fee = after ?? before;
+  if (fee && Number(fee.months) > 0 && (!before || !after || before.status !== after.status)) {
+    try {
+      await rebuildBilling(db, String(fee.studentId));
+    } catch (e) {
+      logger.error("billing rebuild failed", { feeId: id, error: String(e) });
+    }
+  }
+  const push = feePush(before, after);
+  if (!push || !after) return;
+  if (push.title.startsWith("Payment received") && Number(after.months) > 0) {
+    const until = String((await db.doc(`billing/${after.studentId}`).get()).get("paidUntil") ?? "");
+    if (until) push.body = `${after.title} for ${String(after.studentName ?? "").split(" ")[0]}. Classes are paid until ${niceDay(until)}. Thank you!`;
+  }
   try {
     if (push.to === "team") {
       await alertTeam({

@@ -25,6 +25,38 @@ export async function freshDatabase(env: { clearFirestore(): Promise<void> }) {
   await sleep(1500);
 }
 
+export const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+
+/**
+ * A month of classes paid today. Families are let into their child's batches only while the plan is open
+ * (functions/src/billing), so seeds that give a family batch access also give the child a paid plan, written
+ * before the student so the student's trigger finds it.
+ */
+export function paidPlan(studentId: string) {
+  return {
+    kind: "plan", studentId, studentName: "", title: "1 month of classes", months: 1, amount: 0, discount: 0, payable: 0,
+    due: istToday(), payDay: istToday(), status: "paid", method: "free", createdBy: "owner",
+  };
+}
+
+/**
+ * Waits until the triggers have built the seeded children's plans (open). Until then a roster refresh could
+ * still find no paid plan and empty the batchAccess the seed wrote, so a test starts only after this.
+ */
+export async function plansBuilt(ids: string[]) {
+  await waitFor(async () => {
+    for (const id of ids) {
+      const res = await fetch(`http://${firestoreHost}/v1/projects/${PROJECT_ID}/databases/(default)/documents/billing/${id}`, {
+        headers: { Authorization: "Bearer owner" },
+      });
+      if (!res.ok) return undefined;
+      const plan = (await res.json()) as { fields?: { open?: { booleanValue?: boolean } } };
+      if (plan.fields?.open?.booleanValue !== true) return undefined;
+    }
+    return true;
+  }, 15_000);
+}
+
 export function leadBody(overrides: Record<string, unknown> = {}) {
   return {
     idempotencyKey: randomUUID(),

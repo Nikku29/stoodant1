@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import {
   addCoupon,
+  allBilling,
   createFees,
   deleteCoupon,
   deleteFee,
@@ -10,10 +11,12 @@ import {
   isUpiId,
   listCoupons,
   paySettings,
+  recordPayment,
   rupees,
   savePaySettings,
   setCouponActive,
   setFeeStatus,
+  type Billing,
   type Coupon,
   type Fee,
   type FeeStatus,
@@ -21,9 +24,12 @@ import {
 } from "@/lib/firebase/fees";
 import type { Batch, Student } from "@/lib/firebase/school";
 import { formatDay } from "@/lib/progress/insights";
+import { billingStatus, monthlyFeeOf, type BillingStatus } from "@/lib/billing/period";
 import { UpiQr } from "./Fees";
+import { longDay, monthsLabel } from "./Plan";
 
 const copy = DASHBOARD_CONFIG.adminFees;
+const plan = DASHBOARD_CONFIG.plan;
 type Act = (task: () => Promise<unknown>) => Promise<boolean>;
 type View = keyof typeof copy.tabs;
 type Filter = "submitted" | "due" | "paid" | "all";
@@ -69,6 +75,9 @@ export function AdminFees({
         ))}
       </div>
       {view === "payments" && <Payments fees={fees} act={act} uid={uid} />}
+      {view === "plans" && (
+        <Plans fees={fees} students={students} batches={batches} act={act} today={today} />
+      )}
       {view === "create" && (
         <CreateFees
           fees={fees}
@@ -130,6 +139,18 @@ function Payments({ fees, act, uid }: { fees: Fee[]; act: Act; uid: string }) {
                 {DASHBOARD_CONFIG.fees.status[f.status]}
               </span>
             </div>
+            {f.kind === "plan" && (f.classLevel || f.parentName) && (
+              <small className="pd-muted">
+                {[
+                  f.classLevel && `Class ${f.classLevel} ${f.board}`.trim(),
+                  f.batches.map((b) => b.name).join(", "),
+                  f.subjects.join(", "),
+                  f.parentName && `Parent ${f.parentName}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </small>
+            )}
             <span>
               {f.title} · <strong>{rupees(f.payable)}</strong>
               {f.discount > 0 && (
@@ -146,7 +167,27 @@ function Payments({ fees, act, uid }: { fees: Fee[]; act: Act; uid: string }) {
                   ? `${copy.sentOn} ${day(f.submittedAt)}`
                   : `${copy.dueOn} ${formatDay(f.due)}`}
               {f.utr && ` · UPI ref ${f.utr}`}
+              {f.method &&
+                f.method !== "upi" &&
+                ` · ${plan.methods[f.method as keyof typeof plan.methods] ?? f.method}`}
             </small>
+            {f.kind === "plan" && f.periodFrom && (
+              <small className="pd-muted">
+                {plan.classes}: {longDay(f.periodFrom)} to {longDay(f.periodTo)}
+                {f.planPercent > 0 && ` · ${f.planPercent}% off ${rupees(f.listAmount)}`}
+              </small>
+            )}
+            <small className="pd-muted">
+              {copy.couponUsed}{" "}
+              {f.couponCode
+                ? `${f.couponCode} (${f.couponPercent}% off, −${rupees(f.discount)})`
+                : DASHBOARD_CONFIG.fees.noCoupon}
+            </small>
+            {f.submittedPhone && (
+              <small className="pd-muted">
+                {copy.loggedIn} {f.submittedPhone}
+              </small>
+            )}
             {f.note && <small className="pd-muted">{f.note}</small>}
             <div className="pd-actions">
               {f.status === "submitted" && (
@@ -575,6 +616,28 @@ function UpiSettings({ uid }: { uid: string }) {
           onChange={(e) => setForm({ ...form, payeeName: e.target.value })}
         />
       </label>
+      <fieldset className="pd-stack" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="pd-field">{copy.planOffTitle}</legend>
+        <p className="pd-muted" style={{ margin: 0 }}>
+          {copy.planOffHint}
+        </p>
+        <div className="pd-grid pd-grid-3">
+          {(["3", "6", "12"] as const).map((m) => (
+            <label key={m} className="pd-field">
+              {copy.planOffLabel.replace("{n}", m)}
+              <input
+                inputMode="numeric"
+                maxLength={2}
+                value={String(form.planOff?.[m] ?? 0)}
+                onChange={(e) => {
+                  const n = Math.min(50, Number(e.target.value.replace(/[^0-9]/g, "")) || 0);
+                  setForm({ ...form, planOff: { ...form.planOff, [m]: n } });
+                }}
+              />
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <label className="pd-field">
         {copy.noteLabel}
         <input
@@ -598,6 +661,289 @@ function UpiSettings({ uid }: { uid: string }) {
       <button type="submit" className="pd-save" disabled={!valid}>
         {copy.saveUpi}
       </button>
+    </form>
+  );
+}
+
+// ---- Plans: every child's monthly fee and how far they've paid ----
+
+type PlanFilter = keyof typeof copy.plansFilters;
+const NEEDS: BillingStatus[] = ["new", "ending", "grace", "paused", "checking"];
+const METHODS = ["cash", "bank", "upi", "free"] as const;
+
+function Plans({
+  fees,
+  students,
+  batches,
+  act,
+  today,
+}: {
+  fees: Fee[];
+  students: Student[];
+  batches: Batch[];
+  act: Act;
+  today: string;
+}) {
+  const [billing, setBilling] = useState<Map<string, Billing> | null>(null);
+  const [filter, setFilter] = useState<PlanFilter>("attention");
+  const [recording, setRecording] = useState<string | null>(null);
+  const [batchFilter, setBatchFilter] = useState("");
+  const load = useCallback(() => {
+    allBilling().then(
+      (list) => setBilling(new Map(list.map((b) => [b.studentId, b]))),
+      () => setBilling(new Map()),
+    );
+  }, []);
+  useEffect(load, [load]);
+  // The plan is rebuilt by Cloud Functions a moment after a payment changes.
+  useEffect(() => {
+    const t = setTimeout(load, 3000);
+    return () => clearTimeout(t);
+  }, [fees, load]);
+
+  const rows = useMemo(
+    () =>
+      students
+        .filter((s) => s.active)
+        .map((s) => {
+          const b = billing?.get(s.id);
+          const checking =
+            Boolean(b?.checking) ||
+            fees.some((f) => f.studentId === s.id && f.kind === "plan" && f.status === "submitted");
+          // The batches' fees added up, or the child's own amount (as the server works it out).
+          const running = batches.filter((x) => x.active !== false && s.batchIds.includes(x.id));
+          const fee = running.length
+            ? monthlyFeeOf(s.monthlyFee ?? 0, running.map((x) => x.monthlyFee ?? 0))
+            : 0;
+          const paid = fees.filter(
+            (f) => f.studentId === s.id && f.kind === "plan" && f.status === "paid",
+          );
+          const months = paid.reduce((n, f) => n + f.months, 0);
+          const amount = paid.reduce((n, f) => n + f.payable, 0);
+          return {
+            s,
+            b,
+            fee,
+            months,
+            amount,
+            ...billingStatus(today, b?.paidUntil ?? "", checking),
+          };
+        })
+        .filter((r) => !batchFilter || r.s.batchIds.includes(batchFilter)),
+    [students, billing, fees, today, batches, batchFilter],
+  );
+  const pick = (f: PlanFilter) =>
+    rows.filter((r) =>
+      f === "all"
+        ? true
+        : f === "nofee"
+          ? r.fee <= 0
+          : f === "ok"
+            ? r.fee > 0 && r.status === "active"
+            : r.fee > 0 && NEEDS.includes(r.status),
+    );
+  const shown = pick(filter);
+
+  if (!billing) return <p className="pd-muted">Loading…</p>;
+  return (
+    <>
+      <p className="pd-hint">{copy.plansHint}</p>
+      <label className="pd-field">
+        {copy.batchFilter}
+        <select value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
+          <option value="">{copy.allBatches}</option>
+          {batches.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name}
+              {x.monthlyFee ? ` (${rupees(x.monthlyFee)} a month)` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="pd-picker" role="group" aria-label="Show" style={{ marginTop: 12 }}>
+        {(Object.keys(copy.plansFilters) as PlanFilter[]).map((f) => (
+          <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
+            {copy.plansFilters[f]} ({pick(f).length})
+          </button>
+        ))}
+      </div>
+      {!shown.length && <p className="pd-empty">{copy.emptyFilter}</p>}
+      <ul className="pd-list">
+        {shown.map(({ s, b, fee, status, months, amount }) => (
+          <li key={s.id} className="pd-item pd-plan" data-status={status}>
+            <div className="pd-item-head">
+              <strong>{s.name}</strong>
+              <span className="pd-plan-chip" data-status={status}>
+                {plan.status[status]}
+              </span>
+            </div>
+            <small className="pd-muted">
+              Class {s.classLevel} {s.board}
+              {s.batchIds.length > 0 &&
+                ` · ${s.batchIds
+                  .map((id) => {
+                    const x = batches.find((y) => y.id === id);
+                    return x ? `${x.name}${x.monthlyFee ? ` ${rupees(x.monthlyFee)}` : ""}` : "";
+                  })
+                  .filter(Boolean)
+                  .join(", ")}`}
+              {` · ${s.parentName} ${s.parentPhone}`}
+            </small>
+            {fee > 0 ? (
+              <span>
+                <strong>{copy.monthly.replace("{amount}", rupees(fee))}</strong>
+                {" · "}
+                {b?.paidUntil
+                  ? copy.paidUntil.replace("{date}", longDay(b.paidUntil))
+                  : copy.neverPaid}
+                {(s.monthlyFee ?? 0) > 0 && <small className="pd-muted"> ({copy.special})</small>}
+              </span>
+            ) : (
+              <small className="pd-alert" style={{ margin: 0 }}>
+                {s.batchIds.length ? copy.noFee : copy.noBatch}
+              </small>
+            )}
+            {months > 0 && (
+              <small className="pd-muted">
+                {copy.paidSoFar
+                  .replace("{months}", monthsLabel(months))
+                  .replace("{amount}", rupees(amount))}
+              </small>
+            )}
+            {recording === s.id ? (
+              <RecordPayment
+                monthlyFee={fee}
+                today={today}
+                onCancel={() => setRecording(null)}
+                onSave={async (p) => {
+                  if (await act(() => recordPayment({ studentId: s.id, ...p }))) {
+                    setRecording(null);
+                    setTimeout(load, 2500);
+                  }
+                }}
+              />
+            ) : (
+              <div className="pd-actions">
+                <button type="button" className="pd-link" onClick={() => setRecording(s.id)}>
+                  {copy.record}
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function RecordPayment({
+  monthlyFee,
+  today,
+  onSave,
+  onCancel,
+}: {
+  monthlyFee: number;
+  today: string;
+  onSave: (p: {
+    months: number;
+    amount: number;
+    method: (typeof METHODS)[number];
+    payDay: string;
+    note: string;
+  }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [months, setMonths] = useState(1);
+  const [amount, setAmount] = useState(String(monthlyFee || ""));
+  const [amountEdited, setAmountEdited] = useState(false);
+  const [method, setMethod] = useState<(typeof METHODS)[number]>("cash");
+  const [payDay, setPayDay] = useState(today);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const value = method === "free" ? 0 : Number(amount);
+  const valid = Number.isInteger(value) && value >= 0 && payDay && payDay <= today;
+  return (
+    <form
+      className="pd-stack pd-record"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!valid || busy) return;
+        setBusy(true);
+        await onSave({ months, amount: value, method, payDay, note: note.trim() });
+        setBusy(false);
+      }}
+    >
+      <p className="pd-muted" style={{ margin: 0 }}>
+        {copy.recordHint}
+      </p>
+      <div className="pd-grid">
+        <label className="pd-field">
+          {copy.recordMonths}
+          <select
+            value={months}
+            onChange={(e) => {
+              const m = Number(e.target.value);
+              setMonths(m);
+              if (!amountEdited && monthlyFee) setAmount(String(monthlyFee * m));
+            }}
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {monthsLabel(m)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="pd-field">
+          {copy.recordMethod}
+          <select
+            value={method}
+            onChange={(e) => setMethod(e.target.value as (typeof METHODS)[number])}
+          >
+            {METHODS.map((m) => (
+              <option key={m} value={m}>
+                {plan.methods[m]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="pd-grid">
+        {method !== "free" && (
+          <label className="pd-field">
+            {copy.recordAmount}
+            <input
+              inputMode="numeric"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value.replace(/[^0-9]/g, ""));
+                setAmountEdited(true);
+              }}
+            />
+          </label>
+        )}
+        <label className="pd-field">
+          {copy.recordDay}
+          <input
+            type="date"
+            value={payDay}
+            max={today}
+            onChange={(e) => setPayDay(e.target.value)}
+          />
+        </label>
+      </div>
+      <label className="pd-field">
+        {copy.recordNote}
+        <input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
+      </label>
+      <div className="pd-actions">
+        <button type="submit" className="pd-save pd-save-sm" disabled={!valid || busy}>
+          {busy ? "Saving…" : copy.recordSave.replace("{months}", monthsLabel(months))}
+        </button>
+        <button type="button" className="pd-link" onClick={onCancel}>
+          {DASHBOARD_CONFIG.fees.close}
+        </button>
+      </div>
     </form>
   );
 }

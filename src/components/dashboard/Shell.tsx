@@ -34,6 +34,8 @@ export function Shell<T extends string = string>({
           <Logo variant="full" />
         </a>
         <span className="pd-top-end">
+          {/* The app's setup bell goes here (console/src/Setup.tsx), out of the way of the page. */}
+          <span id="pd-setup-slot" className="pd-setup-slot" />
           <span className="pd-role">{role}</span>
           {onSignOut && (
             <button type="button" className="pd-link" onClick={onSignOut}>

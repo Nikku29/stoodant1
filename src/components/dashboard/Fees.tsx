@@ -4,9 +4,18 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { DASHBOARD_CONFIG } from "@/config/dashboardConfig";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { isUtr, rupees, upiLink, type Fee, type PaySettings } from "@/lib/firebase/fees";
+import {
+  addDays as addDaysIso,
+  addMonths as addMonthsIso,
+  nextPeriod as nextPeriodIso,
+  planPrice,
+} from "@/lib/billing/period";
+import type { Billing } from "@/lib/firebase/fees";
 import { formatDay } from "@/lib/progress/insights";
+import { PlanCard, PlanPicker, longDay, monthsLabel, type PlanState, type PlanStore } from "./Plan";
 
 const copy = DASHBOARD_CONFIG.fees;
+const plan = DASHBOARD_CONFIG.plan;
 
 export type CouponResult =
   { payable: number; discount: number; percent: number; code: string } | { error: string };
@@ -17,6 +26,8 @@ export type FamilyFeeStore = {
   settings(): Promise<PaySettings | null>;
   applyCoupon(feeId: string, code: string): Promise<CouponResult>;
   submit(feeId: string, utr: string): Promise<void>;
+  /** Monthly plans; left out, only the fees the team creates. */
+  plan?: PlanStore;
   practice?: boolean;
 };
 
@@ -68,12 +79,32 @@ export function UpiQr({ text, size = 200, label }: { text: string; size?: number
 // ---------------------------------------------------------------------------------------------------
 // Families: what's due, pay by UPI, say it's paid, and a receipt once the team confirms it.
 
-export function FamilyFees({ store, childName }: { store: FamilyFeeStore; childName: string }) {
+export function FamilyFees({
+  store,
+  childName,
+  planState,
+  paywall = false,
+  today,
+  onChanged,
+}: {
+  store: FamilyFeeStore;
+  childName: string;
+  /** The child's monthly plan, when plans are on. */
+  planState?: PlanState | null | undefined;
+  /** The payment screen before classes open: only the plan and what's left to pay. */
+  paywall?: boolean;
+  today?: string;
+  /** Called after the family starts or sends a payment, so the plan is read again. */
+  onChanged?: (() => void) | undefined;
+}) {
   const [fees, setFees] = useState<Fee[] | null>(null);
   const [pay, setPay] = useState<PaySettings | null | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Fee | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     setFailed(false);
@@ -89,12 +120,83 @@ export function FamilyFees({ store, childName }: { store: FamilyFeeStore; childN
     );
   }, [store]);
   useEffect(reload, [reload]);
+  // After choosing a plan, its payment steps come into view.
+  const [focus, setFocus] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focus || !fees?.some((f) => f.id === focus)) return;
+    document.getElementById(`fee-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setFocus(null);
+  }, [focus, fees]);
+
+  // The plan payment the family started and hasn't paid yet, if any.
+  const duePlan = fees?.find((f) => f.kind === "plan" && f.status === "due");
+  const sentPlan = fees?.some((f) => f.kind === "plan" && f.status === "submitted");
+  const billing: Billing | null = planState?.billing ?? null;
+  const canPay = Boolean(
+    billing && billing.active && billing.batches.length > 0 && billing.monthlyFee > 0,
+  );
+  const day0 = today ?? new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  const showPicker = canPay && !sentPlan && fees !== null && (picking || (paywall && !duePlan));
+  const start = async (months: number) => {
+    if (!store.plan) return;
+    if (
+      duePlan &&
+      duePlan.months === months &&
+      duePlan.listAmount === planPrice(billing!.monthlyFee, months, pay?.planOff).list
+    ) {
+      setPicking(false);
+      setOpen(duePlan.id);
+      setFocus(duePlan.id);
+      return;
+    }
+    setStarting(true);
+    setStartError(null);
+    try {
+      const id = await store.plan.start(months);
+      setPicking(false);
+      setOpen(id);
+      setFocus(id);
+      reload();
+      onChanged?.();
+    } catch (e) {
+      setStartError(e instanceof Error && e.message ? e.message : plan.startFailed);
+    } finally {
+      setStarting(false);
+    }
+  };
+  // The payment screen shows what's left to do, not the history.
+  const shown = paywall
+    ? fees?.filter((f) => f.status === "due" || f.status === "submitted")
+    : fees;
 
   const due = fees ? totalDue(fees) : 0;
   return (
     <>
       {store.practice && <p className="pd-hint">{copy.preview}</p>}
-      {fees && (
+      {planState && !paywall && (
+        <PlanCard
+          state={planState}
+          onRenew={canPay && !picking && !duePlan && !sentPlan ? () => setPicking(true) : undefined}
+        />
+      )}
+      {paywall && billing && !canPay && (
+        <p className="pd-alert">
+          {!billing.active ? plan.left : billing.batches.length ? plan.notSet : plan.noBatchYet}
+        </p>
+      )}
+      {paywall && !billing && planState && <p className="pd-alert">{plan.notSet}</p>}
+      {showPicker && billing && (
+        <PlanPicker
+          billing={billing}
+          pay={pay}
+          today={day0}
+          busy={starting}
+          error={startError}
+          onContinue={(m) => void start(m)}
+          onCancel={paywall && !duePlan ? undefined : () => setPicking(false)}
+        />
+      )}
+      {fees && !paywall && (
         <div className="pd-fee-total" data-clear={due === 0 || undefined}>
           <span>{due ? copy.toPay : copy.allPaid}</span>
           <strong>{due ? rupees(due) : "✓"}</strong>
@@ -102,11 +204,11 @@ export function FamilyFees({ store, childName }: { store: FamilyFeeStore; childN
       )}
       {failed && <p className="pd-alert">{copy.loadFailed}</p>}
       {!fees && !failed && <p className="pd-muted">Loading…</p>}
-      {fees && !fees.length && <p className="pd-empty">{copy.empty}</p>}
-      {fees && fees.length > 0 && (
+      {fees && !fees.length && !planState && <p className="pd-empty">{copy.empty}</p>}
+      {shown && shown.length > 0 && (
         <ul className="pd-list pd-fees">
-          {fees.map((f) => (
-            <li key={f.id} className="pd-item pd-fee" data-status={f.status}>
+          {shown.map((f) => (
+            <li key={f.id} id={`fee-${f.id}`} className="pd-item pd-fee" data-status={f.status}>
               <div className="pd-item-head">
                 <strong>{f.title}</strong>
                 <span className="pd-fee-status" data-status={f.status}>
@@ -123,9 +225,21 @@ export function FamilyFees({ store, childName }: { store: FamilyFeeStore; childN
                     ? `${copy.paidOn} ${day(f.paidAt)}`
                     : f.status === "submitted"
                       ? `${copy.ref} ${f.utr}`
-                      : `${copy.dueOn} ${formatDay(f.due)}`}
+                      : f.kind === "plan"
+                        ? ""
+                        : `${copy.dueOn} ${formatDay(f.due)}`}
                 </small>
               </div>
+              {f.kind === "plan" && f.periodFrom && (
+                <small className="pd-muted">
+                  {plan.classes}:{" "}
+                  {plan.covers
+                    .replace("{from}", longDay(f.periodFrom))
+                    .replace("{to}", longDay(f.periodTo))}
+                  {f.planPercent > 0 &&
+                    ` · ${plan.save.replace("{percent}", String(f.planPercent))} (${rupees(f.listAmount)})`}
+                </small>
+              )}
               {f.status === "due" &&
                 (open === f.id ? (
                   <PayPanel
@@ -136,6 +250,7 @@ export function FamilyFees({ store, childName }: { store: FamilyFeeStore; childN
                     onDone={() => {
                       setOpen(null);
                       reload();
+                      onChanged?.();
                     }}
                     onChanged={reload}
                   />
@@ -144,6 +259,11 @@ export function FamilyFees({ store, childName }: { store: FamilyFeeStore; childN
                     {copy.payNow.replace("{amount}", rupees(f.payable))}
                   </button>
                 ))}
+              {f.status === "due" && f.kind === "plan" && canPay && !showPicker && (
+                <button type="button" className="pd-link" onClick={() => setPicking(true)}>
+                  {plan.change}
+                </button>
+              )}
               {f.status === "submitted" && <p className="pd-hint">{copy.checking}</p>}
               {f.status === "paid" && (
                 <button type="button" className="pd-ghost" onClick={() => setReceipt(f)}>
@@ -246,9 +366,15 @@ function PayPanel({
     <div className="pd-pay">
       <dl className="pd-pay-sum">
         <div>
-          <dt>{copy.fee}</dt>
-          <dd>{rupees(fee.amount)}</dd>
+          <dt>{fee.kind === "plan" ? monthsLabel(fee.months) : copy.fee}</dt>
+          <dd>{rupees(fee.planPercent > 0 ? fee.listAmount : fee.amount)}</dd>
         </div>
+        {fee.planPercent > 0 && (
+          <div className="pd-pay-off">
+            <dt>{plan.save.replace("{percent}", String(fee.planPercent))}</dt>
+            <dd>−{rupees(fee.listAmount - fee.amount)}</dd>
+          </div>
+        )}
         {fee.discount > 0 && (
           <div className="pd-pay-off">
             <dt>
@@ -401,13 +527,36 @@ function Receipt({
     [copy.paidOnLabel, day(fee.paidAt)],
     [copy.student, fee.studentName],
     [copy.for, fee.title],
-    [copy.fee, rupees(fee.amount)],
-    ...(fee.discount > 0
-      ? ([[`${copy.coupon} ${fee.couponCode}`, `−${rupees(fee.discount)}`]] as [string, string][])
+    ...(fee.kind === "plan" && fee.periodFrom
+      ? ([
+          [
+            plan.classes,
+            plan.covers
+              .replace("{from}", longDay(fee.periodFrom))
+              .replace("{to}", longDay(fee.periodTo)),
+          ],
+        ] as [string, string][])
       : []),
+    ...(fee.planPercent > 0
+      ? ([
+          [copy.fee, rupees(fee.listAmount)],
+          [
+            plan.save.replace("{percent}", String(fee.planPercent)),
+            `−${rupees(fee.listAmount - fee.amount)}`,
+          ],
+        ] as [string, string][])
+      : ([[copy.fee, rupees(fee.amount)]] as [string, string][])),
+    fee.couponCode
+      ? [
+          `${copy.coupon} ${fee.couponCode} (${fee.couponPercent}% off)`,
+          `−${rupees(fee.discount)}`,
+        ]
+      : [copy.coupon, copy.noCoupon],
     [copy.amountPaid, rupees(fee.payable)],
-    [copy.method, `UPI${pay ? ` to ${pay.upiId}` : ""}`],
-    [copy.ref, fee.utr],
+    fee.method && fee.method !== "upi"
+      ? [copy.method, plan.methods[fee.method as keyof typeof plan.methods] ?? fee.method]
+      : [copy.method, `UPI${pay ? ` to ${pay.upiId}` : ""}`],
+    ...(fee.utr ? ([[copy.ref, fee.utr]] as [string, string][]) : []),
   ];
   return (
     <div
@@ -445,58 +594,100 @@ function Receipt({
 }
 
 // ---------------------------------------------------------------------------------------------------
-// The parent preview: a fee to pay, one being checked and one paid. Nothing is saved or sent.
+// The parent preview: a plan ending in a few days and a fee paid last month, or (`fresh`) a new family who
+// hasn't paid yet, which opens on the payment screen. Nothing is saved or sent.
 
-export function previewFeeStore(today: string): FamilyFeeStore {
+export function previewFeeStore(today: string, fresh = false): FamilyFeeStore {
   const now = Date.now();
-  const base = {
+  const at = (d: string) => Date.parse(`${d}T06:00:00Z`);
+  const settings: PaySettings = {
+    upiId: "stoodant@okaxis",
+    payeeName: "Stoodant",
+    note: "",
+    planOff: { "3": 5, "6": 8, "12": 12 },
+  };
+  const blank: Fee = {
+    id: "",
     studentId: "s1",
     studentName: "Aarav Mehta",
-    batchId: "sample",
+    batchId: "",
+    title: "",
+    amount: 0,
     discount: 0,
+    payable: 0,
     couponCode: "",
     couponPercent: 0,
+    due: today,
+    status: "due",
     utr: "",
     note: "",
+    createdAt: now,
     submittedAt: 0,
     paidAt: 0,
+    kind: "plan",
+    months: 1,
+    periodFrom: "",
+    periodTo: "",
+    classLevel: "7",
+    board: "CBSE",
+    parentName: "Neha Mehta",
+    batches: [],
+    subjects: [],
+    listAmount: 0,
+    planPercent: 0,
+    submittedPhone: "",
+    method: "",
   };
-  const month = (offset: number) =>
-    new Date(Date.parse(`${today}T00:00:00Z`) + offset * 30 * 86_400_000).toLocaleDateString(
-      "en-IN",
-      { month: "long", year: "numeric", timeZone: "UTC" },
-    );
-  let list: Fee[] = [
-    {
-      ...base,
-      id: "pf1",
-      title: `${month(1)} fees`,
-      amount: 2999,
-      payable: 2999,
-      due: new Date(Date.parse(`${today}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10),
-      status: "due",
-      createdAt: now - 86_400_000,
-    },
-    {
-      ...base,
-      id: "pf2",
-      title: `${month(0)} fees`,
-      amount: 2999,
-      payable: 2699,
-      discount: 300,
-      couponCode: "WELCOME10",
-      couponPercent: 10,
-      due: today,
-      status: "paid",
-      utr: "412345678901",
-      createdAt: now - 30 * 86_400_000,
-      paidAt: now - 25 * 86_400_000,
-    },
-  ];
+  const monthlyFee = 2999;
+  // The last plan started 27 days ago, so it ends in a few days and Home shows Renew.
+  const from = addDaysIso(today, -27);
+  const until = addDaysIso(addMonthsIso(from, 1), -1);
+  let billing: Billing = {
+    studentId: "s1",
+    studentName: "Aarav Mehta",
+    classLevel: "7",
+    board: "CBSE",
+    parentName: "Neha Mehta",
+    parentPhone: "+919876543210",
+    active: true,
+    monthlyFee,
+    feeOverride: 0,
+    batches: [
+      { id: "b1", name: "Class 7 Maths A", subject: "Maths", monthlyFee: 1500 },
+      { id: "b2", name: "Class 7 Science A", subject: "Science", monthlyFee: 1499 },
+    ],
+    paidUntil: fresh ? "" : until,
+    anchor: fresh ? 0 : Number(from.slice(8, 10)),
+    status: fresh ? "new" : "ending",
+    open: !fresh,
+    checking: false,
+  };
+  let list: Fee[] = fresh
+    ? []
+    : [
+        {
+          ...blank,
+          id: "pf1",
+          title: "1 month of classes",
+          amount: monthlyFee,
+          listAmount: monthlyFee,
+          payable: monthlyFee - 300,
+          discount: 300,
+          couponCode: "WELCOME10",
+          couponPercent: 10,
+          due: from,
+          status: "paid",
+          utr: "412345678901",
+          periodFrom: from,
+          periodTo: until,
+          createdAt: at(from),
+          paidAt: at(from),
+        },
+      ];
   return {
     practice: true,
     list: async () => list,
-    settings: async () => ({ upiId: "stoodant@okaxis", payeeName: "Stoodant", note: "" }),
+    settings: async () => settings,
     applyCoupon: async (id, code) => {
       if (code && code !== "TRY10")
         return { error: "That code isn't valid. In this preview, try TRY10." };
@@ -518,6 +709,29 @@ export function previewFeeStore(today: string): FamilyFeeStore {
       list = list.map((f) =>
         f.id === id ? { ...f, status: "submitted", utr, submittedAt: Date.now() } : f,
       );
+      if (list.some((f) => f.id === id && f.kind === "plan"))
+        billing = { ...billing, checking: true };
+    },
+    plan: {
+      billing: async () => billing,
+      start: async (months) => {
+        const price = planPrice(monthlyFee, months, settings.planOff);
+        const period = nextPeriodIso(today, billing.paidUntil, billing.anchor, months);
+        const fee: Fee = {
+          ...blank,
+          id: "plan-new",
+          title: months === 1 ? "1 month of classes" : `${months} months of classes`,
+          months,
+          amount: price.amount,
+          payable: price.amount,
+          listAmount: price.list,
+          planPercent: price.percent,
+          periodFrom: period.from,
+          periodTo: period.to,
+        };
+        list = [...list.filter((f) => f.id !== fee.id), fee];
+        return fee.id;
+      },
     },
   };
 }

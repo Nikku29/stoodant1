@@ -141,7 +141,8 @@ service cloud.firestore {
       allow read: if isAdmin() || (signedIn() && phone() != '' && resource.data.teacherPhone == phone());
       allow create, update: if isAdmin()
         && request.resource.data.keys().hasOnly(['name', 'classLevel', 'board', 'subject', 'teacherId', 'schedule',
-             'durationMinutes', 'active', 'createdAt', 'updatedAt', 'teacherPhone', 'teacherName', 'roster', 'studentIds'])
+             'durationMinutes', 'active', 'monthlyFee', 'createdAt', 'updatedAt', 'teacherPhone', 'teacherName', 'roster',
+             'studentIds'])
         && (resource == null
             ? !request.resource.data.keys().hasAny(['teacherPhone', 'teacherName', 'roster', 'studentIds'])
             : !changed().hasAny(['teacherPhone', 'teacherName', 'roster', 'studentIds']))
@@ -157,6 +158,10 @@ service cloud.firestore {
         && (!('durationMinutes' in request.resource.data)
             || (request.resource.data.durationMinutes is int
                 && request.resource.data.durationMinutes >= 15 && request.resource.data.durationMinutes <= 300))
+        // Each student's fee for this batch, whole rupees a month (0 or missing = not set).
+        && (!('monthlyFee' in request.resource.data)
+            || (request.resource.data.monthlyFee is int && request.resource.data.monthlyFee >= 0
+                && request.resource.data.monthlyFee <= 200000))
         && request.resource.data.active is bool
         && fresh(request.resource.data)
         && request.resource.data.updatedAt == request.time;
@@ -168,7 +173,12 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
       allow create, update: if isAdmin()
         && request.resource.data.keys().hasOnly(['name', 'nameKey', 'classLevel', 'board', 'parentName', 'parentPhone',
-             'batchIds', 'whatsappOptIn', 'active', 'createdAt', 'updatedAt'])
+             'batchIds', 'whatsappOptIn', 'active', 'monthlyFee', 'createdAt', 'updatedAt'])
+        // The team's own monthly amount for this child (sibling discount, special rate), in whole rupees;
+        // 0 or missing = the fees of the child's batches added up.
+        && (!('monthlyFee' in request.resource.data)
+            || (request.resource.data.monthlyFee is int && request.resource.data.monthlyFee >= 0
+                && request.resource.data.monthlyFee <= 200000))
         && shortText(request.resource.data.name, 80)
         && request.resource.data.nameKey == normName(request.resource.data.name)
         && request.resource.data.classLevel in ['4', '5', '6', '7', '8', '9', '10']
@@ -444,8 +454,10 @@ service cloud.firestore {
         let d = request.resource.data;
         return ownChild(resource.data.studentId)
           && resource.data.status == 'due'
-          && changed().hasOnly(['status', 'utr', 'submittedBy', 'submittedAt'])
+          && changed().hasOnly(['status', 'utr', 'submittedBy', 'submittedAt', 'submittedPhone'])
           && d.status == 'submitted'
+          // The number that was logged in when they paid, for the team's records.
+          && (!('submittedPhone' in d) || d.submittedPhone == phone())
           && d.utr is string && d.utr.matches('^[A-Za-z0-9]{6,30}$')
           && d.submittedBy == request.auth.uid
           && d.submittedAt == request.time;
@@ -476,12 +488,25 @@ service cloud.firestore {
         && request.resource.data.active is bool;
     }
 
+    // A child's monthly plan: paid-until date and whether classes are open. Kept by Cloud Functions from
+    // the plan payments (functions/src/billing); the team and the child's family read it.
+    match /billing/{studentId} {
+      allow read: if isAdmin()
+        || (signedIn() && phone() != ''
+            && get(/databases/$(database)/documents/progress/$(studentId)).data.parentPhone == phone());
+      allow write: if false;
+    }
+
     // Where families pay: the team's UPI ID and name. Anyone signed in may read it (it is printed on the
     // QR code anyway); only the team changes it.
     match /settings/payments {
       allow read: if signedIn();
       allow write: if isAdmin()
-        && request.resource.data.keys().hasOnly(['upiId', 'payeeName', 'note', 'updatedBy', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['upiId', 'payeeName', 'note', 'planOff', 'updatedBy', 'updatedAt'])
+        // Percent off for paying 3, 6 or 12 months at once.
+        && (!('planOff' in request.resource.data)
+            || (request.resource.data.planOff is map
+                && request.resource.data.planOff.keys().hasOnly(['3', '6', '12'])))
         && request.resource.data.upiId.matches('^[a-zA-Z0-9.\\-_]{2,256}@[a-zA-Z]{2,64}$')
         && shortText(request.resource.data.payeeName, 60)
         && request.resource.data.note is string && request.resource.data.note.size() <= 200

@@ -16,7 +16,14 @@ import { isDone, noticesFor, setDone } from "@/lib/firebase/notices";
 import { previewFamilyStore, type FamilyNoticeStore } from "@/components/dashboard/Notices";
 import { askDoubt, doubtsOfChild, withdrawDoubt } from "@/lib/firebase/doubts";
 import { previewFamilyDoubts, type FamilyDoubtStore } from "@/components/dashboard/Doubts";
-import { applyCoupon, feesOfChild, paySettings, submitPayment } from "@/lib/firebase/fees";
+import {
+  applyCoupon,
+  billingOf,
+  feesOfChild,
+  paySettings,
+  startPayment,
+  submitPayment,
+} from "@/lib/firebase/fees";
 import { previewFeeStore, type FamilyFeeStore } from "@/components/dashboard/Fees";
 
 // Parent dashboard: the signed-in parent's child (or children). `?sample=1` shows the preview with sample
@@ -24,7 +31,9 @@ import { previewFeeStore, type FamilyFeeStore } from "@/components/dashboard/Fee
 export function ParentPage() {
   useMoveToApp();
   const sample = useSearchFlag("sample");
-  if (sample === undefined)
+  // `?sample=1&paywall=1`: the preview of a new family who hasn't paid yet.
+  const paywall = useSearchFlag("paywall");
+  if (sample === undefined || paywall === undefined)
     return (
       <Shell role="Parent">
         <Loading />
@@ -40,7 +49,8 @@ export function ParentPage() {
         classes={{ load: loadSampleClasses }}
         notices={sampleNotices}
         doubts={sampleDoubts}
-        fees={sampleFees}
+        fees={paywall ? sampleNewFees : sampleFees}
+        payFirst
       />
     );
   return <LiveParent />;
@@ -51,6 +61,7 @@ const loadSampleClasses = async () => sampleClasses();
 const sampleNotices = previewFamilyStore(SAMPLE_TODAY);
 const sampleDoubts = previewFamilyDoubts();
 const sampleFees = previewFeeStore(SAMPLE_TODAY);
+const sampleNewFees = previewFeeStore(SAMPLE_TODAY, true);
 
 /**
  * The child's batches by name. Progress pages built before doubts came in have no `batches` yet; their
@@ -136,6 +147,7 @@ function Children({ session }: { session: Session }) {
       setPick={setPick}
       signOut={signOut}
       uid={session.admin ? null : session.user.uid}
+      phone={session.phone}
     />
   );
 }
@@ -147,8 +159,10 @@ function Child({
   setPick,
   signOut,
   uid,
+  phone,
 }: {
   uid: string | null;
+  phone: string;
   child: Progress;
   all: Progress[];
   pick: number;
@@ -205,9 +219,16 @@ function Child({
       applyCoupon,
       // The team viewing a child's page doesn't pay for them.
       submit: (id, utr) =>
-        uid ? submitPayment(id, utr, uid) : Promise.reject(new Error("view only")),
+        uid ? submitPayment(id, utr, uid, phone) : Promise.reject(new Error("view only")),
+      plan: {
+        billing: () => billingOf(studentId),
+        start: (months) =>
+          uid
+            ? startPayment(studentId, months).then((r) => r.feeId)
+            : Promise.reject(new Error("Only the family can start a payment.")),
+      },
     }),
-    [studentId, uid],
+    [studentId, uid, phone],
   );
   const picker =
     all.length > 1 ? (
@@ -236,6 +257,8 @@ function Child({
       notices={notices}
       doubts={doubts}
       fees={fees}
+      // The team opening a child's page sees everything, paid or not.
+      payFirst={Boolean(uid)}
     />
   );
 }
