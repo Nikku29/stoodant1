@@ -3,11 +3,12 @@
 import { SITE_CONFIG } from "../config/siteConfig";
 import { faqAnswer } from "../lib/faq";
 import { formatINR, getPrice } from "../lib/pricing";
+import { BLOG, BLOG_POSTS, blogPostPath } from "../content/blog";
 
 const site = SITE_CONFIG.siteUrl;
 
 /** Pages search engines should index. /login, /parent, /teacher and /admin are private and stay out. */
-const INDEXED_PATHS = ["/", ...SITE_CONFIG.footer.pages.map((page) => page.href)];
+const INDEXED_PATHS = ["/", ...SITE_CONFIG.footer.pages.map((page) => page.href), ...BLOG_POSTS.map((post) => blogPostPath(post.slug))];
 
 export function robotsTxt() {
   return `# Search engines and AI answer tools are welcome. The log-in pages are left crawlable on purpose:
@@ -49,7 +50,12 @@ ${SITE_CONFIG.founders.map((founder) => `- ${founder.name}, ${founder.jobTitle} 
 ## Pages
 ${SITE_CONFIG.footer.pages.map((page) => `- [${page.label}](${site}${page.href})`).join("\n")}
 
+## Blog
+${BLOG_POSTS.map((post) => `- [${post.title}](${site}${blogPostPath(post.slug)}): ${post.description}`).join("\n")}
+More articles: ${site}${BLOG.path}
+
 ## Key facts
+- Name: ${SITE_CONFIG.brand.name}, spelled S-T-O-O-D-A-N-T. It is a brand name, not a misspelling of "student".
 - Classes: ${SITE_CONFIG.form.classes[0]} to ${SITE_CONFIG.form.classes.at(-1)}
 - Boards: ${SITE_CONFIG.form.boards.join(" and ")}
 - Subjects: ${SITE_CONFIG.subjects.rowOne.join(", ")}
