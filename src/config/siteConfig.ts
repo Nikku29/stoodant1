@@ -62,6 +62,18 @@ export const SITE_CONFIG = {
     width: 1280,
     height: 720,
   },
+  // Scholarship test campaign: the first slide at the top of the home page (then the team photo) and the
+  // /scholarship page. The form and its help text live in scholarshipConfig.ts, which only that page loads.
+  scholarship: {
+    path: "/scholarship",
+    nav: "Scholarship",
+    kicker: "Stoodant Scholarship Test · Class 9 & 10",
+    headline: ["Win up to", "100%", "scholarship"],
+    sub: "An Olympiad-level online test. Your rank decides your scholarship on Stoodant fees.",
+    cta: "Register now",
+    tiers: [["Rank 1", "100%"], ["Rank 2", "95%"], ["Rank 3", "75%"], ["Rank 4 to 10", "50%"], ["Rank 11 to 20", "25%"], ["Every participant", "10%"]],
+    note: "Scholarship on Stoodant tuition fees. T&C apply.",
+  },
   hero: {
     headline: ["Learning that moves", "at your pace."],
     highlight: "your pace", // amber highlighter swoosh behind this phrase
@@ -188,21 +200,6 @@ export const SITE_CONFIG = {
       { id: "jaanya-arora", name: "Jaanya Arora", subject: "Social Science", highlights: ["Psychology undergraduate", "Young talent"], photo: "jaanya-arora" },
       { id: "nikita-sharma", name: "Nikita Sharma", subject: "Social Science", highlights: ["4+ years teaching", "Best explainer"], photo: "nikita-sharma" },
     ] as { id: string; name: string; role?: string; subject?: string; highlights: string[]; quote?: string; photo: string | null }[],
-  },
-  progress: {
-    kicker: "Parent progress",
-    headline: "See the learning, not just the marks.",
-    sample: "Sample view",
-    rings: [
-      { label: "Attendance", value: 92 },
-      { label: "Practice", value: 78 },
-      { label: "Concepts", value: 84 },
-    ],
-    week: "This week",
-    days: ["M", "T", "W", "T", "F", "S"],
-    bars: [52, 76, 64, 88, 72, 94],
-    reportTitle: "Weekly report",
-    reportCopy: "A simple view of topics covered, practice, and what comes next.",
   },
   testimonials: {
     kicker: "Parent voices",

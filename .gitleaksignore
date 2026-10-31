@@ -1,0 +1,2 @@
+# Test fixture UUID in an earlier commit of the scholarship PR (not a secret). The line now uses randomUUID().
+00a89cf3f937e2e21960e34fef5901ecd4784809:functions/test/unit/scholarship.test.ts:generic-api-key:9
