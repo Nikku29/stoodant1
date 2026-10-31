@@ -92,7 +92,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Campaign slides under the header: scholarship first, then the team photo. Brand navy and amber. */
 .campaign-banner { position: relative; display: grid; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #0a1026; color: #fff; }
 .cb-slide { grid-area: 1 / 1; min-width: 0; min-height: 0; }
-.cb-campaign { position: relative; display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: clamp(20px, 4vw, 72px); padding: clamp(24px, 4.5vw, 80px) clamp(20px, 6vw, 110px) clamp(34px, 5vw, 90px); background: radial-gradient(110% 90% at 88% 8%, #1d2858 0, #0a1026 62%); animation: cb-campaign 15s 1.5s infinite; }
+.cb-track { grid-area: 1 / 1; display: flex; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.cb-track::-webkit-scrollbar { display: none; }
+.cb-track > .cb-slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+.cb-dots { position: absolute; right: clamp(88px, 8vw, 120px); bottom: clamp(4px, 1.2vw, 18px); display: flex; }
+.cb-dots button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; background: none; cursor: pointer; }
+.cb-dots button::before { content: ""; width: 9px; height: 9px; border-radius: 99px; background: rgba(255, 255, 255, .45); box-shadow: 0 0 0 1px rgba(10, 16, 38, .35); transition: width .25s, background .25s; }
+.cb-dots button[aria-current="true"]::before { width: 22px; background: #fbb308; }
+.cb-dots button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; border-radius: 8px; }
+.cb-campaign { position: relative; display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: clamp(20px, 4vw, 72px); padding: clamp(24px, 4.5vw, 80px) clamp(20px, 6vw, 110px) clamp(34px, 5vw, 90px); background: radial-gradient(110% 90% at 88% 8%, #1d2858 0, #0a1026 62%); }
 .cb-kicker { margin: 0; color: #fbb308; font-size: clamp(11px, 1.05vw, 14px); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .cb-title { margin: .45em 0 0; font: 800 clamp(1.9rem, 4.6vw, 4.6rem)/1 var(--font-display); }
 .cb-title b { display: block; color: #fbb308; font-size: 1.55em; line-height: .95; }
@@ -107,12 +115,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .cb-tiers li:last-child { border-style: dashed; }
 .cb-tiers b { font: 800 1.3em/1 var(--font-display); }
 .cb-note { position: absolute; left: clamp(20px, 6vw, 110px); bottom: clamp(10px, 1.6vw, 26px); color: #8c93ad; font-size: clamp(10px, .9vw, 12px); }
-.cb-photo { display: block; opacity: 0; visibility: hidden; background: linear-gradient(#fcc835 50%, #0e0e0e 50%); animation: cb-photo 15s 1.5s infinite; }
+.cb-photo { display: block; background: linear-gradient(#fcc835 50%, #0e0e0e 50%); }
 .cb-photo img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.campaign-banner:hover .cb-slide, .campaign-banner:focus-within .cb-slide { animation-play-state: paused; }
-@keyframes cb-photo { 0%, 56% { opacity: 0; visibility: hidden; } 60%, 96% { opacity: 1; visibility: visible; } 100% { opacity: 0; visibility: hidden; } }
-@keyframes cb-campaign { 0%, 58% { visibility: visible; } 60%, 94% { visibility: hidden; } 96%, 100% { visibility: visible; } }
-@media (prefers-reduced-motion: reduce) { .cb-slide { animation: none; } }
 @media (max-width: 700px) {
   .campaign-banner { aspect-ratio: 4 / 5; }
   .cb-campaign { grid-template-columns: 1fr; align-content: center; gap: 16px; padding: 22px 20px 34px; }
@@ -124,13 +128,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .cb-tiers { order: 2; gap: 5px; }
   .cb-tiers li { padding: 6px 12px; font-size: 13px; }
   .cb-note { left: 20px; bottom: 10px; }
+  .cb-dots { right: 8px; bottom: 2px; }
   /* The 16:9 photo sits whole in the taller phone box, over a blurred copy of itself. */
   .cb-photo { position: relative; overflow: hidden; background: #0e0e0e; }
   .cb-photo::before { content: ""; position: absolute; inset: -24px; background: url(/team/team-banner-blur.webp) center / cover; filter: blur(14px) brightness(.85); }
   .cb-photo img { position: relative; }
 }
 .campaign-banner.is-page { aspect-ratio: auto; }
-.is-page .cb-campaign { min-height: min(560px, 80svh); animation: none; }
+.is-page .cb-campaign { min-height: min(560px, 80svh); }
 @media (max-width: 700px) { .is-page .cb-sub { display: block; order: 1; } .is-page .cb-campaign { padding-top: 32px; } }
 .nav-scholarship { display: inline-flex; align-items: center; min-height: 38px; margin-left: 22px; margin-right: 10px; padding: 0 16px; border-radius: 999px; background: #fbb308; color: #0a1026; font-size: 13px; font-weight: 800; white-space: nowrap; transition: transform .2s; }
 .nav-scholarship:hover { transform: translateY(-1px); }
