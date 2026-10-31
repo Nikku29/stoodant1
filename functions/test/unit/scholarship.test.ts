@@ -1,12 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import {
   decodePhoto, duplicateKey, isPlausibleDob, registrationNumber, scholarshipRequestSchema,
 } from "../../lib/scholarship/schema.js";
 
 const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200, 7)]).toString("base64");
 const valid = {
-  idempotencyKey: "3f0b6c0e-2a4b-4c1d-9e8f-0a1b2c3d4e5f",
+  idempotencyKey: randomUUID(),
   studentName: "Aarav Sharma",
   studentClass: "10",
   dob: "2011-08-05",
