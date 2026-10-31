@@ -208,17 +208,32 @@ function MagneticLink({ href, children, outline = false }: { href: string; child
 
 // Full-bleed slides under the header: the scholarship campaign first, then the team photo (CSS-only crossfade,
 // no script). Both share one box, so nothing moves when they swap; reduced motion shows the campaign only.
+/** Two slides you can swipe (scroll-snap): the scholarship poster, then the team photo. Moves on by itself every 6s; a mouse over it pauses that, and a tap or swipe holds it for 10s. */
 function CampaignBanner() {
   const { alt, src, widths, width, height } = SITE_CONFIG.teamBanner;
   const srcSet = (ext: string) => widths.map((w) => `${src}-${w}.${ext} ${w}w`).join(", ");
+  const track = useRef<HTMLDivElement>(null);
+  const pause = useRef(0);
+  const [active, setActive] = useState(0);
+  const go = (i: number, behavior: ScrollBehavior = "smooth") => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior });
+  useEffect(() => {
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = setInterval(() => { if (!document.hidden && Date.now() > pause.current) go(active ? 0 : 1, still ? "auto" : "smooth"); }, 6000);
+    return () => clearInterval(timer);
+  }, [active]);
   return (
-    <section className="campaign-banner" aria-label={SITE_CONFIG.scholarship.kicker}>
-      <CampaignSlide ctaHref={SITE_CONFIG.scholarship.path} />
-      <picture className="cb-slide cb-photo">
-        <source type="image/avif" srcSet={srcSet("avif")} sizes="100vw" />
-        <source type="image/webp" srcSet={srcSet("webp")} sizes="100vw" />
-        <img src={`${src}-${width}.jpg`} alt={alt} width={width} height={height} decoding="async" />
-      </picture>
+    <section className="campaign-banner" aria-label={SITE_CONFIG.scholarship.kicker} aria-roledescription="carousel" onPointerDown={() => { pause.current = Date.now() + 10000; }} onPointerEnter={(e) => { if (e.pointerType === "mouse") pause.current = 1e14; }} onPointerLeave={(e) => { if (e.pointerType === "mouse") pause.current = 0; }}>
+      <div className="cb-track" ref={track} onScroll={(e) => setActive(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
+        <CampaignSlide ctaHref={SITE_CONFIG.scholarship.path} />
+        <picture className="cb-slide cb-photo">
+          <source type="image/avif" srcSet={srcSet("avif")} sizes="100vw" />
+          <source type="image/webp" srcSet={srcSet("webp")} sizes="100vw" />
+          <img src={`${src}-${width}.jpg`} alt={alt} width={width} height={height} decoding="async" />
+        </picture>
+      </div>
+      <div className="cb-dots">
+        {[0, 1].map((i) => <button key={i} type="button" aria-label={`Slide ${i + 1} of 2`} aria-current={active === i} onClick={() => go(i)} />)}
+      </div>
     </section>
   );
 }
