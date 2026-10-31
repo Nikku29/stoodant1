@@ -43,7 +43,7 @@ export default defineConfig({
       // In-page links such as /#demo are the home page again, so the crawl skips them.
       prerender: { enabled: true, crawlLinks: true, filter: (page) => !page.path.includes("#") && page.path !== "/blog/" },
       // /parent, /teacher, /login and /admin are not linked from the landing page, so the crawl would miss them.
-      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }, ...["/about", "/privacy", "/terms", "/refund-policy", BLOG.path, ...BLOG_POSTS.map((post) => blogPostPath(post.slug))].map((path) => ({ path, prerender: { enabled: true, outputPath: `${path}.html` } }))],
+      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }, ...["/scholarship", "/about", "/privacy", "/terms", "/refund-policy", BLOG.path, ...BLOG_POSTS.map((post) => blogPostPath(post.slug))].map((path) => ({ path, prerender: { enabled: true, outputPath: `${path}.html` } }))],
     }),
     viteReact(),
     seoFiles(),

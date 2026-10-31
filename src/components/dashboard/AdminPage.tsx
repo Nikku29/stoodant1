@@ -28,6 +28,7 @@ import { istIso, statusLine, time12 } from "@/lib/classes/time";
 import { monthlyFeeOf } from "@/lib/billing/period";
 import { allFees, rupees, type Fee } from "@/lib/firebase/fees";
 import { AdminFees } from "./AdminFees";
+import { AdminScholarship } from "./AdminScholarship";
 import { Overview } from "./AdminReports";
 import { Tile, useSection, type Nav } from "./AppNav";
 import { Loading, RequireLogin, Shell } from "./Shell";
@@ -79,7 +80,7 @@ export type Data = {
 type Section = keyof typeof DASHBOARD_CONFIG.nav.admin;
 type People = keyof typeof DASHBOARD_CONFIG.home.peopleTabs;
 const SECTIONS = Object.keys(DASHBOARD_CONFIG.nav.admin) as Section[];
-const ICON = { today: "sun", leads: "inbox", people: "people", fees: "rupee", batches: "layers", help: "help" } as const;
+const ICON = { today: "sun", leads: "inbox", scholarship: "tag", people: "people", fees: "rupee", batches: "layers", help: "help" } as const;
 const home = DASHBOARD_CONFIG.home;
 
 /** Old links and notifications name a tab, e.g. /admin?tab=help or ?tab=teachers. */
@@ -157,6 +158,7 @@ function Admin({ session }: { session: Session }) {
   const title = {
     today: "Stoodant team",
     leads: copy.tabs.leads,
+    scholarship: "Scholarship test registrations",
     people: DASHBOARD_CONFIG.nav.admin.people,
     fees: DASHBOARD_CONFIG.nav.admin.fees,
     batches: copy.tabs.batches,
@@ -213,6 +215,7 @@ function Admin({ session }: { session: Session }) {
             />
           )}
           {section === "batches" && <Batches data={data} act={act} />}
+          {section === "scholarship" && <AdminScholarship />}
           {section === "help" && <Help help={data.help} act={act} uid={session.user.uid} />}
         </div>
       )}

@@ -31,7 +31,7 @@ export const DASHBOARD_CONFIG = {
       material: "Study material",
       help: "Help",
     },
-    admin: { today: "Today", leads: "Demos", people: "People", fees: "Fees", batches: "Batches", help: "Help" },
+    admin: { today: "Today", leads: "Demos", scholarship: "Scholarship", people: "People", fees: "Fees", batches: "Batches", help: "Help" },
   },
   home: {
     parentHello: "Hello",

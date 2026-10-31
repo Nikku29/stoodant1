@@ -144,10 +144,13 @@ export async function handleSubmitLead(req: Request, res: Response): Promise<voi
  * Fixed-window counters per hashed IP. Behind Firebase Hosting the real client IP is in
  * `fastly-client-ip`, which the visitor cannot set; `req.ip` is the fallback (emulator, direct calls).
  */
-async function isRateLimited(db: Firestore, ipHash: string, now: number): Promise<boolean> {
+export async function isRateLimited(
+  db: Firestore, ipHash: string, now: number,
+  limits = { per10Min: RATE_LIMIT_PER_10_MIN.value(), perDay: RATE_LIMIT_PER_DAY.value() },
+): Promise<boolean> {
   const windows = [
-    { id: `${ipHash}_10m_${Math.floor(now / TEN_MIN_MS)}`, limit: RATE_LIMIT_PER_10_MIN.value(), ttl: TEN_MIN_MS },
-    { id: `${ipHash}_1d_${Math.floor(now / DAY_MS)}`, limit: RATE_LIMIT_PER_DAY.value(), ttl: DAY_MS },
+    { id: `${ipHash}_10m_${Math.floor(now / TEN_MIN_MS)}`, limit: limits.per10Min, ttl: TEN_MIN_MS },
+    { id: `${ipHash}_1d_${Math.floor(now / DAY_MS)}`, limit: limits.perDay, ttl: DAY_MS },
   ];
   return db.runTransaction(async (tx) => {
     const refs = windows.map((w) => db.doc(`rateLimits/${w.id}`));
@@ -162,10 +165,10 @@ async function isRateLimited(db: Firestore, ipHash: string, now: number): Promis
   });
 }
 
-function clientIp(req: Request): string {
+export function clientIp(req: Request): string {
   return req.get("fastly-client-ip") ?? req.ip ?? "unknown";
 }
 
-function dropUndefined<T extends Record<string, unknown>>(value: T): Partial<T> {
+export function dropUndefined<T extends Record<string, unknown>>(value: T): Partial<T> {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>;
 }

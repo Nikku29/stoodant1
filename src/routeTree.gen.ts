@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ParentRouteImport } from './routes/parent'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
+import { Route as ScholarshipRouteImport } from './routes/scholarship'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
@@ -62,6 +63,11 @@ const RefundPolicyRoute = RefundPolicyRouteImport.update({
   path: '/refund-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScholarshipRoute = ScholarshipRouteImport.update({
+  id: '/scholarship',
+  path: '/scholarship',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeacherRoute = TeacherRouteImport.update({
   id: '/teacher',
   path: '/teacher',
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/parent': typeof ParentRoute
   '/privacy': typeof PrivacyRoute
   '/refund-policy': typeof RefundPolicyRoute
+  '/scholarship': typeof ScholarshipRoute
   '/teacher': typeof TeacherRoute
   '/terms': typeof TermsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/parent': typeof ParentRoute
   '/privacy': typeof PrivacyRoute
   '/refund-policy': typeof RefundPolicyRoute
+  '/scholarship': typeof ScholarshipRoute
   '/teacher': typeof TeacherRoute
   '/terms': typeof TermsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/parent': typeof ParentRoute
   '/privacy': typeof PrivacyRoute
   '/refund-policy': typeof RefundPolicyRoute
+  '/scholarship': typeof ScholarshipRoute
   '/teacher': typeof TeacherRoute
   '/terms': typeof TermsRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/privacy'
     | '/refund-policy'
+    | '/scholarship'
     | '/teacher'
     | '/terms'
     | '/blog/$slug'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/privacy'
     | '/refund-policy'
+    | '/scholarship'
     | '/teacher'
     | '/terms'
     | '/blog/$slug'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/privacy'
     | '/refund-policy'
+    | '/scholarship'
     | '/teacher'
     | '/terms'
     | '/blog/$slug'
@@ -180,6 +192,7 @@ export interface RootRouteChildren {
   ParentRoute: typeof ParentRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundPolicyRoute: typeof RefundPolicyRoute
+  ScholarshipRoute: typeof ScholarshipRoute
   TeacherRoute: typeof TeacherRoute
   TermsRoute: typeof TermsRoute
   BlogSlugRoute: typeof BlogSlugRoute
@@ -244,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RefundPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/scholarship': {
+      id: '/scholarship'
+      path: '/scholarship'
+      fullPath: '/scholarship'
+      preLoaderRoute: typeof ScholarshipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teacher': {
       id: '/teacher'
       path: '/teacher'
@@ -284,6 +304,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParentRoute: ParentRoute,
   PrivacyRoute: PrivacyRoute,
   RefundPolicyRoute: RefundPolicyRoute,
+  ScholarshipRoute: ScholarshipRoute,
   TeacherRoute: TeacherRoute,
   TermsRoute: TermsRoute,
   BlogSlugRoute: BlogSlugRoute,

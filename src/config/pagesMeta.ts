@@ -6,6 +6,7 @@ export const PAGES_META = {
   privacy: { path: "/privacy", title: "Privacy Policy | Stoodant", description: "How Stoodant collects, uses, protects and deletes personal data, in line with India's Digital Personal Data Protection Act, 2023." },
   terms: { path: "/terms", title: "Terms of Service | Stoodant", description: "The terms for Stoodant's free demo class and paid online tuition for Class 4 to 10." },
   refund: { path: "/refund-policy", title: "Refund and Cancellation Policy | Stoodant", description: "When Stoodant fees can be refunded: in full before classes start, not after classes for the month have started." },
+  scholarship: { path: "/scholarship", title: "Scholarship Test for Class 9 & 10 | Stoodant", description: "Olympiad-level online test for Class 9 and 10. Up to 100% scholarship; 10% off for every participant. Register now." },
 } as const;
 
 export type PageMeta = (typeof PAGES_META)[keyof typeof PAGES_META];

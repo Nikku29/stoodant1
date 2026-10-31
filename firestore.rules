@@ -520,6 +520,18 @@ service cloud.firestore {
 
     // ---- Demo requests ----
 
+    // Scholarship test registrations: created only by the submitScholarship function. The team reads them,
+    // and may delete one (with its duplicate-check key, so the child can register again).
+    match /scholarshipRegistrations/{regNo} {
+      allow read, delete: if isAdmin();
+    }
+    match /scholarshipKeys/{keyId} {
+      allow delete: if isAdmin();
+    }
+    match /counters/{counterId} {
+      allow read: if isAdmin() && counterId.matches('scholarship-.*');
+    }
+
     match /leads/{leadId} {
       allow read: if isAdmin();
       // Contact details, consent and retention are immutable from the client; only the status moves.

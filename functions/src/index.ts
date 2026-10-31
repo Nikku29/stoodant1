@@ -6,6 +6,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./config.js";
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
+import { handleSubmitScholarship } from "./scholarship/submit.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
 import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
@@ -26,6 +27,12 @@ setGlobalOptions({ region: REGION, maxInstances: 5, memory: "256MiB", timeoutSec
 export const submitLead = onRequest(
   { concurrency: 40, invoker: "public", secrets: [PHONE_HASH_PEPPER] },
   handleSubmitLead,
+);
+
+// Scholarship test registrations from stoodant.com/scholarship (photo included, so a larger body and a little more time).
+export const submitScholarship = onRequest(
+  { concurrency: 40, invoker: "public", timeoutSeconds: 30, memory: "512MiB", maxInstances: 10, secrets: [PHONE_HASH_PEPPER] },
+  handleSubmitScholarship,
 );
 
 export const onLeadCreated = onDocumentCreated(

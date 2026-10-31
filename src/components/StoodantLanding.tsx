@@ -10,6 +10,7 @@ import { TIMING } from "@/config/timing";
 import { AntSprite } from "@/brand/Ant";
 import { Highlight } from "@/brand/Highlight";
 import { appHref } from "@/lib/appUrl";
+import { CampaignSlide } from "@/components/scholarship/CampaignSlide";
 
 // The roaming ant only pops up a while after load, so its code loads after the page is up.
 const RoamingAnt = lazy(() => import("@/brand/RoamingAnt").then((mod) => ({ default: mod.RoamingAnt })));
@@ -53,7 +54,7 @@ export function StoodantLanding() {
       <MotionScope><Header /></MotionScope>
       <main>
         <MotionScope>
-          <TeamBanner />
+          <CampaignBanner />
           <Hero />
         </MotionScope>
         {MAIN_SECTIONS.map((def, index) => <LazySection key={index} def={def} wrapper={MotionScope} />)}
@@ -175,6 +176,7 @@ function Header() {
           <nav className="desktop-nav" aria-label="Main navigation">
             {SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
           </nav>
+          <a href={SITE_CONFIG.scholarship.path} className="nav-scholarship">{SITE_CONFIG.scholarship.nav}</a>
           <a href={appHref("/login")} className="nav-login"><UserRound size={16} aria-hidden="true" />{SITE_CONFIG.navigation.login}</a>
           <a href="#demo" className={`button ${overDark ? "button-light" : "button-dark"} nav-cta`}>{SITE_CONFIG.navigation.cta}</a>
           <button className="menu-button" aria-label={SITE_CONFIG.navigation.menuOpen} aria-expanded={menu} onClick={() => setMenu(true)}><Menu /></button>
@@ -184,7 +186,7 @@ function Header() {
         {menu && <m.div className="mobile-menu" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.6, ease: EASE }}>
           <button aria-label={SITE_CONFIG.navigation.menuClose} onClick={() => setMenu(false)}><X /></button>
           <BrandLink dark />
-          <nav>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href} onClick={() => setMenu(false)}>{link.label}</a>)}</nav>
+          <nav><a href={SITE_CONFIG.scholarship.path}>{SITE_CONFIG.scholarship.nav}</a>{SITE_CONFIG.navigation.links.map((link) => <a key={link.href} href={link.href} onClick={() => setMenu(false)}>{link.label}</a>)}</nav>
           <a href={appHref("/login")} className="mobile-login"><UserRound size={18} aria-hidden="true" />{SITE_CONFIG.navigation.loginMenu}</a>
           <a href="#demo" onClick={() => setMenu(false)}>{SITE_CONFIG.navigation.cta}<ArrowDownRight /></a>
         </m.div>}
@@ -204,16 +206,18 @@ function MagneticLink({ href, children, outline = false }: { href: string; child
   return <a ref={ref} href={href} onMouseMove={move} onMouseLeave={() => ref.current?.style.setProperty("transform", "translate(0,0)")} className={`button ${outline ? "button-outline" : "button-dark"}`}>{children}<ArrowDownRight size={18} /></a>;
 }
 
-// Full-bleed team photo under the header; the whole 16:9 image stays visible at every width.
-function TeamBanner() {
+// Full-bleed slides under the header: the scholarship campaign first, then the team photo (CSS-only crossfade,
+// no script). Both share one box, so nothing moves when they swap; reduced motion shows the campaign only.
+function CampaignBanner() {
   const { alt, src, widths, width, height } = SITE_CONFIG.teamBanner;
   const srcSet = (ext: string) => widths.map((w) => `${src}-${w}.${ext} ${w}w`).join(", ");
   return (
-    <section className="team-banner" aria-label="Meet the team">
-      <picture>
+    <section className="campaign-banner" aria-label={SITE_CONFIG.scholarship.kicker}>
+      <CampaignSlide ctaHref={SITE_CONFIG.scholarship.path} />
+      <picture className="cb-slide cb-photo">
         <source type="image/avif" srcSet={srcSet("avif")} sizes="100vw" />
         <source type="image/webp" srcSet={srcSet("webp")} sizes="100vw" />
-        <img src={`${src}-${width}.jpg`} alt={alt} width={width} height={height} fetchPriority="high" decoding="async" />
+        <img src={`${src}-${width}.jpg`} alt={alt} width={width} height={height} decoding="async" />
       </picture>
     </section>
   );
