@@ -16,6 +16,8 @@ export type Registered = {
   payment: { amount: number; status: PayStatus; token: string; upi: { upiId: string; payeeName: string } | null };
   /** The exam roll number: only once the team has confirmed the fee. */
   rollNo?: string;
+  /** The booked exam hour, e.g. "2026-11-10T17" (picked once the fee is confirmed). */
+  slotId?: string | null;
 };
 export type ScholarshipResult =
   | ({ ok: true } & Registered)
@@ -27,6 +29,8 @@ const endpoint = (fn: string, local: string) =>
   LEAD_ENDPOINT?.endsWith("/submitLead") ? LEAD_ENDPOINT.replace(/submitLead$/, fn) : local;
 const ENDPOINT = (import.meta.env["VITE_SCHOLARSHIP_ENDPOINT"] as string | undefined) ?? endpoint("submitScholarship", "/api/scholarship");
 const PAY_ENDPOINT = endpoint("scholarshipPayment", "/api/scholarship-payment");
+export const SLOT_ENDPOINT = endpoint("scholarshipSlot", "/api/scholarship-slot");
+export const EXAM_ENDPOINT = endpoint("scholarshipExam", "/api/scholarship-exam");
 const ATTEMPTS = 3;
 const PHOTO_SIDE = 480;
 const PHOTO_MAX_BYTES = 120 * 1024;
@@ -98,7 +102,7 @@ async function headers(): Promise<Record<string, string>> {
 }
 
 /** POSTs with retries on network errors and 5xx. Every request here is safe to repeat. */
-async function post(url: string, body: string): Promise<{ status: number; data: Record<string, unknown> } | null> {
+export async function post(url: string, body: string): Promise<{ status: number; data: Record<string, unknown> } | null> {
   const h = await headers();
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     try {
@@ -185,3 +189,6 @@ export const isPlausibleDob = (v: string, now = new Date()) => {
   const { min, max } = dobRange(now);
   return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && v >= min && v <= max;
 };
+
+// The exam days, hours and screen text travel with this file, so they share its download (no extra chunk).
+export { SCHOLARSHIP_EXAM, slotDay, slotHours, slotId, slotLabel, slotStart } from "@/config/scholarshipExam";

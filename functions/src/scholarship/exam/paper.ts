@@ -1,0 +1,99 @@
+import { createHmac } from "node:crypto";
+import { getStorage } from "firebase-admin/storage";
+
+export type Level = "easy" | "medium" | "hard";
+export const SUBJECTS = ["maths", "science", "reasoning", "english"] as const;
+export type Subject = (typeof SUBJECTS)[number];
+export type BankQuestion = { id: string; class: string; subject: Subject; level: Level; text: string; options: string[]; answer: number };
+/** Each subject's 15 questions: 3 easy, 6 medium, 6 hard (taken from the other levels when one runs short). */
+export const BLUEPRINT: Record<Level, number> = { easy: 3, medium: 6, hard: 6 };
+export const PER_SUBJECT = 15;
+export const BANK_PATH = "private/exam/bank.json";
+
+/** One question as the student gets it: the bank id and the order its four options are shown in. */
+export type PaperItem = { id: string; order: number[] };
+
+let cached: { at: number; byClass: Map<string, BankQuestion[]> } | null = null;
+const CACHE_MS = 5 * 60 * 1000;
+
+/** The question bank (uploaded by the team in /admin), read once per server and kept for five minutes. */
+export async function loadBank(): Promise<Map<string, BankQuestion[]>> {
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.byClass;
+  const [buffer] = await getStorage().bucket().file(BANK_PATH).download();
+  cached = { at: Date.now(), byClass: indexBank(JSON.parse(buffer.toString("utf8")) as unknown[]) };
+  return cached.byClass;
+}
+export const forgetBank = () => { cached = null; };
+
+/** Valid questions per class, with exact repeats (same text and options) kept once. */
+export function indexBank(raw: unknown[]): Map<string, BankQuestion[]> {
+  const byClass = new Map<string, BankQuestion[]>();
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const q = item as BankQuestion;
+    if (!q || typeof q.id !== "string" || typeof q.text !== "string" || !Array.isArray(q.options) || q.options.length !== 4) continue;
+    if (!SUBJECTS.includes(q.subject) || !["easy", "medium", "hard"].includes(q.level)) continue;
+    if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer > 3) continue;
+    if (q.options.some((o) => typeof o !== "string" || !o.trim()) || new Set(q.options).size !== 4) continue;
+    const key = `${q.class}|${q.subject}|${q.text}|${[...q.options].sort().join("|")}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    byClass.set(q.class, [...(byClass.get(q.class) ?? []), q]);
+  }
+  return byClass;
+}
+
+/** A small seeded random generator (mulberry32): the same seed always gives the same paper. */
+export function seededRandom(seed: string): () => number {
+  let a = createHmac("sha256", "stoodant-paper").update(seed).digest().readUInt32LE(0);
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+export function shuffle<T>(items: readonly T[], random: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+/**
+ * This student's paper: per subject, questions drawn by the blueprint from the class's bank, in a random order,
+ * each with its options shuffled. Sections stay in SUBJECTS order. Seeded by a secret + roll number, so a
+ * restart gives the same paper and nobody can work out another student's.
+ */
+export function makePaper(bank: BankQuestion[], seed: string): PaperItem[] {
+  const random = seededRandom(seed);
+  return SUBJECTS.flatMap((subject) => {
+    const pool = bank.filter((q) => q.subject === subject);
+    const picked: BankQuestion[] = [];
+    const left: BankQuestion[] = [];
+    for (const level of ["easy", "medium", "hard"] as const) {
+      const options = shuffle(pool.filter((q) => q.level === level), random);
+      picked.push(...options.slice(0, BLUEPRINT[level]));
+      left.push(...options.slice(BLUEPRINT[level]));
+    }
+    picked.push(...shuffle(left, random).slice(0, Math.max(0, PER_SUBJECT - picked.length)));
+    return shuffle(picked, random).map((q) => ({ id: q.id, order: shuffle([0, 1, 2, 3], random) }));
+  });
+}
+
+/** Marks: 1 per correct answer, nothing taken off for a wrong one. `answers` holds the shown option index per question. */
+export function scorePaper(paper: PaperItem[], answers: Record<string, number>, bank: Map<string, BankQuestion>) {
+  const bySubject: Record<string, { correct: number; wrong: number }> = {};
+  let correct = 0;
+  let wrong = 0;
+  paper.forEach((item, i) => {
+    const q = bank.get(item.id);
+    const shown = answers[String(i)];
+    if (!q || shown === undefined || shown === null) return;
+    const s = (bySubject[q.subject] ??= { correct: 0, wrong: 0 });
+    if (item.order[shown] === q.answer) { correct++; s.correct++; } else { wrong++; s.wrong++; }
+  });
+  return { marks: correct, correct, wrong, unanswered: paper.length - correct - wrong, bySubject };
+}

@@ -534,6 +534,20 @@ service cloud.firestore {
         && request.resource.data.payment.checkedAt == request.time
         && request.resource.data.updatedAt == request.time;
     }
+    // Exam papers and marks: written only by the scholarshipExam function; the team reads them for results.
+    match /examAttempts/{rollNo} {
+      allow read: if isAdmin();
+    }
+    // Exam settings the team can change in /admin: how many students one hour can take.
+    match /settings/scholarshipExam {
+      allow read: if isAdmin();
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['capacity', 'bankUploadedAt', 'bankCounts', 'updatedBy', 'updatedAt'])
+        && request.resource.data.capacity is int
+        && request.resource.data.capacity >= 1 && request.resource.data.capacity <= 20000
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
     match /scholarshipKeys/{keyId} {
       allow delete: if isAdmin();
     }

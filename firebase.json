@@ -9,6 +9,20 @@
     ],
     "rewrites": [
       {
+        "source": "/api/scholarship-slot",
+        "function": {
+          "functionId": "scholarshipSlot",
+          "region": "asia-south1"
+        }
+      },
+      {
+        "source": "/api/scholarship-exam",
+        "function": {
+          "functionId": "scholarshipExam",
+          "region": "asia-south1"
+        }
+      },
+      {
         "source": "/api/scholarship-payment",
         "function": {
           "functionId": "scholarshipPayment",
