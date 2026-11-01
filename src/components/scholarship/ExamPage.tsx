@@ -7,7 +7,7 @@ const E = X.exam;
 const display = "font-[family-name:var(--font-display)]";
 type Subject = keyof typeof E.sections;
 type Question = { subject: Subject; text: string; options: string[] };
-type Paper = { token: string; rollNo: string; name: string; studentClass: string; questions: Question[]; endsAt: number; offset: number };
+type Paper = { token: string; rollNo: string; name: string; studentClass: string; questions: Question[]; questionsAt: number; endsAt: number; offset: number };
 type Saved = { answers: Record<string, number>; marked: number[]; visited: number[]; strikes: number };
 type Phase =
   | { kind: "login"; error?: string; waitUntil?: number }
@@ -44,7 +44,6 @@ function Shell({ children }: { children: React.ReactNode }) {
 function Login({ error, waitUntil, onPhase }: { error?: string | undefined; waitUntil?: number | undefined; onPhase: (p: Phase) => void }) {
   const [roll, setRoll] = useState("");
   const [password, setPassword] = useState("");
-  const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => { setRoll(new URLSearchParams(location.search).get("roll")?.replace(/\D/g, "").slice(0, 9) ?? ""); }, []);
 
@@ -69,7 +68,7 @@ function Login({ error, waitUntil, onPhase }: { error?: string | undefined; wait
         kind: "exam",
         paper: {
           token: d["token"] as string, rollNo, name: student.name, studentClass: student.studentClass,
-          questions, endsAt: d["endsAt"] as number, offset: (d["serverNow"] as number) - Date.now(),
+          questions, questionsAt: (d["questionsAt"] as number | undefined) ?? 0, endsAt: d["endsAt"] as number, offset: (d["serverNow"] as number) - Date.now(),
           ...mergeState(rollNo, d["state"] as Saved),
         } as Paper,
       });
@@ -94,7 +93,7 @@ function Login({ error, waitUntil, onPhase }: { error?: string | undefined; wait
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!/^\d{9}$/.test(roll) || !/^\d{8}$/.test(password) || !agree) return;
+    if (!/^\d{9}$/.test(roll) || !/^\d{8}$/.test(password)) return;
     void start(roll, password);
   };
   const input = "mt-1 block min-h-12 w-full rounded-xl border border-neutral-300 bg-white px-4 text-lg tracking-wider outline-none focus:border-[#0a1026] focus:ring-2 focus:ring-[#fbb308]";
@@ -108,14 +107,8 @@ function Login({ error, waitUntil, onPhase }: { error?: string | undefined; wait
           <input value={password} onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" type="password" autoComplete="off" className={input} />
           <small className="mt-1 block text-sm text-neutral-600">{E.passwordHint}</small></label>
         {ready && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">✓ {E.paperOnPhone}</p>}
-        <ul className="list-disc space-y-1 rounded-2xl bg-neutral-50 p-4 pl-8 text-sm leading-6 text-neutral-700">
-          {E.instructions.map((line) => <li key={line}>{line}</li>)}
-        </ul>
-        <label className="flex items-center gap-3 text-sm font-semibold">
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="h-5 w-5 accent-[#0a1026]" />{E.agree}
-        </label>
         {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-        <button type="submit" disabled={busy || !agree || roll.length !== 9 || password.length !== 8}
+        <button type="submit" disabled={busy || roll.length !== 9 || password.length !== 8}
           className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold disabled:opacity-50">{busy ? E.starting : E.start}</button>
       </form>
     </Shell>
@@ -152,6 +145,7 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
   state.current = { answers, marked: [...marked], visited: [...visited], strikes };
   const dirty = useRef(false);
   const ended = useRef(false);
+  const camera = useCamera(paper);
 
   const send = useCallback(async (submit: boolean) => {
     const s = state.current;
@@ -236,11 +230,17 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
   const mm = Math.floor(left / 60000);
   const ss = Math.floor((left % 60000) / 1000);
 
+  // The first 2 minutes: the rules, with the time until the questions open. The 60 minutes start after this.
+  if (now < paper.questionsAt) {
+    return <Rules paper={paper} now={now} camera={camera} warning={warning} closeWarning={() => setWarning(null)} />;
+  }
+
   return (
     <div className="flex min-h-screen select-none flex-col bg-neutral-50 text-[#0a1026]" onContextMenu={(e) => e.preventDefault()}>
       <header className="sticky top-0 z-20 bg-[#0a1026] text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2">
           <div className="min-w-0 text-sm leading-5"><p className="truncate font-bold">{paper.name}</p><p className="text-[#c9cee0]">{E.rollLabel}: {paper.rollNo} · Class {paper.studentClass}</p></div>
+          {camera.view("h-12 w-10 ml-auto")}
           <div className="text-right" aria-live="off">
             <p className="text-xs text-[#c9cee0]">{E.timeLeft}</p>
             <p className={`${display} text-xl font-extrabold tabular-nums ${left < 5 * 60000 ? "text-red-400" : "text-[#fbb308]"}`}>{String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}</p>
@@ -319,6 +319,111 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
         </Modal>
       )}
     </div>
+  );
+}
+
+type Camera = { state: "asking" | "on" | "off"; ask: () => void; view: (className: string) => ReactNode };
+
+/**
+ * The front camera: asked for on the rules page, shown as a small preview, and used for a few photos at random
+ * moments while the questions are open. Each photo is a small JPEG sent to the server and kept privately for the team.
+ * If the camera is refused, the server notes it so the team checks that paper more closely.
+ */
+function useCamera(paper: Paper): Camera {
+  const video = useRef<HTMLVideoElement | null>(null);
+  const stream = useRef<MediaStream | null>(null);
+  // The preview moves from the rules page to the test page: each new element gets the same stream.
+  const setVideo = useCallback((el: HTMLVideoElement | null) => {
+    video.current = el;
+    if (el && stream.current) el.srcObject = stream.current;
+  }, []);
+  const [state, setState] = useState<Camera["state"]>("asking");
+  const report = useCallback((body: Record<string, unknown>) =>
+    post(EXAM_ENDPOINT, JSON.stringify({ action: "photo", rollNo: paper.rollNo, token: paper.token, ...body })), [paper.rollNo, paper.token]);
+
+  const ask = useCallback(async () => {
+    setState("asking");
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 } }, audio: false });
+      stream.current?.getTracks().forEach((t) => t.stop());
+      stream.current = s;
+      if (video.current) video.current.srcObject = s;
+      setState("on");
+    } catch {
+      setState("off");
+      void report({ cameraOff: true });
+    }
+  }, [report]);
+  useEffect(() => {
+    void ask();
+    return () => stream.current?.getTracks().forEach((t) => t.stop());
+  }, [ask]);
+
+  // Six moments spread at random over the hour (plus one soon after the questions open), fixed per paper.
+  useEffect(() => {
+    const span = Math.max(0, paper.endsAt - paper.questionsAt - 2 * 60_000);
+    const times = [20_000, ...Array.from({ length: 6 }, () => 60_000 + Math.random() * span)].map((t) => paper.questionsAt + t - paper.offset);
+    const timers = times.filter((t) => t > Date.now()).map((t) => setTimeout(() => {
+      const v = video.current;
+      if (!v || !stream.current || v.videoWidth === 0) return;
+      const canvas = document.createElement("canvas");
+      const scale = Math.min(1, 320 / v.videoWidth);
+      canvas.width = Math.round(v.videoWidth * scale);
+      canvas.height = Math.round(v.videoHeight * scale);
+      canvas.getContext("2d")?.drawImage(v, 0, 0, canvas.width, canvas.height);
+      const data = canvas.toDataURL("image/jpeg", 0.6);
+      void report({ image: data.slice(data.indexOf(",") + 1) });
+    }, t - Date.now()));
+    return () => timers.forEach(clearTimeout);
+  }, [paper.endsAt, paper.questionsAt, paper.offset, report]);
+
+  const view = (className: string) => (
+    <video ref={setVideo} autoPlay muted playsInline aria-hidden="true"
+      className={`shrink-0 rounded-lg bg-black object-cover ${className} ${state === "on" ? "" : "hidden"}`} />
+  );
+  return { state, ask: () => void ask(), view };
+}
+
+function Rules({ paper, now, camera, warning, closeWarning }: {
+  paper: Paper; now: number; camera: Camera; warning: number | null; closeWarning: () => void;
+}) {
+  const R = E.rules;
+  const left = Math.max(0, paper.questionsAt - now);
+  const time = `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}`;
+  return (
+    <Shell>
+      <h1 className={`${display} text-2xl font-extrabold`}>{R.heading}</h1>
+      <p className="mt-1 text-neutral-700">{R.lead}</p>
+      <section className="mt-5 rounded-2xl border-2 border-red-600 bg-red-50 p-4 text-red-900">
+        <h2 className="font-extrabold">⚠ {R.tabHeading}</h2>
+        <ul className="mt-2 list-disc space-y-1 pl-5 leading-6">{R.tab.map((l) => <li key={l}>{l}</li>)}</ul>
+      </section>
+      <section className="mt-4 rounded-2xl border-2 border-amber-500 bg-amber-50 p-4 text-amber-950">
+        <h2 className="font-extrabold">📷 {R.cameraHeading}</h2>
+        <ul className="mt-2 list-disc space-y-1 pl-5 leading-6">{R.camera.map((l) => <li key={l}>{l}</li>)}</ul>
+        {camera.state === "on" && <p className="mt-3 flex items-center gap-3 font-bold text-emerald-800">{camera.view("h-20 w-16")}✓ {R.cameraOn}</p>}
+        {camera.state === "off" && <button type="button" onClick={camera.ask} className="mt-3 text-left text-sm font-bold underline">{R.cameraOffNote}</button>}
+        {camera.state === "asking" && <button type="button" onClick={camera.ask} className="mt-3 min-h-11 rounded-full bg-[#0a1026] px-5 font-bold text-white">{R.cameraAllow}</button>}
+      </section>
+      <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <h2 className="font-extrabold">{R.formatHeading}</h2>
+        <ul className="mt-2 list-disc space-y-1 pl-5 leading-6 text-neutral-700">{R.format.map((l) => <li key={l}>{l}</li>)}</ul>
+        <h2 className="mt-4 font-extrabold">{R.howHeading}</h2>
+        <ul className="mt-2 list-disc space-y-1 pl-5 leading-6 text-neutral-700">{R.how.map((l) => <li key={l}>{l}</li>)}</ul>
+        <Legend counts={{}} />
+      </section>
+      <div className="sticky bottom-0 mt-5 bg-neutral-50 py-3">
+        <button type="button" disabled className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold disabled:opacity-80">
+          {R.startsIn.replace("{time}", time)}
+        </button>
+      </div>
+      {warning !== null && warning < MAX_STRIKES && (
+        <Modal>
+          <p className={`rounded-xl p-4 font-bold ${warning === 1 ? "bg-yellow-100 text-yellow-900" : "bg-orange-100 text-orange-900"}`}>{E.strike[warning - 1]}</p>
+          <button type="button" className="mt-4 min-h-12 w-full rounded-xl bg-[#0a1026] font-bold text-white" onClick={closeWarning}>{E.strikeOk}</button>
+        </Modal>
+      )}
+    </Shell>
   );
 }
 

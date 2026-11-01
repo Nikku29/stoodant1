@@ -9,7 +9,7 @@ import { handleLeadCreated } from "./lead/notify.js";
 import { handleSubmitScholarship } from "./scholarship/submit.js";
 import { handleScholarshipPayment } from "./scholarship/payment.js";
 import { handleScholarshipUpdated } from "./scholarship/roll.js";
-import { finishExpiredAttempts, handleScholarshipExam, handleScholarshipSlot } from "./scholarship/exam/handlers.js";
+import { deleteOldExamPhotos, finishExpiredAttempts, handleScholarshipExam, handleScholarshipSlot } from "./scholarship/exam/handlers.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
 import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
@@ -60,6 +60,9 @@ export const scholarshipExamClose = onSchedule(
   { schedule: "every 5 minutes", timeZone: "Asia/Kolkata", timeoutSeconds: 240, maxInstances: 1, retryCount: 0 },
   async () => {
     await finishExpiredAttempts();
+    // Once a day, at about 3 AM India time: delete exam camera photos older than 90 days.
+    const ist = new Date(Date.now() + 330 * 60 * 1000);
+    if (ist.getUTCHours() === 3 && ist.getUTCMinutes() < 5) await deleteOldExamPhotos();
   },
 );
 

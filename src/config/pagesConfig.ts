@@ -13,7 +13,7 @@ export type InfoPage = {
 
 export const PAGES_CONFIG = {
   // Bump when the Privacy, Terms or Refund text changes. Shown on those pages as "Last updated".
-  lastUpdated: "2026-10-20",
+  lastUpdated: "2026-11-01",
   lastUpdatedLabel: "Last updated",
   // Shown in Privacy and Terms as the party responsible. Replace with the registered name and address.
   legalEntity: "Stoodant",
@@ -73,6 +73,7 @@ export const PAGES_CONFIG = {
           "Demo requests: the parent's name, mobile number, the child's class and board, and your consent to be contacted.",
           "Accounts: the mobile number parents and teachers use to log in, and the email address of Stoodant team members.",
           "Learning records for enrolled students: the student's name, class, batch, attendance, test marks, teacher notes and the study material shared with the batch.",
+          "Scholarship test: the student's details and photo given at registration, their answers and marks, and a few photos from the front camera taken during the online test. The camera photos are seen only by our team, used only to check that the test was taken fairly, and deleted within 90 days.",
           "Messages you send us by phone, WhatsApp or email.",
           "Basic technical data needed to run and protect the site, such as your browser type and anti-spam checks.",
         ],

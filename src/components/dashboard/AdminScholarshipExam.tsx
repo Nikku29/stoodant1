@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { SCHOLARSHIP_EXAM as X, slotHours, slotDay, slotId } from "@/lib/scholarship";
 import {
-  checkBank, classResults, examSettings, resultsCsv, saveExamSettings, slotCounts, uploadBank, type Attempt, type ExamSettings,
+  checkBank, classResults, examPhotos, examSettings, resultsCsv, saveExamSettings, slotCounts, uploadBank, type Attempt, type ExamSettings,
 } from "@/lib/firebase/scholarship";
 
 const ALL = X.dates.flatMap((d) => X.hours.map((h) => slotId(d, h)));
@@ -15,6 +15,10 @@ export function AdminScholarshipExam({ uid }: { uid: string }) {
   const [bankNote, setBankNote] = useState("");
   const [results, setResults] = useState<{ cls: string; rows: Attempt[] } | null>(null);
   const [message, setMessage] = useState("");
+  const [photos, setPhotos] = useState<{ rollNo: string; urls: string[] } | null>(null);
+  const showPhotos = async (rollNo: string) => {
+    try { setPhotos({ rollNo, urls: await examPhotos(rollNo) }); } catch { setMessage("Couldn't load the photos."); }
+  };
 
   useEffect(() => {
     void examSettings().then((s) => { setSettings(s); setCapacity(String(s.capacity)); }).catch(() => setMessage("Couldn't load the exam settings."));
@@ -121,17 +125,28 @@ export function AdminScholarshipExam({ uid }: { uid: string }) {
         {results && results.rows.length > 0 && (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse", marginTop: 8 }}>
-              <thead><tr style={{ textAlign: "left" }}><th>Rank</th><th>Student</th><th>Roll no.</th><th>Marks</th><th>Minutes</th><th>Warnings</th><th>Status</th></tr></thead>
+              <thead><tr style={{ textAlign: "left" }}><th>Rank</th><th>Student</th><th>Roll no.</th><th>Marks</th><th>Minutes</th><th>Warnings</th><th>Camera</th><th>Status</th></tr></thead>
               <tbody>
                 {results.rows.map((r, i) => (
                   <tr key={r.rollNo} style={{ borderTop: "1px solid #e5e7eb" }}>
                     <td>{r.score ? i + 1 : "—"}</td><td>{r.studentName}</td><td>{r.rollNo}</td>
                     <td><b>{r.score?.marks ?? "—"}</b>{r.score && ` / 60`}</td>
-                    <td>{r.timeTakenMs ? (r.timeTakenMs / 60000).toFixed(1) : "—"}</td><td>{r.strikes ?? 0}</td><td>{STATUS[r.status] ?? r.status}</td>
+                    <td>{r.timeTakenMs ? (r.timeTakenMs / 60000).toFixed(1) : "—"}</td><td>{r.strikes ?? 0}</td>
+                    <td>{r.cameraOff && !r.photos ? <b style={{ color: "#b91c1c" }}>Off</b> : <button type="button" className="pd-link" onClick={() => void showPhotos(r.rollNo)}>{r.photos ?? 0} photos{r.cameraOff ? " (was off)" : ""}</button>}</td>
+                    <td>{STATUS[r.status] ?? r.status}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {photos && (
+          <div style={{ marginTop: 12 }}>
+            <p><b>Camera photos: {photos.rollNo}</b> <button type="button" className="pd-link" onClick={() => setPhotos(null)}>Close</button></p>
+            {!photos.urls.length && <p className="pd-empty">No photos.</p>}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+              {photos.urls.map((u) => <a key={u} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" width={120} style={{ borderRadius: 8 }} /></a>)}
+            </div>
           </div>
         )}
       </section>

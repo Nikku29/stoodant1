@@ -10,7 +10,8 @@ import { REG_NO_PATTERN } from "../schema.js";
 import { passesGate, payStatusOf, payToken, pepperOr500 } from "../http.js";
 import { SUBJECTS, paperKey, scorePaper, type PaperItem } from "./paper.js";
 import { download, lockedPaper, type LockedPaper } from "./locked.js";
-import { ALL_SLOTS, DEFAULT_CAPACITY, EXAM_MINUTES, LATE_JOIN_MINUTES, bookingOpen, canStartAt, isSlot, paperEnds, slotStart } from "./slots.js";
+import { getStorage } from "firebase-admin/storage";
+import { ALL_SLOTS, DEFAULT_CAPACITY, EXAM_MINUTES, LATE_JOIN_MINUTES, READING_MINUTES, bookingOpen, canStartAt, isSlot, paperEnds, questionsOpen, slotStart } from "./slots.js";
 
 const MIN = 60 * 1000;
 /** Answers sent this long after the end still count (slow networks); after that the paper is closed. */
@@ -53,7 +54,7 @@ const slotSchema = z.object({
 /** The Join button (and the password) show from this long before the booked hour. */
 const JOIN_EARLY_MS = 10 * MIN;
 const joinOpen = (slotId: string, now: number) =>
-  now >= slotStart(slotId) - JOIN_EARLY_MS && now <= slotStart(slotId) + (EXAM_MINUTES + LATE_JOIN_MINUTES) * MIN;
+  now >= slotStart(slotId) - JOIN_EARLY_MS && now <= slotStart(slotId) + (EXAM_MINUTES + LATE_JOIN_MINUTES + READING_MINUTES) * MIN;
 
 /**
  * The family picks (or changes) the exam hour once the fee is confirmed. Without slotId it only lists the slots.
@@ -134,6 +135,16 @@ const startSchema = z.object({
   /** The version of the locked paper already downloaded on this phone: then only its key is sent. */
   have: z.string().regex(/^[a-f0-9]{16}$/).optional(),
 }).strict();
+/** A photo from the front camera at a random moment of the test (small JPEG, base64), or a note that the camera is off. */
+const photoSchema = z.object({
+  action: z.literal("photo"),
+  rollNo: z.string().regex(ROLL),
+  token: z.string().regex(/^[a-f0-9]{64}$/),
+  image: z.string().min(100).max(60_000).regex(/^[A-Za-z0-9+/]+={0,2}$/).optional(),
+  cameraOff: z.literal(true).optional(),
+}).strict();
+/** Photos kept per paper: enough for the random moments plus retries. */
+const MAX_PHOTOS = 12;
 const paperSchema = z.object({
   action: z.literal("paper"),
   regNo: z.string().regex(REG_NO_PATTERN),
@@ -156,7 +167,7 @@ const dobPassword = (dob: string) => { const [y, m, d] = dob.split("-"); return 
 
 export async function handleScholarshipExam(req: Request, res: Response): Promise<void> {
   const started = await examNow();
-  if (!(await passesGate(req, res, 16 * 1024, "scholarship_exam_rejected"))) return;
+  if (!(await passesGate(req, res, 64 * 1024, "scholarship_exam_rejected"))) return;
   const pepper = pepperOr500(res, "scholarship_exam_failed");
   if (!pepper) return;
   const action = (req.body as { action?: unknown } | undefined)?.action;
@@ -164,6 +175,7 @@ export async function handleScholarshipExam(req: Request, res: Response): Promis
     if (action === "start") return await start(req, res, pepper, started);
     if (action === "save") return await save(req, res, pepper, started);
     if (action === "paper") return await paper(req, res, pepper, started);
+    if (action === "photo") return await photo(req, res, pepper, started);
     res.status(400).json({ error: "invalid" });
   } catch (error) {
     logger.error("scholarship_exam_failed", { action, code: (error as { code?: unknown }).code ?? null, message: String(error).slice(0, 200) });
@@ -207,7 +219,7 @@ async function start(req: Request, res: Response, pepper: string, now: number) {
       await attemptRef.create({
         rollNo, regNo: reg.id, studentName: reg.get("studentName"), studentClass: reg.get("studentClass"), slotId,
         paper: locked.paper, paperVersion: locked.version, answers: {}, marked: [], visited: [], strikes: 0, status: "started",
-        startedAt: Timestamp.fromMillis(now), endsAt: Timestamp.fromMillis(paperEnds(slotId, now)), savedAt: Timestamp.fromMillis(now),
+        photos: 0, startedAt: Timestamp.fromMillis(now), questionsAt: Timestamp.fromMillis(questionsOpen(now)), endsAt: Timestamp.fromMillis(paperEnds(slotId, now)), savedAt: Timestamp.fromMillis(now),
       });
     } catch {
       // Two taps at once: the other one made it. Carry on with that.
@@ -234,6 +246,8 @@ async function start(req: Request, res: Response, pepper: string, now: number) {
     sections: SUBJECTS,
     version,
     ...(onPhone ? { key: paperKey(pepper, rollNo).toString("base64") } : { questions }),
+    /** The rules show until then (2 minutes' reading); the 60 minutes run from there to endsAt. */
+    questionsAt: ((a["questionsAt"] ?? a["startedAt"]) as Timestamp).toMillis(),
     endsAt: (a["endsAt"] as Timestamp).toMillis(),
     serverNow: now,
     state: { answers: a["answers"], marked: a["marked"], visited: a["visited"], strikes: a["strikes"] },
@@ -255,7 +269,9 @@ async function save(req: Request, res: Response, pepper: string, now: number) {
     if (now > endsAt + GRACE_MS) return { finish: "timeout" as const };
     const count = (snap.get("paper") as unknown[]).length;
     const inRange = (i: number) => i < count;
-    const clean = Object.fromEntries(Object.entries(answers).filter(([k]) => inRange(Number(k))));
+    // Nothing can be answered while the rules are still showing.
+    const reading = now < ((snap.get("questionsAt") ?? snap.get("startedAt")) as Timestamp).toMillis();
+    const clean = reading ? {} : Object.fromEntries(Object.entries(answers).filter(([k]) => inRange(Number(k))));
     // Strikes only go up: a page reload can't wipe them.
     const strikesNow = Math.max(strikes, (snap.get("strikes") as number | undefined) ?? 0);
     tx.update(ref, {
@@ -303,12 +319,43 @@ async function paper(req: Request, res: Response, pepper: string, now: number) {
   res.status(200).json({ ok: true, rollNo, ...download(locked) });
 }
 
+/**
+ * POST { action: "photo", rollNo, token, image } during the test: the front camera's photo at a random moment,
+ * kept privately for the team (private/exam-photos/{rollNo}/) to check top rankers. { cameraOff: true } records
+ * that the student didn't allow the camera, so the team knows to check that paper more closely.
+ */
+async function photo(req: Request, res: Response, pepper: string, now: number) {
+  const parsed = photoSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "invalid" }); return; }
+  const { rollNo, token, image, cameraOff } = parsed.data;
+  if (!tokenMatches(examToken(pepper, rollNo), token)) { res.status(403).json({ error: "forbidden" }); return; }
+  const db = getFirestore();
+  const ref = db.doc(`examAttempts/${rollNo}`);
+  const ok = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists || snap.get("status") !== "started") return false;
+    if (cameraOff) { tx.update(ref, { cameraOff: true }); return "noted" as const; }
+    const n = (snap.get("photos") as number | undefined) ?? 0;
+    if (n >= MAX_PHOTOS) return false;
+    tx.update(ref, { photos: n + 1 });
+    return true;
+  });
+  if (ok === "noted") { res.status(200).json({ ok: true }); return; }
+  if (!ok || !image) { res.status(409).json({ error: "not_taken" }); return; }
+  const bytes = Buffer.from(image, "base64");
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) { res.status(400).json({ error: "invalid" }); return; }
+  await getStorage().bucket().file(`private/exam-photos/${rollNo}/${now}.jpg`).save(bytes, {
+    contentType: "image/jpeg", resumable: false, metadata: { cacheControl: "private, max-age=0" },
+  });
+  res.status(200).json({ ok: true });
+}
+
 /** Marks a paper (answers as last saved) and closes it. Safe to call twice: a closed paper is left alone. */
 export async function finishAttempt(snap: DocumentSnapshot, status: "submitted" | "timeout" | "struck", now: number): Promise<void> {
   const data = snap.data() as DocumentData | undefined;
   if (!data || data["status"] !== "started") return;
   const score = scorePaper(data["paper"] as PaperItem[], data["answers"] as Record<string, number>);
-  const startedAt = (data["startedAt"] as Timestamp).toMillis();
+  const startedAt = ((data["questionsAt"] ?? data["startedAt"]) as Timestamp).toMillis();
   const endedAt = Math.min(now, (data["endsAt"] as Timestamp).toMillis());
   await getFirestore().runTransaction(async (tx) => {
     const fresh = await tx.get(snap.ref);
@@ -316,6 +363,14 @@ export async function finishAttempt(snap: DocumentSnapshot, status: "submitted" 
     tx.update(snap.ref, { status, score, submittedAt: Timestamp.fromMillis(now), timeTakenMs: Math.max(0, endedAt - startedAt) });
   });
   logger.info("scholarship_exam_finished", { rollNo: data["rollNo"], status, marks: score.marks });
+}
+
+/** Exam camera photos older than 90 days are deleted (the privacy policy promises this). Run once a day. */
+export async function deleteOldExamPhotos(now = Date.now()): Promise<number> {
+  const [files] = await getStorage().bucket().getFiles({ prefix: "private/exam-photos/" });
+  const old = files.filter((f) => Date.parse(String(f.metadata.timeCreated)) < now - 90 * 24 * 60 * MIN);
+  await Promise.all(old.map((f) => f.delete({ ignoreNotFound: true })));
+  return old.length;
 }
 
 /** Every few minutes on exam days: closes papers whose time ran out without a final save (closed tab, lost phone). */
