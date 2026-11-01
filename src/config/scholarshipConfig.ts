@@ -131,7 +131,7 @@ export const SCHOLARSHIP_CONFIG = {
   faqHeading: "Questions",
   faq: [
     { q: "Which ranks get a scholarship?", a: "Rank 1 gets 100%, Rank 2 gets 95%, Rank 3 gets 75%, Ranks 4 to 10 get 50%, and Ranks 11 to 20 get 25%. Every participant gets 10% off. The scholarship applies to Stoodant tuition fees." },
-    { q: "Is there a practice paper?", a: "Yes. After registering, tap \"Try the practice paper\" on this page. It has the same screens and rules as the real test, with 12 practice questions that don't come in the exam, and shows the right answers at the end." },
+    { q: "Is there a mock test?", a: "Yes. After registering, tap \"Take a free mock test\" on this page. It is in exactly the real test's format (60 questions in 4 sections, 60 minutes, the same screens and rules), uses practice questions that don't come in the exam, and shows your marks and the right answers at the end. You can take it as many times as you like." },
     { q: "Does the board matter?", a: "No. The questions are Olympiad-level and based on concepts common to all boards." },
     { q: "What do we need on the exam day?", a: "A phone, tablet or laptop with a front camera and a working internet connection, and the exam roll number. The password is the student's date of birth as 8 digits (29 April 2003 is 29042003). Log in on this page: the Join button appears here 10 minutes before your hour. The camera takes a few photos during the test, checked before any scholarship is given." },
     { q: "Lost the registration or roll number?", a: "Tap Log in at the top of this page and enter the mobile number and date of birth you registered with. Your details come up again." },

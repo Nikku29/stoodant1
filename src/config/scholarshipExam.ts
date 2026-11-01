@@ -5,6 +5,8 @@ export const SCHOLARSHIP_EXAM = {
   /** Slot start hours, India time: 9 AM to 8 PM. */
   hours: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
   minutes: 60,
+  /** Questions in each of the 4 sections (and marks: +1 each). Must match the blueprint in functions/src/scholarship/exam/paper.ts. */
+  perSection: 15,
   lateJoinMinutes: 15,
   /** Rules on screen before the questions open; not taken from the 60 minutes. Must match READING_MINUTES in slots.ts. */
   readingMinutes: 2,
@@ -60,6 +62,9 @@ export const SCHOLARSHIP_EXAM = {
       cameraAllow: "Allow camera",
       cameraOn: "Camera is on",
       cameraOffNote: "The camera is off or not allowed. Your paper is marked for a closer check. Tap to try again.",
+      marksHeading: "Marks distribution",
+      marksColumns: { section: "Section", questions: "Questions", marks: "Marks" },
+      marksTotal: "Total",
       formatHeading: "Format and marking",
       format: [
         "60 questions in 4 sections: Mathematics, Science, Reasoning and English (15 each). 60 minutes in all.",
@@ -112,22 +117,23 @@ export const SCHOLARSHIP_EXAM = {
     doneStruck: "The test ended after 3 warnings for leaving the page. Your saved answers have been submitted.",
     back_home: "Back to the scholarship page",
   },
-  /** The practice paper (/exam?practice=9 or 10): the real test's screens with 12 practice-only questions. */
+  /** The mock test (/exam?practice=9 or 10): the real test's format, screens and rules with practice-only questions. */
   practice: {
-    title: "Practice paper",
-    lead: "Take up to 2 minutes to read this. Your 15 minutes start only after this page.",
-    badge: "Practice paper · not marked for the scholarship",
-    note: "This is a practice paper with the same screens and rules as the real test: 12 questions, 15 minutes. These questions are only for practice and do not come in the exam.",
-    cameraNote: "In the real test the front camera takes photos. The practice paper does not use the camera.",
-    startNow: "Start the practice now",
-    resultHeading: "Practice result",
-    score: "You got {marks} out of {total} right.",
+    title: "Mock test",
+    lead: "Read the format and the rules, then tap Next. Your 60 minutes start only when the questions open.",
+    badge: "Not counted for the scholarship",
+    note: "This is a mock test in exactly the real test's format: 60 questions in 4 sections, 60 minutes, the same screens and rules. These questions are only for practice and do not come in the exam.",
+    cameraNote: "In the real test the front camera takes photos. The mock test does not use the camera.",
+    startNow: "Next: begin the mock test",
+    resultHeading: "Mock test result",
+    score: "You scored {marks} out of {total}.",
+    bySection: "{section}: {marks} / {total}",
     yours: "Your answer",
     correct: "Correct answer",
     none: "Not answered",
-    again: "Practise again",
-    link: "Try the practice paper",
-    linkNote: "Same screens and rules as the real test, with practice questions that don't come in the exam.",
+    again: "Take the mock test again",
+    link: "Take a free mock test",
+    linkNote: "The real test's format: 60 questions, 60 minutes, the same screens and rules. The questions don't come in the exam.",
   },
 } as const;
 

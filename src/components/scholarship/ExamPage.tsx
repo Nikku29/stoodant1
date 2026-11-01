@@ -42,7 +42,8 @@ function Exams() {
   const startPractice = useCallback(async (cls: "9" | "10") => {
     const { PRACTICE, PRACTICE_MINUTES } = await import("@/content/scholarshipPractice");
     const now = Date.now();
-    const opens = now + X.readingMinutes * 60_000;
+    // The questions open when the student taps Next (or by themselves after 10 minutes on the format page).
+    const opens = now + 10 * 60_000;
     setPhase({
       kind: "exam",
       paper: {
@@ -455,6 +456,20 @@ function Rules({ opensAt, now, camera, warning, closeWarning, startNow }: {
         {!startNow && camera.state === "asking" && <button type="button" onClick={camera.ask} className="mt-3 min-h-11 rounded-full bg-[#0a1026] px-5 font-bold text-white">{R.cameraAllow}</button>}
       </section>
       <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <h2 className="font-extrabold">{R.marksHeading}</h2>
+        <table className="mt-2 w-full text-left text-sm">
+          <thead><tr className="border-b border-neutral-200 text-neutral-500">
+            <th className="py-1 font-semibold">{R.marksColumns.section}</th><th className="py-1 text-right font-semibold">{R.marksColumns.questions}</th><th className="py-1 text-right font-semibold">{R.marksColumns.marks}</th>
+          </tr></thead>
+          <tbody>
+            {Object.values(E.sections).map((name) => (
+              <tr key={name} className="border-b border-neutral-100"><td className="py-1.5">{name}</td><td className="py-1.5 text-right">{X.perSection}</td><td className="py-1.5 text-right">{X.perSection}</td></tr>
+            ))}
+            <tr className="font-extrabold"><td className="py-1.5">{R.marksTotal}</td><td className="py-1.5 text-right">{X.perSection * 4}</td><td className="py-1.5 text-right">{X.perSection * 4}</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
         <h2 className="font-extrabold">{R.formatHeading}</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 leading-6 text-neutral-700">{R.format.map((l) => <li key={l}>{l}</li>)}</ul>
         <h2 className="mt-4 font-extrabold">{R.howHeading}</h2>
@@ -463,7 +478,7 @@ function Rules({ opensAt, now, camera, warning, closeWarning, startNow }: {
       </section>
       <div className="sticky bottom-0 mt-5 bg-neutral-50 py-3">
         {startNow
-          ? <button type="button" onClick={startNow} className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold">{P.startNow} ({time})</button>
+          ? <button type="button" onClick={startNow} className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold">{P.startNow}</button>
           : <button type="button" disabled className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold disabled:opacity-80">
               {R.startsIn.replace("{time}", time)}
             </button>}
@@ -514,6 +529,14 @@ function PracticeDone({ paper, answers, again }: { paper: Paper; answers: Record
       <div className="rounded-3xl bg-white p-6 shadow-sm">
         <h1 className={`${display} text-2xl font-extrabold`}>{P.resultHeading}</h1>
         <p className="mt-2 text-lg font-bold">{P.score.replace("{marks}", String(marks)).replace("{total}", String(key.length))}</p>
+        <ul className="mt-2 grid grid-cols-2 gap-x-4 text-sm text-neutral-700">
+          {(Object.keys(E.sections) as Subject[]).map((s) => {
+            const idx = paper.questions.flatMap((q, i) => (q.subject === s ? [i] : []));
+            if (!idx.length) return null;
+            const got = idx.filter((i) => answers[String(i)] === key[i]).length;
+            return <li key={s}>{P.bySection.replace("{section}", E.sections[s]).replace("{marks}", String(got)).replace("{total}", String(idx.length))}</li>;
+          })}
+        </ul>
         <ol className="mt-5 space-y-4">
           {paper.questions.map((q, i) => {
             const mine = answers[String(i)];
