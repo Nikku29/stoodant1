@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Logo } from "@/brand/Logo";
 import { SCHOLARSHIP_EXAM as X } from "@/lib/scholarship";
-import { EXAM_ENDPOINT, post } from "@/lib/scholarship";
+import { EXAM_ENDPOINT, post, storedPaper, unlockPaper } from "@/lib/scholarship";
 
 const E = X.exam;
 const display = "font-[family-name:var(--font-display)]";
@@ -48,23 +48,33 @@ function Login({ error, waitUntil, onPhase }: { error?: string | undefined; wait
   const [busy, setBusy] = useState(false);
   useEffect(() => { setRoll(new URLSearchParams(location.search).get("roll")?.replace(/\D/g, "").slice(0, 9) ?? ""); }, []);
 
-  const start = useCallback(async (rollNo: string, pass: string) => {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(/^\d{9}$/.test(roll) && storedPaper(roll) !== null); }, [roll]);
+
+  const start = useCallback(async (rollNo: string, pass: string, fresh = false) => {
     setBusy(true);
-    const answer = await post(EXAM_ENDPOINT, JSON.stringify({ action: "start", rollNo, password: pass }));
-    setBusy(false);
-    if (!answer) return onPhase({ kind: "login", error: E.errors.network });
+    // Downloaded ahead on the scholarship page: ask only for the key that opens it.
+    const onPhone = fresh ? null : storedPaper(rollNo);
+    const answer = await post(EXAM_ENDPOINT, JSON.stringify({ action: "start", rollNo, password: pass, ...(onPhone ? { have: onPhone.version } : {}) }));
+    if (!answer) { setBusy(false); return onPhase({ kind: "login", error: E.errors.network }); }
     const d = answer.data;
     if (answer.status === 200) {
+      let questions = d["questions"] as Question[] | undefined;
+      if (!questions && onPhone && typeof d["key"] === "string") questions = (await unlockPaper<Question[]>(onPhone, d["key"])) ?? undefined;
+      // The copy on this phone couldn't be opened: fetch the paper itself.
+      if (!questions) return start(rollNo, pass, true);
+      setBusy(false);
       const student = d["student"] as { name: string; studentClass: string };
       return onPhase({
         kind: "exam",
         paper: {
           token: d["token"] as string, rollNo, name: student.name, studentClass: student.studentClass,
-          questions: d["questions"] as Question[], endsAt: d["endsAt"] as number, offset: (d["serverNow"] as number) - Date.now(),
+          questions, endsAt: d["endsAt"] as number, offset: (d["serverNow"] as number) - Date.now(),
           ...mergeState(rollNo, d["state"] as Saved),
         } as Paper,
       });
     }
+    setBusy(false);
     const code = String(d["error"] ?? "network");
     if (code === "finished") return onPhase({ kind: "done", status: String(d["status"] ?? "submitted") });
     if (code === "too_early") {
@@ -97,6 +107,7 @@ function Login({ error, waitUntil, onPhase }: { error?: string | undefined; wait
         <label className="block"><span className="text-sm font-semibold">{E.passwordLabel}</span>
           <input value={password} onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" type="password" autoComplete="off" className={input} />
           <small className="mt-1 block text-sm text-neutral-600">{E.passwordHint}</small></label>
+        {ready && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">✓ {E.paperOnPhone}</p>}
         <ul className="list-disc space-y-1 rounded-2xl bg-neutral-50 p-4 pl-8 text-sm leading-6 text-neutral-700">
           {E.instructions.map((line) => <li key={line}>{line}</li>)}
         </ul>
@@ -250,12 +261,12 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
             <span>{E.sections[section]} · {E.question.replace("{n}", String(inSection.findIndex(([, i]) => i === current) + 1))}</span>
             <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1 lg:hidden" onClick={() => setShowPalette(true)}>{E.palette}</button>
           </div>
-          <p className="mt-4 text-lg leading-8">{q.text}</p>
+          <p className="mt-4 text-lg leading-8"><Rich text={q.text} /></p>
           <div className="mt-5 space-y-3" role="radiogroup">
             {q.options.map((option, i) => (
               <label key={i} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 ${choice === i ? "border-[#0a1026] bg-[#0a1026]/5" : "border-neutral-300"}`}>
                 <input type="radio" name={`q${current}`} checked={choice === i} onChange={() => setChoice(i)} className="h-5 w-5 accent-[#0a1026]" />
-                <span className="font-bold">{"ABCD"[i]}.</span><span className="leading-6">{option}</span>
+                <span className="font-bold">{"ABCD"[i]}.</span><span className="leading-6"><Rich text={option} /></span>
               </label>
             ))}
           </div>
@@ -351,3 +362,19 @@ function Done({ status }: { status: string }) {
   );
 }
 
+
+/**
+ * Question text with powers written the usual way: x^2, x^(n+1), x^{10} and 10^-3 show the power small and raised (x²).
+ * Text already using superscript characters (x²) shows as it is.
+ */
+export function Rich({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  const power = /\^(?:\{([^}]{1,20})\}|\(([^)]{1,20})\)|(-?[\w.]{1,10}))/g;
+  let last = 0;
+  for (const m of text.matchAll(power)) {
+    parts.push(text.slice(last, m.index), <sup key={m.index} className="text-[.7em]">{m[1] ?? m[2] ?? m[3]}</sup>);
+    last = m.index + m[0].length;
+  }
+  parts.push(text.slice(last));
+  return <>{parts.map((p, i) => <Fragment key={i}>{p}</Fragment>)}</>;
+}

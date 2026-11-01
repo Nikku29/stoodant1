@@ -15,19 +15,31 @@ export function SlotPicker({ done, update }: { done: Registered; update: (next: 
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [password, setPassword] = useState("");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 20_000); return () => clearInterval(t); }, []);
 
+  // The server adds the exam password to this list only from 10 minutes before the booked hour.
+  const [askedAt, setAskedAt] = useState(0);
+  const current0 = done.slotId ?? null;
+  const joinFrom = current0 ? slotStart(current0) - X.earlyMinutes * MIN : 0;
+  useEffect(() => {
+    // Ask again when the Join time comes, so the password appears without a reload.
+    if (!current0 || password || now < joinFrom || askedAt >= joinFrom) return;
+    setAskedAt(now);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
   useEffect(() => {
     void post(SLOT_ENDPOINT, JSON.stringify({ regNo: done.regNo, token: done.payment.token })).then((answer) => {
       if (answer?.status !== 200) return;
       setSlots(answer.data["slots"] as Slot[]);
+      if (typeof answer.data["password"] === "string") setPassword(answer.data["password"]);
       const current = (answer.data["slotId"] as string | null) ?? null;
       if (current !== (done.slotId ?? null)) update({ ...done, slotId: current });
     });
     // Once per registration shown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [done.regNo]);
+  }, [done.regNo, askedAt]);
 
   const book = async (id: string) => {
     setBusy(id);
@@ -56,6 +68,13 @@ export function SlotPicker({ done, update }: { done: Registered; update: (next: 
         {joinOpen ? (
           <>
             <p className="mt-3 leading-7">{X.join.open}</p>
+            {password && (
+              <div className="mt-3 rounded-xl bg-neutral-100 px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-[.14em] text-neutral-500">{X.join.password}</p>
+                <p className={`${display} select-all text-2xl font-extrabold tracking-widest`}>{password}</p>
+                <p className="text-sm text-neutral-600">{X.join.passwordNote}</p>
+              </div>
+            )}
             <a href={`/exam?roll=${encodeURIComponent(done.rollNo ?? "")}`} className="mt-3 flex min-h-12 items-center justify-center rounded-full bg-[#fbb308] px-5 text-lg font-extrabold">{X.join.button}</a>
           </>
         ) : over ? (

@@ -65,7 +65,7 @@ export const scholarshipExamClose = onSchedule(
 
 // The team confirmed the fee in /admin: the child gets an exam roll number.
 export const onScholarshipUpdated = onDocumentUpdated(
-  { document: "scholarshipRegistrations/{regNo}", timeoutSeconds: 30 },
+  { document: "scholarshipRegistrations/{regNo}", timeoutSeconds: 60, memory: "512MiB", secrets: [PHONE_HASH_PEPPER] },
   handleScholarshipUpdated,
 );
 

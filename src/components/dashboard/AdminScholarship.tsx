@@ -182,7 +182,7 @@ function Item({ r, check, remove }: {
   const pay = payStatus(r);
   const wa = `https://wa.me/${r.parentPhoneE164.replace("+", "")}?text=${encodeURIComponent(
     pay === "paid"
-      ? `Hi ${r.parentName}, your ₹${r.fee ?? 99} fee for ${r.studentName}'s Stoodant Scholarship Test is confirmed. Registration number: ${r.regNo}.${r.rollNo ? ` Exam roll number: ${r.rollNo}.` : ""} You can also see it at stoodant.com/scholarship.`
+      ? `Hi ${r.parentName}, your ₹${r.fee ?? 99} fee for ${r.studentName}'s Stoodant Scholarship Test is confirmed. Registration number: ${r.regNo}.${r.rollNo ? ` Exam roll number: ${r.rollNo} (please save it).` : ""} Pick the exam hour at stoodant.com/scholarship. On the exam day, log in there and tap Join: the password appears there.`
       : pay === "rejected"
         ? `Hi ${r.parentName}, this is Stoodant. We couldn't find the ₹${r.fee ?? 99} payment for ${r.studentName}'s Scholarship Test (${r.regNo}). If you have paid, please send us a screenshot of the payment.`
         : `Hi ${r.parentName}, this is Stoodant about ${r.studentName}'s Scholarship Test registration (${r.regNo}).`,

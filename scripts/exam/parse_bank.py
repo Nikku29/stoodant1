@@ -13,7 +13,18 @@ def clean(text: str) -> str:
     text = re.sub(r"0\.3333333333333333", "(1/3)", text)
     text = re.sub(r"0\.6666666666666666", "(2/3)", text)
     text = re.sub(r"(\d+\.\d{4,})", lambda m: f"{float(m.group(1)):g}", text)
+    text = powers(text)
     return re.sub(r"\s+", " ", text).strip()
+
+SUPERSCRIPT = str.maketrans("0123456789+-=()n", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿ")
+
+def powers(text: str) -> str:
+    """x^2, x^(n+1), x^{10}, 10^-3 -> x², xⁿ⁺¹, x¹⁰, 10⁻³ (written the usual way, small and raised).
+    Powers with other letters stay as ^ and the exam page raises them when it shows the question."""
+    def raise_(m):
+        power = m.group(1) or m.group(2) or m.group(3)
+        return power.translate(SUPERSCRIPT) if all(c in "0123456789+-=()n" for c in power) else m.group(0)
+    return re.sub(r"\^(?:\{([^}]{1,12})\}|\(([^)]{1,12})\)|(-?[0-9n]+))", raise_, text)
 
 def options(line: str):
     parts = re.split(r"\(([A-D])\)\s*", line)
@@ -25,9 +36,11 @@ def main(src, out):
     questions, cls, subject, level, pending, i = [], None, None, None, {}, 0
     while i < len(paras):
         p = paras[i].strip()
-        m = re.match(r"CLASS (\d+) — (\w+)", p)
+        m = re.match(r"CLASS (\d+) — (\w+)( — HARD LEVEL)?", p)
         if m:
             cls, subject = m.group(1), SUBJECTS[m.group(2)]
+            # The hard-level supplement has one section per subject and its answer key straight after it.
+            if m.group(3): level, pending = "hard", {}
         elif re.match(r"^(Easy|Medium|Hard) — \d+ questions", p):
             level = LEVELS[p.split()[0]]
             pending = {}
@@ -39,7 +52,7 @@ def main(src, out):
                 if q is not None: q["answer"] = "ABCD".index(a)
         elif cls and level and re.match(r"^\d+\. ", p):
             n = int(p.split(".", 1)[0])
-            text = clean(p.split(".", 1)[1])
+            text = re.sub(r"^Senior[- ](?:level analytical reasoning|division editing) challenge \d+: ", "", clean(p.split(".", 1)[1]))
             opts = options(paras[i + 1]) if i + 1 < len(paras) and paras[i + 1].lstrip().startswith("(A)") else ["", "", "", ""]
             if opts[0]: i += 1
             q = {"id": f"c{cls}-{subject}-{level}-{n:02d}", "class": cls, "subject": subject, "level": level, "text": text, "options": opts, "answer": None}

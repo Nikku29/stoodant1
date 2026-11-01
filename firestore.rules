@@ -534,6 +534,7 @@ service cloud.firestore {
         && request.resource.data.payment.checkedAt == request.time
         && request.resource.data.updatedAt == request.time;
     }
+    // examPapers/{rollNo} (each student's paper and answer key) has no rule here: only Cloud Functions read it.
     // Exam papers and marks: written only by the scholarshipExam function; the team reads them for results.
     match /examAttempts/{rollNo} {
       allow read: if isAdmin();
