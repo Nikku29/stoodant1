@@ -26,6 +26,8 @@ export type Registration = {
   rollNo?: string;
   slotId?: string;
   createdAt?: Timestamp;
+  /** Mock tests taken on the phone the family registered with (marked there, sent by the scholarshipExam function). */
+  practice?: { attempts: number; best: number; last: { marks: number; total: number; bySection: Record<string, number>; at: Timestamp } };
 };
 
 export type PayStatus = "due" | "submitted" | "paid" | "rejected";
@@ -122,6 +124,9 @@ const CSV_COLUMNS: [string, (r: Registration) => string][] = [
   ["Fee", (r) => payStatus(r)],
   ["UPI reference", (r) => r.payment?.utr ?? ""],
   ["Paid from UPI ID", (r) => r.payment?.payerUpi ?? ""],
+  ["Mock test (last)", (r) => (r.practice ? `${r.practice.last.marks}/${r.practice.last.total}` : "")],
+  ["Mock test (best)", (r) => (r.practice ? String(r.practice.best) : "")],
+  ["Mock tests taken", (r) => String(r.practice?.attempts ?? 0)],
   ["Registered", (r) => r.createdAt?.toDate().toISOString() ?? ""],
 ];
 
@@ -152,6 +157,10 @@ export async function slotCounts(ids: string[]): Promise<Record<string, number>>
   return Object.fromEntries(ids.map((id, i) => [id, (snaps[i]!.get("count") as number | undefined) ?? 0]));
 }
 
+/** Two options that differ only in spaces, slashes, brackets, × or · look the same on a phone. Same as lookAlike in functions/src/scholarship/exam/paper.ts. */
+const plainOption = (o: string) => o.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s/()·×*^]/g, "");
+const lookAlikeOptions = (options: string[]) => new Set(options.map(plainOption)).size !== options.length;
+
 type BankItem = { id: string; class: string; subject: string; level: string; text: string; options: string[]; answer: number };
 /** Checks a question bank file and counts the different questions per class and subject (what the exam can use). */
 export function checkBank(raw: unknown): { ok: boolean; counts: Record<string, number>; problems: string[] } {
@@ -164,6 +173,7 @@ export function checkBank(raw: unknown): { ok: boolean; counts: Record<string, n
       && new Set(q.options).size === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= 3
       && ["maths", "science", "reasoning", "english"].includes(q.subject) && ["easy", "medium", "hard"].includes(q.level);
     if (!valid) { problems.push(`Skipped: ${String(q?.id ?? "?")}`); continue; }
+    if (lookAlikeOptions(q.options)) { problems.push(`Skipped (two options look the same): ${q.id}`); continue; }
     const key = `${q.class}|${q.subject}|${q.text}|${[...q.options].sort().join("|")}`;
     if (seen.has(key)) continue;
     seen.add(key);

@@ -168,6 +168,15 @@ function Registrations({ uid }: { uid: string }) {
   );
 }
 
+const SECTION_SHORT: [string, string][] = [["maths", "Maths"], ["science", "Science"], ["reasoning", "Reasoning"], ["english", "English"]];
+/** The last mock test's score, like the top of the student's result: "56/60 (Maths 13 · Science 14 · …) · best 58 · 3 taken". */
+function mockSummary(r: Registration): string {
+  const p = r.practice;
+  if (!p) return "Not taken yet";
+  const parts = SECTION_SHORT.map(([k, name]) => `${name} ${p.last.bySection[k] ?? 0}`).join(" · ");
+  return `${p.last.marks}/${p.last.total} (${parts}) · best ${p.best} · ${p.attempts} taken`;
+}
+
 function Item({ r, check, remove }: {
   r: Registration;
   check: (r: Registration, status: "paid" | "rejected") => Promise<void>;
@@ -201,6 +210,7 @@ function Item({ r, check, remove }: {
     ["Registered", when(r)],
     ["UPI reference", r.payment?.utr ?? "—"],
     ["Paid from UPI ID", r.payment?.payerUpi ?? "—"],
+    ["Mock test", mockSummary(r)],
   ];
   return (
     <li className="pd-item">

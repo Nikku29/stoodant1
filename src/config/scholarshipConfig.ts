@@ -10,7 +10,7 @@ export const SCHOLARSHIP_CONFIG = {
     { title: "Register", copy: "Fill the form below with your child's details and a clear photo. You get your registration number at once." },
     { title: "Pay the ₹99 test fee", copy: "Pay by UPI right after registering and enter the payment's reference number. Once we confirm it (within a day), your exam roll number appears on this page." },
     { title: "Pick your exam hour", copy: "Once the fee is confirmed, choose any one hour on 10 or 11 November, between 9 AM and 9 PM." },
-    { title: "Take the test online", copy: "On the exam day, log in on this page and tap Join. The password is the student's date of birth (29 April 2003 is 29042003). 2 minutes to read the rules, then 60 questions in 60 minutes on a phone, tablet or laptop with a front camera." },
+    { title: "Take the test online", copy: "On the exam day, log in on this page and tap Join. The password is the student's date of birth (29 April 2003 is 29042003). Log in from 5 minutes before your hour to read the rules; the questions open by themselves when the hour starts. 60 questions in 60 minutes on a phone, tablet or laptop with a front camera." },
     { title: "Results and scholarship", copy: "Ranks are announced class-wise. Top rankers join a short video call with our teachers before the scholarship is confirmed." },
   ],
   detailsHeading: "About the test",
@@ -50,6 +50,7 @@ export const SCHOLARSHIP_CONFIG = {
     submit: "Register and pay ₹99",
     submitting: "Registering…",
     noticeVersion: "2026-11-01",
+    leave: "Leave this page? The form isn't sent yet, so what you've filled in will be lost.",
     errors: {
       studentName: "Please enter the student's name (letters only).",
       studentClass: "Please choose Class 9 or 10.",

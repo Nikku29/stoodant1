@@ -6,6 +6,9 @@ import { useSession } from "@/lib/firebase/session";
 import { NavLinks, usePullToRefresh, type Nav } from "./AppNav";
 import "./dashboard.css";
 
+// The website's home page: its full address on the app (app.stoodant.com), "/" on the website itself.
+const SITE_HOME = import.meta.env.VITE_CONSOLE === "1" ? "https://stoodant.com/" : "/";
+
 /**
  * The frame every signed-in page shares: logo home link, who this page is for, and log-out. With `nav`,
  * the person's menu too: along the bottom on phones, down the side on computers.
@@ -30,7 +33,8 @@ export function Shell<T extends string = string>({
         </div>
       )}
       <header className="pd-top">
-        <a href="/" className="pd-logo" aria-label="Stoodant home">
+        {/* The website's home page (stoodant.com), also from the app's own address. */}
+        <a href={SITE_HOME} className="pd-logo" aria-label="Stoodant home">
           <Logo variant="full" />
         </a>
         <span className="pd-top-end">

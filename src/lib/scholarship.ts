@@ -1,6 +1,7 @@
 // Sends a scholarship test registration (with a small JPEG of the student's photo) to the submitScholarship
 // Cloud Function, and the UPI reference for the test fee to scholarshipPayment. Same transport as the demo
 // form in lead.ts: App Check header, idempotency key, retries.
+import { useEffect } from "react";
 import { warmUpLeadForm } from "./lead";
 
 export type ScholarshipFields = {
@@ -240,3 +241,38 @@ export const isPlausibleDob = (v: string, now = new Date()) => {
 
 // The exam days, hours and screen text travel with this file, so they share its download (no extra chunk).
 export { SCHOLARSHIP_EXAM, slotDay, slotHours, slotId, slotLabel, slotStart } from "@/config/scholarshipExam";
+
+// ---------- Leaving the page ----------
+// The logo goes to the stoodant.com home page. While something is in progress (a test, a half-filled form) the page
+// sets a message, and leaving asks "are you sure?" first. Kept in this file (not its own) so it adds no new
+// shared chunk to the home page's list of scripts.
+
+/** The website's home page. */
+export const SITE_HOME = "/";
+
+let message: string | null = null;
+/** Set once the person said yes, so the browser doesn't ask a second time. */
+let leaving = false;
+
+/** The question to ask before leaving, or null when leaving loses nothing. */
+export function useLeaveGuard(question: string | null) {
+  useEffect(() => {
+    if (!question) return;
+    message = question;
+    leaving = false;
+    // Closing the tab or typing another address: the browser asks with its own words.
+    const ask = (event: BeforeUnloadEvent) => { if (leaving) return; event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", ask);
+    return () => {
+      window.removeEventListener("beforeunload", ask);
+      if (message === question) message = null;
+    };
+  }, [question]);
+}
+
+/** For the logo's (or any link's) onClick: stays on the page unless nothing is in progress or the person says yes. */
+export function confirmLeave(event: { preventDefault: () => void }) {
+  if (!message) return;
+  if (window.confirm(message)) leaving = true;
+  else event.preventDefault();
+}

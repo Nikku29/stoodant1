@@ -10,6 +10,8 @@ export const SCHOLARSHIP_EXAM = {
   lateJoinMinutes: 15,
   /** Rules on screen before the questions open; not taken from the 60 minutes. Must match READING_MINUTES in slots.ts. */
   readingMinutes: 2,
+  /** Log-in on the exam page opens this long before the hour, to read the rules. Must match EARLY_LOGIN_MINUTES in slots.ts. */
+  earlyLoginMinutes: 5,
   /** The login page opens this long before the slot, so the student can be ready. */
   earlyMinutes: 10,
   bookingClosesMinutes: 30,
@@ -46,7 +48,7 @@ export const SCHOLARSHIP_EXAM = {
     starting: "Logging in…",
     rules: {
       heading: "Read the rules",
-      lead: "Take 2 minutes to read this. Your 60 minutes start only after this page.",
+      lead: "Read this carefully. The questions open by themselves when the countdown below ends, and your 60 minutes start only then.",
       startsIn: "The test begins in {time}",
       tabHeading: "Do not leave this page",
       tab: [
@@ -81,7 +83,7 @@ export const SCHOLARSHIP_EXAM = {
     },
     errors: {
       login: "The roll number or password is not right. Please check and try again.",
-      too_early: "Your exam hour has not started yet. This page will open the test at {time}.",
+      too_early: "Log-in opens at {time}, 5 minutes before your exam hour. Keep this page open: it logs you in by itself then.",
       missed: "The time to start this exam hour has passed (you can join up to 15 minutes late).",
       no_slot: "No exam hour is booked for this roll number. Please pick one on the scholarship page.",
       finished: "This test has already been submitted.",
@@ -116,6 +118,7 @@ export const SCHOLARSHIP_EXAM = {
     doneTimeout: "Time is up: your saved answers have been submitted.",
     doneStruck: "The test ended after 3 warnings for leaving the page. Your saved answers have been submitted.",
     back_home: "Back to the scholarship page",
+    leave: "Leave the test? Your answers so far are saved, but the timer keeps running and leaving the page counts as a warning. You can log in again within your hour.",
   },
   /** The mock test (/exam?practice=9 or 10): the real test's format, screens and rules with practice-only questions. */
   practice: {
@@ -134,6 +137,8 @@ export const SCHOLARSHIP_EXAM = {
     again: "Take the mock test again",
     link: "Take a free mock test",
     linkNote: "The real test's format: 60 questions, 60 minutes, the same screens and rules. The questions don't come in the exam.",
+    leave: "Leave the mock test? Your answers will be lost.",
+    savedNote: "Your score is saved with your registration.",
   },
 } as const;
 

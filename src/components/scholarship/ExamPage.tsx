@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Logo } from "@/brand/Logo";
 import { SCHOLARSHIP_EXAM as X } from "@/lib/scholarship";
-import { EXAM_ENDPOINT, post, storedPaper, unlockPaper } from "@/lib/scholarship";
+import { EXAM_ENDPOINT, SITE_HOME, confirmLeave, post, savedRegistration, storedPaper, unlockPaper, useLeaveGuard } from "@/lib/scholarship";
 
 const E = X.exam;
 const P = X.practice;
@@ -10,7 +10,7 @@ type Subject = keyof typeof E.sections;
 type Question = { subject: Subject; text: string; options: string[] };
 type Paper = {
   token: string; rollNo: string; name: string; studentClass: string; questions: Question[]; questionsAt: number; endsAt: number; offset: number;
-  /** Only on the practice paper: the answers, so it is marked on the phone and nothing goes to the server. */
+  /** Only on the practice paper: the answers, so it is marked on the phone (only its score goes to the server). */
   answerKey?: number[];
 };
 type Saved = { answers: Record<string, number>; marked: number[]; visited: number[]; strikes: number };
@@ -70,7 +70,12 @@ function Exams() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-neutral-50 text-[#0a1026]">
-      <header className="bg-[#0a1026] px-4 py-3 text-white"><div className="mx-auto flex max-w-xl items-center gap-3"><span className="logo w-32"><Logo /></span></div></header>
+      <header className="bg-[#0a1026] px-4 py-3 text-white">
+        <div className="mx-auto flex max-w-xl items-center gap-3">
+          {/* White letters on the navy bar; goes to stoodant.com (asks first during a test). */}
+          <a href={SITE_HOME} onClick={confirmLeave} className="logo block w-32" aria-label="Stoodant home"><Logo tone="dark" /></a>
+        </div>
+      </header>
       <main className="mx-auto max-w-xl px-4 py-8">{children}</main>
     </div>
   );
@@ -182,6 +187,8 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
   const dirty = useRef(false);
   const ended = useRef(false);
   const camera = useCamera(paper, !practice);
+  // Leaving in the middle (the logo, closing the tab) asks first.
+  useLeaveGuard(practice ? P.leave : E.leave);
   // The practice paper can skip the reading time; its minutes then start at once.
   const [opensAt, setOpensAt] = useState(paper.questionsAt);
   const endsAt = practice ? opensAt + (paper.endsAt - paper.questionsAt) : paper.endsAt;
@@ -275,7 +282,8 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
   const mm = Math.floor(left / 60000);
   const ss = Math.floor((left % 60000) / 1000);
 
-  // The first 2 minutes: the rules, with the time until the questions open. The 60 minutes start after this.
+  // The rules (from 5 minutes before the hour, or 2 minutes after a later log-in), with the time until the questions
+  // open by themselves. The 60 minutes start after this.
   if (now < opensAt) {
     return <Rules opensAt={opensAt} now={now} camera={camera} warning={warning} closeWarning={() => setWarning(null)}
       startNow={practice ? () => { const t = Date.now() + paper.offset; setOpensAt(t); setNow(t); } : undefined} />;
@@ -523,12 +531,26 @@ function Modal({ children }: { children: React.ReactNode }) {
 function PracticeDone({ paper, answers, again }: { paper: Paper; answers: Record<string, number>; again: () => void }) {
   const key = paper.answerKey ?? [];
   const marks = key.filter((a, i) => answers[String(i)] === a).length;
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  const bySection = Object.fromEntries((Object.keys(E.sections) as Subject[]).map((s) => [
+    s, paper.questions.filter((q, i) => q.subject === s && answers[String(i)] === key[i]).length,
+  ])) as Record<Subject, number>;
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    // Registered on this phone: the score (not the answers) goes on the registration, for the team to see.
+    const reg = savedRegistration();
+    if (!reg?.payment.token || reg.studentClass !== paper.studentClass) return;
+    void post(EXAM_ENDPOINT, JSON.stringify({ action: "practice", regNo: reg.regNo, token: reg.payment.token, studentClass: reg.studentClass, bySection }))
+      .then((answer) => setSaved(answer?.status === 200));
+    // Once per finished mock test.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Shell>
       <div className="rounded-3xl bg-white p-6 shadow-sm">
         <h1 className={`${display} text-2xl font-extrabold`}>{P.resultHeading}</h1>
         <p className="mt-2 text-lg font-bold">{P.score.replace("{marks}", String(marks)).replace("{total}", String(key.length))}</p>
+        {saved && <p className="mt-1 text-sm text-emerald-800">✓ {P.savedNote}</p>}
         <ul className="mt-2 grid grid-cols-2 gap-x-4 text-sm text-neutral-700">
           {(Object.keys(E.sections) as Subject[]).map((s) => {
             const idx = paper.questions.flatMap((q, i) => (q.subject === s ? [i] : []));

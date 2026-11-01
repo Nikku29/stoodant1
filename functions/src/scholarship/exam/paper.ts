@@ -34,6 +34,16 @@ export async function loadBankVersioned(): Promise<{ byClass: Map<string, BankQu
 export const loadBank = async () => (await loadBankVersioned()).byClass;
 export const forgetBank = () => { cached = null; };
 
+/**
+ * Two options that differ only in spaces, slashes, brackets, × or · (10√3 m and 10/√3 m, Ω m and Ω/m) look the same
+ * on a small screen. Such a question is left out. The same check is in checkBank (src/lib/firebase/scholarship.ts).
+ */
+export const lookAlike = (a: string, b: string) => {
+  const plain = (s: string) => s.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s/()·×*^]/g, "");
+  return a !== b && plain(a) === plain(b);
+};
+export const hasLookAlikeOptions = (options: string[]) => options.some((a, i) => options.some((b, j) => j > i && lookAlike(a, b)));
+
 /** Valid questions per class, with exact repeats (same text and options) kept once. */
 export function indexBank(raw: unknown[]): Map<string, BankQuestion[]> {
   const byClass = new Map<string, BankQuestion[]>();
@@ -43,7 +53,7 @@ export function indexBank(raw: unknown[]): Map<string, BankQuestion[]> {
     if (!q || typeof q.id !== "string" || typeof q.text !== "string" || !Array.isArray(q.options) || q.options.length !== 4) continue;
     if (!SUBJECTS.includes(q.subject) || !["easy", "medium", "hard"].includes(q.level)) continue;
     if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer > 3) continue;
-    if (q.options.some((o) => typeof o !== "string" || !o.trim()) || new Set(q.options).size !== 4) continue;
+    if (q.options.some((o) => typeof o !== "string" || !o.trim()) || new Set(q.options).size !== 4 || hasLookAlikeOptions(q.options)) continue;
     if (q.group !== undefined && typeof q.group !== "string") continue;
     const key = `${q.class}|${q.subject}|${q.text}|${[...q.options].sort().join("|")}`;
     if (seen.has(key)) continue;
