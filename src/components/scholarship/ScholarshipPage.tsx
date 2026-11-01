@@ -7,6 +7,7 @@ import { CampaignSlide } from "@/components/scholarship/CampaignSlide";
 import { UpiQr } from "@/components/UpiQr";
 import {
   onlyDigits, onlyLetters, preparePhoto, saveRegistration, savedRegistration, sendPayment, submitScholarship, upiPayLink, type Registered,
+  dobRange, isPlausibleDob,
 } from "@/lib/scholarship";
 import { warmUpLeadForm } from "@/lib/lead";
 
@@ -118,7 +119,7 @@ function RegisterForm() {
     const next: Errors = {};
     if (!isName(text("studentName"))) next.studentName = f.errors.studentName;
     if (!CLASSES.includes(text("studentClass") as (typeof CLASSES)[number])) next.studentClass = f.errors.studentClass;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(text("dob"))) next.dob = f.errors.dob;
+    if (!isPlausibleDob(text("dob"))) next.dob = f.errors.dob;
     if (text("school").length < 2) next.school = f.errors.school;
     if (!isName(text("city"))) next.city = f.errors.city;
     if (!/^[1-9]\d{5}$/.test(text("pincode"))) next.pincode = f.errors.pincode;
@@ -203,7 +204,7 @@ function RegisterForm() {
           {errors.studentClass && <small role="alert" className="mt-1 block text-sm text-red-700">{errors.studentClass}</small>}
         </fieldset>
         <Field label={f.dob} error={errors.dob} hint={f.dobHint}>
-          <input name="dob" type="date" min="2005-01-01" max="2016-12-31" className={input} aria-invalid={Boolean(errors.dob)} />
+          <input name="dob" type="date" min={dobRange().min} max={dobRange().max} className={input} aria-invalid={Boolean(errors.dob)} />
         </Field>
         <Field label={f.school} error={errors.school}>
           <input name="school" maxLength={120} placeholder={f.schoolPlaceholder} className={input} aria-invalid={Boolean(errors.school)} />

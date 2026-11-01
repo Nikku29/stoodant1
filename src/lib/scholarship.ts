@@ -161,3 +161,13 @@ export function upiPayLink(upi: { upiId: string; payeeName: string }, amount: nu
 /** Typing filters: names and city keep letters, spaces and . ' -; phone and PIN keep digits. */
 export const onlyLetters = (v: string) => v.replace(/[^\p{L}\p{M} .'-]/gu, "");
 export const onlyDigits = (v: string, max: number) => v.replace(/\D/g, "").slice(0, max);
+
+/** Birth years a Class 9 or 10 student can have this year (11 to 19 years old), the same rule the server uses. */
+export function dobRange(now = new Date()): { min: string; max: string } {
+  const y = now.getFullYear();
+  return { min: `${y - 19}-01-01`, max: `${y - 11}-12-31` };
+}
+export const isPlausibleDob = (v: string, now = new Date()) => {
+  const { min, max } = dobRange(now);
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && v >= min && v <= max;
+};
