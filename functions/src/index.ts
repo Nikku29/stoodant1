@@ -7,6 +7,7 @@ import { EMAIL_API_KEY, PHONE_HASH_PEPPER, REGION, WHATSAPP_TOKEN } from "./conf
 import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
 import { handleSubmitScholarship } from "./scholarship/submit.js";
+import { handleScholarshipPayment } from "./scholarship/payment.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
 import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
@@ -33,6 +34,12 @@ export const submitLead = onRequest(
 export const submitScholarship = onRequest(
   { concurrency: 40, invoker: "public", timeoutSeconds: 30, memory: "512MiB", maxInstances: 10, secrets: [PHONE_HASH_PEPPER] },
   handleSubmitScholarship,
+);
+
+// The parent's UPI reference for the scholarship test fee, sent from the same page after paying.
+export const scholarshipPayment = onRequest(
+  { concurrency: 40, invoker: "public", timeoutSeconds: 15, maxInstances: 5, secrets: [PHONE_HASH_PEPPER] },
+  handleScholarshipPayment,
 );
 
 export const onLeadCreated = onDocumentCreated(

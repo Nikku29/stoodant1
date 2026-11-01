@@ -524,6 +524,15 @@ service cloud.firestore {
     // and may delete one (with its duplicate-check key, so the child can register again).
     match /scholarshipRegistrations/{regNo} {
       allow read, delete: if isAdmin();
+      // The team confirms the test fee (paid), or marks it not received so the family can send the
+      // reference again. Nothing else on a registration changes from the browser.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment', 'updatedAt'])
+        && request.resource.data.payment.keys().hasOnly(['status', 'utr', 'submittedAt', 'checkedAt', 'checkedBy'])
+        && request.resource.data.payment.status in ['paid', 'rejected']
+        && request.resource.data.payment.checkedBy == request.auth.uid
+        && request.resource.data.payment.checkedAt == request.time
+        && request.resource.data.updatedAt == request.time;
     }
     match /scholarshipKeys/{keyId} {
       allow delete: if isAdmin();
