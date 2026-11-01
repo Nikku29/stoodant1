@@ -618,6 +618,20 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
+/* Scholarship fee check: big, clearly coloured Confirm / Deny buttons. */
+.pd-confirm,
+.pd-deny {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pd-confirm { background: #047857; color: #fff; }
+.pd-deny { background: #fee2e2; color: #991b1b; }
 .pd-card {
   margin-top: 20px;
   padding: 20px 18px;

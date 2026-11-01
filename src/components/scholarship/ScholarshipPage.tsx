@@ -7,7 +7,7 @@ import { CampaignSlide } from "@/components/scholarship/CampaignSlide";
 import { UpiQr } from "@/components/UpiQr";
 import {
   onlyDigits, onlyLetters, preparePhoto, saveRegistration, savedRegistration, sendPayment, submitScholarship, upiPayLink, type Registered,
-  dobRange, isPlausibleDob,
+  dobRange, isPlausibleDob, paymentStatus,
 } from "@/lib/scholarship";
 import { warmUpLeadForm } from "@/lib/lead";
 
@@ -265,6 +265,15 @@ function Success({ done, again, update }: { done: Registered; again: () => void;
   const share = `https://wa.me/?text=${encodeURIComponent(`${s.shareText} ${link}`)}`;
   const pay = done.payment;
   const status = SCHOLARSHIP_CONFIG.pay.status[pay.status];
+  // Coming back to the page: pick up the team's check (and the roll number) without asking the parent to tap.
+  useEffect(() => {
+    if (pay.status === "due" || (pay.status === "paid" && done.rollNo)) return;
+    void paymentStatus(done.regNo, pay.token).then((answer) => {
+      if (answer && (answer.status !== pay.status || answer.rollNo !== done.rollNo)) update(withAnswer(done, answer));
+    });
+    // Only once per registration shown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done.regNo]);
   return (
     <section id="register" className="min-w-0 scroll-mt-6 rounded-3xl bg-[#0a1026] p-6 text-white sm:p-8" role="status" aria-live="polite">
       {/* Printing shows only the slip, so "Save as PDF" gives a clean one-page registration slip. */}
@@ -278,9 +287,13 @@ function Success({ done, again, update }: { done: Registered; again: () => void;
           <dt className="slip-muted text-[#c9cee0]">{s.slipRows.student}</dt><dd className="font-semibold">{done.studentName}</dd>
           <dt className="slip-muted text-[#c9cee0]">{s.slipRows.class}</dt><dd className="font-semibold">Class {done.studentClass}</dd>
           <dt className="slip-muted text-[#c9cee0]">{s.slipRows.fee}</dt><dd className="font-semibold">₹{pay.amount} · {status}</dd>
+          <dt className="slip-muted text-[#c9cee0]">{s.slipRows.roll}</dt>
+          {done.rollNo
+            ? <dd className={`${display} select-all text-xl font-extrabold tracking-wider text-[#fbb308]`}>{done.rollNo}</dd>
+            : <dd className="slip-muted text-[#c9cee0]">{s.rollPending}</dd>}
         </dl>
       </div>
-      <p className="mt-4 leading-7 text-[#c9cee0]">{done.existing ? s.existingLead : s.lead}</p>
+      <p className="mt-4 leading-7 text-[#c9cee0]">{done.rollNo ? s.leadWithRoll : done.existing ? s.existingLead : s.lead}</p>
       <Payment done={done} update={update} />
       <div className="mt-6 flex flex-wrap gap-3">
         <button type="button" onClick={() => window.print()} className="inline-flex min-h-12 items-center rounded-full bg-white px-5 font-extrabold text-[#0a1026]">{s.download}</button>
@@ -291,6 +304,12 @@ function Success({ done, again, update }: { done: Registered; again: () => void;
   );
 }
 
+/** The registration with the latest fee status from the server (and the roll number once the fee is confirmed). */
+function withAnswer(done: Registered, answer: { status: Registered["payment"]["status"]; rollNo?: string }): Registered {
+  const { rollNo: _old, ...rest } = done;
+  return { ...rest, payment: { ...done.payment, status: answer.status }, ...(answer.rollNo ? { rollNo: answer.rollNo } : {}) };
+}
+
 function Payment({ done, update }: { done: Registered; update: (next: Registered) => void }) {
   const p = SCHOLARSHIP_CONFIG.pay;
   const pay = done.payment;
@@ -298,8 +317,26 @@ function Payment({ done, update }: { done: Registered; update: (next: Registered
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [notYet, setNotYet] = useState(false);
+  const check = async () => {
+    setChecking(true);
+    setNotYet(false);
+    const answer = await paymentStatus(done.regNo, pay.token);
+    setChecking(false);
+    if (answer && answer.status !== pay.status) return update(withAnswer(done, answer));
+    setNotYet(true);
+  };
   if (pay.status === "paid") return <p className="mt-5 rounded-2xl bg-emerald-500/15 p-4 font-semibold text-emerald-200">✓ {p.paidLead}</p>;
-  if (pay.status === "submitted") return <p className="mt-5 rounded-2xl bg-white/10 p-4 leading-7">{p.submittedLead}</p>;
+  if (pay.status === "submitted") {
+    return (
+      <div className="mt-5 rounded-2xl bg-white/10 p-4 leading-7">
+        <p>{p.submittedLead}</p>
+        <button type="button" onClick={() => void check()} disabled={checking} className="mt-3 min-h-12 rounded-full bg-white px-5 font-extrabold text-[#0a1026] disabled:opacity-60">{checking ? p.checking : p.check}</button>
+        {notYet && <p className="mt-2 text-sm text-[#c9cee0]" role="status">{p.stillChecking}</p>}
+      </div>
+    );
+  }
   if (!pay.upi) return <p className="mt-5 rounded-2xl bg-white/10 p-4 leading-7">{fee(p.noUpi, pay.amount)}</p>;
   const upi = pay.upi;
   const link = upiPayLink(upi, pay.amount, done.regNo);
@@ -312,14 +349,22 @@ function Payment({ done, update }: { done: Registered; update: (next: Registered
     setError("");
     const result = await sendPayment(done.regNo, pay.token, ref);
     setSending(false);
-    if ("status" in result) return update({ ...done, payment: { ...pay, status: result.status } });
+    if ("status" in result) return update(withAnswer(done, result));
     setError(result.error === "utr_used" ? p.errors.utrUsed : result.error === "utr" ? p.errors.utr : p.errors.network);
   };
 
   return (
     <div className="mt-6 rounded-2xl bg-white p-5 text-[#0a1026]">
       <h3 className={`${display} text-xl font-bold`}>{fee(p.heading, pay.amount)}</h3>
-      {pay.status === "rejected" && <p role="alert" className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{p.rejectedLead}</p>}
+      {pay.status === "rejected" && (
+        <div role="alert" className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p>{p.rejectedLead}</p>
+          <a className="mt-1 inline-block font-bold underline" target="_blank" rel="noreferrer"
+            href={`https://wa.me/${SITE_CONFIG.contact.whatsapp}?text=${encodeURIComponent(`Scholarship test fee: registration ${done.regNo}. I have paid ₹${pay.amount}, screenshot attached.`)}`}>
+            {p.whatsappHelp}
+          </a>
+        </div>
+      )}
       <a href={link} className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-[#fbb308] px-5 font-extrabold">{fee(p.openApp, pay.amount)}</a>
       <div className="mt-4 flex items-center gap-4">
         <UpiQr text={link} size={120} label={fee(p.qrLabel, pay.amount)} />

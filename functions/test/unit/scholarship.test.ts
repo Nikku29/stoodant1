@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import {
-  decodePhoto, duplicateKey, isPlausibleDob, paymentSchema, registrationNumber, scholarshipRequestSchema,
+  decodePhoto, duplicateKey, isPlausibleDob, paymentSchema, registrationNumber, rollNumber, scholarshipRequestSchema,
 } from "../../lib/scholarship/schema.js";
 
 const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200, 7)]).toString("base64");
@@ -74,6 +74,8 @@ test("only JPEG photos under the size limit are kept", () => {
 test("registration numbers and duplicate keys", () => {
   assert.equal(registrationNumber("9", 42), "SS26-09-00042");
   assert.equal(registrationNumber("10", 1), "SS26-10-00001");
+  assert.equal(rollNumber("9", 42), "260900042");
+  assert.equal(rollNumber("10", 1), "261000001");
   // One mobile number, one student: the key is the number alone.
   assert.equal(duplicateKey("+919876543210"), "scholarship-phone:+919876543210");
 });

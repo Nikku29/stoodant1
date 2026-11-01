@@ -14,6 +14,8 @@ export type Registered = {
   studentName: string;
   studentClass: string;
   payment: { amount: number; status: PayStatus; token: string; upi: { upiId: string; payeeName: string } | null };
+  /** The exam roll number: only once the team has confirmed the fee. */
+  rollNo?: string;
 };
 export type ScholarshipResult =
   | ({ ok: true } & Registered)
@@ -124,13 +126,25 @@ export async function submitScholarship(
   return { ok: false, reason: "invalid", fields: data["fields"] as string[] | undefined };
 }
 
+type PayAnswer = { status: PayStatus; rollNo?: string };
+const payAnswer = (data: Record<string, unknown>): PayAnswer => ({
+  status: data["status"] as PayStatus,
+  ...(typeof data["rollNo"] === "string" ? { rollNo: data["rollNo"] } : {}),
+});
+
 /** Sends the UPI reference after paying the fee. */
-export async function sendPayment(regNo: string, token: string, utr: string): Promise<{ status: PayStatus } | { error: "utr" | "utr_used" | "network" }> {
+export async function sendPayment(regNo: string, token: string, utr: string): Promise<PayAnswer | { error: "utr" | "utr_used" | "network" }> {
   const answer = await post(PAY_ENDPOINT, JSON.stringify({ regNo, token, utr }));
   if (!answer) return { error: "network" };
-  if (answer.status === 200) return { status: answer.data["status"] as PayStatus };
+  if (answer.status === 200) return payAnswer(answer.data);
   if (answer.status === 409) return { error: "utr_used" };
   return { error: answer.status === 400 ? "utr" : "network" };
+}
+
+/** Asks whether the team has confirmed the fee yet, and for the roll number once it has. */
+export async function paymentStatus(regNo: string, token: string): Promise<PayAnswer | null> {
+  const answer = await post(PAY_ENDPOINT, JSON.stringify({ regNo, token }));
+  return answer?.status === 200 ? payAnswer(answer.data) : null;
 }
 
 const SAVED = "stoodant-scholarship";
