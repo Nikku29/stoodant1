@@ -8,6 +8,7 @@ import { handleSubmitLead } from "./lead/submit.js";
 import { handleLeadCreated } from "./lead/notify.js";
 import { handleSubmitScholarship } from "./scholarship/submit.js";
 import { handleScholarshipPayment } from "./scholarship/payment.js";
+import { handleScholarshipUpdated } from "./scholarship/roll.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
 import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
@@ -40,6 +41,12 @@ export const submitScholarship = onRequest(
 export const scholarshipPayment = onRequest(
   { concurrency: 40, invoker: "public", timeoutSeconds: 15, maxInstances: 5, secrets: [PHONE_HASH_PEPPER] },
   handleScholarshipPayment,
+);
+
+// The team confirmed the fee in /admin: the child gets an exam roll number.
+export const onScholarshipUpdated = onDocumentUpdated(
+  { document: "scholarshipRegistrations/{regNo}", timeoutSeconds: 30 },
+  handleScholarshipUpdated,
 );
 
 export const onLeadCreated = onDocumentCreated(

@@ -16,7 +16,8 @@ const LIMITS = { per10Min: 20, perDay: 100 };
  * The token came with the registration, so only that browser (or someone with the phone and date of birth)
  * can send it. The payment becomes "submitted"; the team checks the bank account and marks it paid in /admin.
  * One UPI reference can be used for one registration only.
- * Answers { ok, status }, or 409 { error: "utr_used" } / 404 { error: "not_found" }.
+ * Without a utr it only reads: the page asks this way to learn whether the team has confirmed the fee.
+ * Answers { ok, status, rollNo? } (the roll number once the fee is confirmed), or 409 { error: "utr_used" } / 404 { error: "not_found" }.
  */
 export async function handleScholarshipPayment(req: Request, res: Response): Promise<void> {
   const started = Date.now();
@@ -48,20 +49,21 @@ export async function handleScholarshipPayment(req: Request, res: Response): Pro
     const now = Timestamp.fromMillis(started);
     const result = await db.runTransaction(async (tx) => {
       const regRef = db.doc(`scholarshipRegistrations/${regNo}`);
-      const utrRef = db.doc(`scholarshipUtrs/${utr}`);
-      const [reg, used] = await tx.getAll(regRef, utrRef);
+      const utrRef = db.doc(`scholarshipUtrs/${utr ?? "-"}`);
+      const [reg, used] = utr ? await tx.getAll(regRef, utrRef) : [await tx.get(regRef), null];
       if (!reg!.exists) return "not_found" as const;
       const status = payStatusOf(reg!.data());
-      if (status === "paid") return "paid" as const;
-      if (used!.exists && used!.get("regNo") !== regNo) return "utr_used" as const;
+      const rollNo = status === "paid" ? (reg!.get("rollNo") as string | undefined) : undefined;
+      if (status === "paid" || !utr) return { status, rollNo };
+      if (used?.exists && used.get("regNo") !== regNo) return "utr_used" as const;
       tx.update(regRef, { payment: { status: "submitted", utr, submittedAt: now }, updatedAt: now });
       tx.set(utrRef, { regNo, at: now });
-      return "submitted" as const;
+      return { status: "submitted" as const, rollNo: undefined };
     });
     if (result === "not_found") { res.status(404).json({ error: "not_found" }); return; }
     if (result === "utr_used") { res.status(409).json({ error: "utr_used", fields: ["utr"] }); return; }
-    logger.info("scholarship_payment", { regNo, status: result, ms: Date.now() - started });
-    res.status(200).json({ ok: true, status: result });
+    if (utr) logger.info("scholarship_payment", { regNo, status: result.status, ms: Date.now() - started });
+    res.status(200).json({ ok: true, status: result.status, ...(result.rollNo ? { rollNo: result.rollNo } : {}) });
   } catch (error) {
     logger.error("scholarship_payment_failed", { reason: "write", code: (error as { code?: unknown }).code ?? null });
     res.status(503).json({ error: "retry" });

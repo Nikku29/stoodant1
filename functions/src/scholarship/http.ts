@@ -86,5 +86,6 @@ export function registrationAnswer(
       token: payToken(pepper, reg["regNo"] as string),
       upi,
     },
+    ...(typeof reg["rollNo"] === "string" && payStatusOf(reg) === "paid" ? { rollNo: reg["rollNo"] } : {}),
   };
 }

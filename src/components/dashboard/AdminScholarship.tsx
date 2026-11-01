@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { QueryDocumentSnapshot } from "firebase/firestore/lite";
 import {
-  allRegistrations, checkPayment, deleteRegistration, findRegistration, listRegistrations, payStatus, photoUrl,
+  allRegistrations, checkPayment, deleteRegistration, findRegistration, listRegistrations, payStatus, photoUrl, readRegistration,
   registrationCounts, registrationsCsv, type PayStatus, type Registration,
 } from "@/lib/firebase/scholarship";
 import { Tile } from "./AppNav";
@@ -13,10 +13,10 @@ const born = (dob: string) => {
   return y && m && d ? `${d}/${m}/${y}` : dob;
 };
 
-const PAY_LABEL: Record<PayStatus, string> = { due: "Not paid", submitted: "To check", paid: "Paid", rejected: "Not received" };
+const PAY_LABEL: Record<PayStatus, string> = { due: "Not paid", submitted: "To check", paid: "Confirmed", rejected: "Denied" };
 const PAY_TONE: Record<PayStatus, string> = { due: "#6b7280", submitted: "#b45309", paid: "#047857", rejected: "#b91c1c" };
 type Show = "all" | "9" | "10" | "submitted" | "paid" | "due";
-const SHOW: [Show, string][] = [["all", "All"], ["9", "Class 9"], ["10", "Class 10"], ["submitted", "Fee to check"], ["paid", "Paid"], ["due", "Not paid"]];
+const SHOW: [Show, string][] = [["all", "All"], ["9", "Class 9"], ["10", "Class 10"], ["submitted", "Fee to check"], ["paid", "Confirmed"], ["due", "Not paid"]];
 
 /**
  * Team tab: scholarship test registrations, newest first. Every detail of each child (photo included), the ₹99
@@ -84,12 +84,20 @@ export function AdminScholarship({ uid }: { uid: string }) {
 
   const check = async (r: Registration, status: "paid" | "rejected") => {
     const ask = status === "paid"
-      ? `Mark ₹${r.fee ?? 99} as received for ${r.studentName} (${r.regNo})?${r.payment?.utr ? `\nUPI reference: ${r.payment.utr}` : ""}`
-      : `Mark the payment of ${r.studentName} (${r.regNo}) as not received? The family can then send the reference again.`;
+      ? `Confirm ₹${r.fee ?? 99} received for ${r.studentName} (${r.regNo})?${r.payment?.utr ? `\nUPI reference: ${r.payment.utr}` : ""}\nThe student then gets an exam roll number.`
+      : `Deny the payment of ${r.studentName} (${r.regNo})? The family sees "payment not found" and can send the reference again or WhatsApp you.`;
     if (!window.confirm(ask)) return;
     try {
       await checkPayment(r, status, uid);
       replace({ ...r, payment: { ...(r.payment ?? {}), status, checkedBy: uid } });
+      // The roll number is added by the server a moment after a confirm: show it when it is there.
+      if (status === "paid" && !r.rollNo) {
+        for (const wait of [1500, 3000, 6000]) {
+          await new Promise((done) => setTimeout(done, wait));
+          const fresh = await readRegistration(r.regNo).catch(() => null);
+          if (fresh?.rollNo) { replace(fresh); break; }
+        }
+      }
     } catch {
       setError("That change wasn't saved. Please try again.");
     }
@@ -122,14 +130,14 @@ export function AdminScholarship({ uid }: { uid: string }) {
         <Tile label="Class 9" value={String(counts?.["9"] ?? "…")} hint="registered" onClick={() => setShow("9")} />
         <Tile label="Class 10" value={String(counts?.["10"] ?? "…")} hint="registered" onClick={() => setShow("10")} />
         <Tile label="Fee to check" value={rows ? String(toCheck) : "…"} hint={next ? "in the list below" : "UPI reference sent"} onClick={() => setShow("submitted")} />
-        <Tile label="Paid" value={rows ? String(paid) : "…"} hint={next ? "in the list below" : "fee confirmed"} onClick={() => setShow("paid")} />
+        <Tile label="Confirmed" value={rows ? String(paid) : "…"} hint={next ? "in the list below" : "fee confirmed"} onClick={() => setShow("paid")} />
       </div>
       <form className="pd-actions" style={{ marginTop: 14 }} onSubmit={(e) => (e.preventDefault(), void lookup())}>
-        <input className="pd-select-sm" style={{ flex: 1 }} placeholder="Registration number or parent's phone" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Registration number or phone" />
+        <input className="pd-select-sm" style={{ flex: 1 }} placeholder="Registration no., roll no. or parent's phone" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Registration number or phone" />
         <button type="submit" className="pd-link">Find</button>
         <button type="button" className="pd-link" onClick={() => void download()} disabled={busy}>Download spreadsheet</button>
       </form>
-      {found === null && <p className="pd-empty">No registration with that number or phone.</p>}
+      {found === null && <p className="pd-empty">No registration with that number.</p>}
       {found && <ul className="pd-list">{item(found)}</ul>}
       <div className="pd-picker" role="group" aria-label="Show">
         {SHOW.map(([key, label]) => (
@@ -157,11 +165,14 @@ function Item({ r, check, remove }: {
   const pay = payStatus(r);
   const wa = `https://wa.me/${r.parentPhoneE164.replace("+", "")}?text=${encodeURIComponent(
     pay === "paid"
-      ? `Hi ${r.parentName}, your ₹${r.fee ?? 99} fee for ${r.studentName}'s Stoodant Scholarship Test is confirmed. Registration (roll) number: ${r.regNo}.`
-      : `Hi ${r.parentName}, this is Stoodant about ${r.studentName}'s Scholarship Test registration (${r.regNo}).`,
+      ? `Hi ${r.parentName}, your ₹${r.fee ?? 99} fee for ${r.studentName}'s Stoodant Scholarship Test is confirmed. Registration number: ${r.regNo}.${r.rollNo ? ` Exam roll number: ${r.rollNo}.` : ""} You can also see it at stoodant.com/scholarship.`
+      : pay === "rejected"
+        ? `Hi ${r.parentName}, this is Stoodant. We couldn't find the ₹${r.fee ?? 99} payment for ${r.studentName}'s Scholarship Test (${r.regNo}). If you have paid, please send us a screenshot of the payment.`
+        : `Hi ${r.parentName}, this is Stoodant about ${r.studentName}'s Scholarship Test registration (${r.regNo}).`,
   )}`;
   const rows: [string, string][] = [
     ["Registration no.", r.regNo],
+    ["Roll no.", r.rollNo ?? (pay === "paid" ? "being given…" : "after the fee is confirmed")],
     ["Class", r.studentClass],
     ["Date of birth", born(r.dob)],
     ["School", r.school],
@@ -189,8 +200,8 @@ function Item({ r, check, remove }: {
         </div>
       </div>
       <div className="pd-actions">
-        {pay !== "paid" && <button type="button" className="pd-link" onClick={() => void check(r, "paid")}>Mark fee paid</button>}
-        {pay === "submitted" && <button type="button" className="pd-link" onClick={() => void check(r, "rejected")}>Not received</button>}
+        {pay !== "paid" && <button type="button" className="pd-confirm" onClick={() => void check(r, "paid")}>✓ Confirm</button>}
+        {pay === "submitted" && <button type="button" className="pd-deny" onClick={() => void check(r, "rejected")}>✕ Deny</button>}
         <a className="pd-link" href={`tel:${r.parentPhoneE164}`}>Call</a>
         <a className="pd-link" href={wa} target="_blank" rel="noopener noreferrer">WhatsApp</a>
         <button type="button" className="pd-link" onClick={() => void remove(r)}>Delete</button>

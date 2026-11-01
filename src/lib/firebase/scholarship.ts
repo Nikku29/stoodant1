@@ -22,6 +22,8 @@ export type Registration = {
   status: string;
   fee?: number;
   payment?: { status: PayStatus; utr?: string; submittedAt?: Timestamp; checkedAt?: Timestamp; checkedBy?: string };
+  /** Exam roll number, given by the onScholarshipUpdated function a moment after the fee is confirmed. */
+  rollNo?: string;
   createdAt?: Timestamp;
 };
 
@@ -55,9 +57,13 @@ export async function allRegistrations(): Promise<Registration[]> {
   return rows;
 }
 
-/** By registration number (SS26-10-00042) or the parent's 10-digit mobile number. */
+/** By registration number (SS26-10-00042), exam roll number (261000042) or the parent's 10-digit mobile number. */
 export async function findRegistration(search: string): Promise<Registration | null> {
   const digits = search.replace(/\D/g, "");
+  if (/^\d{9}$/.test(search.trim())) {
+    const snap = await getDocs(query(collection(db(), "scholarshipRegistrations"), where("rollNo", "==", digits), limit(1)));
+    return snap.empty ? null : (snap.docs[0]!.data() as Registration);
+  }
   if (/^[6-9]\d{9}$/.test(digits) || /^91[6-9]\d{9}$/.test(digits)) {
     const phone = `+91${digits.slice(-10)}`;
     const snap = await getDocs(query(collection(db(), "scholarshipRegistrations"), where("parentPhoneE164", "==", phone), limit(1)));
@@ -71,6 +77,12 @@ export async function findRegistration(search: string): Promise<Registration | n
 export async function checkPayment(r: Registration, status: "paid" | "rejected", uid: string): Promise<void> {
   const payment = { ...(r.payment ?? {}), status, checkedAt: serverTimestamp(), checkedBy: uid };
   await updateDoc(doc(db(), "scholarshipRegistrations", r.regNo), { payment, updatedAt: serverTimestamp() });
+}
+
+/** One registration read again, e.g. to pick up the roll number the function adds after a confirm. */
+export async function readRegistration(regNo: string): Promise<Registration | null> {
+  const snap = await getDoc(doc(db(), "scholarshipRegistrations", regNo));
+  return snap.exists() ? (snap.data() as Registration) : null;
 }
 
 /** Registrations per class, from the counters the function keeps (no matter how many there are, two reads). */
@@ -96,6 +108,7 @@ export async function photoUrl(path: string): Promise<string> {
 
 const CSV_COLUMNS: [string, (r: Registration) => string][] = [
   ["Registration no.", (r) => r.regNo],
+  ["Roll no.", (r) => r.rollNo ?? ""],
   ["Student", (r) => r.studentName],
   ["Class", (r) => r.studentClass],
   ["Date of birth", (r) => r.dob],

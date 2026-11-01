@@ -99,7 +99,30 @@ test("the fee: a UPI reference marks it submitted, once per reference, and only 
 
   await db.doc(`scholarshipRegistrations/${a.regNo}`).update({ "payment.status": "paid" });
   const afterPaid = await send("scholarshipPayment", { regNo: a.regNo, token: a.payment.token, utr: "999999999999" });
-  assert.deepEqual(await afterPaid.json(), { ok: true, status: "paid" });
+  assert.equal(((await afterPaid.json()) as { status: string }).status, "paid");
+});
+
+test("confirming the fee gives a roll number, which the page can ask for without a reference", async () => {
+  const phone = nextPhone();
+  const a = (await (await post(body({ studentClass: "9", phone }))).json()) as Answer;
+  const check = async () => (await send("scholarshipPayment", { regNo: a.regNo, token: a.payment.token })).json();
+  assert.deepEqual(await check(), { ok: true, status: "due" });
+
+  await db.doc(`scholarshipRegistrations/${a.regNo}`).update({ "payment.status": "rejected" });
+  assert.deepEqual(await check(), { ok: true, status: "rejected" });
+
+  await db.doc(`scholarshipRegistrations/${a.regNo}`).update({ "payment.status": "paid" });
+  let rollNo: unknown;
+  for (let i = 0; i < 50 && !rollNo; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    rollNo = (await db.doc(`scholarshipRegistrations/${a.regNo}`).get()).get("rollNo");
+  }
+  assert.equal(rollNo, "260900001");
+  assert.deepEqual(await check(), { ok: true, status: "paid", rollNo: "260900001" });
+
+  // Filling the form again with the same number and date of birth shows it too.
+  const back = (await (await post(body({ studentClass: "9", phone }))).json()) as Answer & { rollNo?: string };
+  assert.equal(back.rollNo, "260900001");
 });
 
 test("bad photos and bad fields are refused with field names only", async () => {

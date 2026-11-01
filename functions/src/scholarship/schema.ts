@@ -76,8 +76,14 @@ export function duplicateKey(phone: string): string {
 export const paymentSchema = z.object({
   regNo: z.string().regex(REG_NO_PATTERN),
   token: z.string().regex(/^[a-f0-9]{64}$/),
-  utr: z.string().trim().regex(UTR_PATTERN).transform((v) => v.toUpperCase()),
+  /** Left out to only ask for the status (and the roll number once the fee is confirmed). */
+  utr: z.string().trim().regex(UTR_PATTERN).transform((v) => v.toUpperCase()).optional(),
 }).strict();
+
+/** Exam roll number, given once the fee is confirmed: 26 (year), the class as two digits, then a running number. 9 digits, easy to type. */
+export function rollNumber(studentClass: string, n: number): string {
+  return `${REG_PREFIX.slice(-2)}${studentClass.padStart(2, "0")}${String(n).padStart(5, "0")}`;
+}
 
 /** SS26-09-00042: the year's prefix, the class, then a running number per class. */
 export function registrationNumber(studentClass: string, n: number): string {
