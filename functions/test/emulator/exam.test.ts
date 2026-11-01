@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createDecipheriv, randomUUID } from "node:crypto";
 import { deleteApp, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -28,16 +28,17 @@ let phones = 0;
 const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(500, 9)]).toString("base64");
 /** Registers a Class 10 child, confirms the fee and waits for the roll number. */
 async function paidStudent(dob = "2011-08-05") {
+  const phone = `91234${String(10000 + phones++)}`;
   const r = await send("submitScholarship", {
     idempotencyKey: randomUUID(), studentName: "Aarav Sharma", studentClass: "10", dob, school: "KV No. 1", city: "Jaipur",
-    pincode: "302001", parentName: "Neha Sharma", phone: `91234${String(10000 + phones++)}`, photo: jpeg, consent: true,
+    pincode: "302001", parentName: "Neha Sharma", phone, photo: jpeg, consent: true,
     noticeVersion: "2026-11-01", startedAt: Date.now() - 10_000, website: "", source: { path: "/scholarship" },
   });
   const reg = (await r.json()) as { regNo: string; payment: { token: string } };
   await db.doc(`scholarshipRegistrations/${reg.regNo}`).update({ "payment.status": "paid" });
   for (let i = 0; i < 50; i++) {
     const rollNo = (await db.doc(`scholarshipRegistrations/${reg.regNo}`).get()).get("rollNo") as string | undefined;
-    if (rollNo) return { regNo: reg.regNo, token: reg.payment.token, rollNo };
+    if (rollNo) return { regNo: reg.regNo, token: reg.payment.token, rollNo, phone };
     await new Promise((done) => setTimeout(done, 200));
   }
   throw new Error("no roll number");
@@ -136,4 +137,68 @@ test("late, struck out, and timed out", async () => {
   await at("2026-11-11T15:30:00");
   const closed = await send("scholarshipExam", { action: "save", rollNo: away.rollNo, token: p2.token, answers: { 0: 1 }, marked: [], visited: [], strikes: 0, submit: false });
   assert.deepEqual(await closed.json(), { ok: true, status: "timeout" });
+});
+
+/** Opens a locked paper the way the browser does (AES-GCM, tag at the end). */
+function unlock(p: { iv: string; data: string }, key: string): unknown {
+  const data = Buffer.from(p.data, "base64");
+  const decipher = createDecipheriv("aes-256-gcm", Buffer.from(key, "base64"), Buffer.from(p.iv, "base64"));
+  decipher.setAuthTag(data.subarray(data.length - 16));
+  return JSON.parse(Buffer.concat([decipher.update(data.subarray(0, data.length - 16)), decipher.final()]).toString("utf8"));
+}
+
+test("the paper is made when the fee is confirmed, downloads locked, and unlocks only at the start", async () => {
+  await at("2026-11-09T12:00:00");
+  const s = await paidStudent();
+  // Made by the trigger that gave the roll number.
+  let made = false;
+  for (let i = 0; i < 50 && !made; i++) { made = (await db.doc(`examPapers/${s.rollNo}`).get()).exists; if (!made) await new Promise((r) => setTimeout(r, 200)); }
+  assert.ok(made);
+
+  const res = await send("scholarshipExam", { action: "paper", regNo: s.regNo, token: s.token });
+  assert.equal(res.status, 200);
+  const locked = (await res.json()) as { rollNo: string; version: string; iv: string; data: string };
+  assert.equal(locked.rollNo, s.rollNo);
+  assert.ok(!JSON.stringify(locked).includes("right"));
+  assert.equal((await send("scholarshipExam", { action: "paper", regNo: s.regNo, token: "0".repeat(64) })).status, 403);
+
+  // The hour and the password show on the page only around the exam.
+  await send("scholarshipSlot", { regNo: s.regNo, token: s.token, slotId: "2026-11-10T11" });
+  const listAt = async (iso: string) => { await at(iso); return (await (await send("scholarshipSlot", { regNo: s.regNo, token: s.token })).json()) as { password?: string }; };
+  assert.equal((await listAt("2026-11-10T10:40:00")).password, undefined);
+  assert.equal((await listAt("2026-11-10T10:52:00")).password, "05082011");
+
+  await at("2026-11-10T11:01:00");
+  const start = (have?: string) => send("scholarshipExam", { action: "start", rollNo: s.rollNo, password: "05082011", ...(have ? { have } : {}) });
+  const keyOnly = (await (await start(locked.version)).json()) as { key: string; questions?: unknown; version: string };
+  assert.equal(keyOnly.questions, undefined);
+  const questions = unlock(locked, keyOnly.key) as { subject: string; options: string[] }[];
+  assert.equal(questions.length, 60);
+  // A phone without the download (or with an old one) gets the same paper in full.
+  const full = (await (await start()).json()) as { questions: unknown[]; key?: string };
+  assert.equal(full.key, undefined);
+  assert.deepEqual(full.questions, questions);
+
+  // Marked from the student's own answer key, whatever order their options were in.
+  const answers: Record<string, number> = {};
+  questions.forEach((q, i) => { answers[String(i)] = q.options.indexOf("right"); });
+  const token = ((await (await start()).json()) as { token: string }).token;
+  await send("scholarshipExam", { action: "save", rollNo: s.rollNo, token, answers, marked: [], visited: [], strikes: 0, submit: true });
+  assert.equal((await db.doc(`examAttempts/${s.rollNo}`).get()).get("score.marks"), 60);
+});
+
+test("log in on the scholarship page with the mobile number and date of birth", async () => {
+  await at("2026-11-09T12:00:00");
+  const s = await paidStudent("2010-02-14");
+  const login = (dob: string, phone = s.phone) => send("scholarshipPayment", { phone, dob });
+  assert.equal((await login("2010-02-15")).status, 401);
+  assert.equal((await login("2010-02-14", "9000000000")).status, 401);
+  const ok = await login("2010-02-14", `+91 ${s.phone}`);
+  assert.equal(ok.status, 200);
+  const body = (await ok.json()) as { regNo: string; rollNo: string; payment: { token: string; status: string }; slotId: null };
+  assert.equal(body.regNo, s.regNo);
+  assert.equal(body.rollNo, s.rollNo);
+  assert.equal(body.payment.token, s.token);
+  assert.equal(body.payment.status, "paid");
+  assert.equal(body.slotId, null);
 });

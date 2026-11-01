@@ -8,8 +8,9 @@ import { keyedHash } from "../../lib/hash.js";
 import { clientIp, isRateLimited } from "../../lead/submit.js";
 import { REG_NO_PATTERN } from "../schema.js";
 import { passesGate, payStatusOf, payToken, pepperOr500 } from "../http.js";
-import { SUBJECTS, loadBank, makePaper, scorePaper, type BankQuestion, type PaperItem } from "./paper.js";
-import { ALL_SLOTS, DEFAULT_CAPACITY, bookingOpen, canStartAt, isSlot, paperEnds, slotStart } from "./slots.js";
+import { SUBJECTS, paperKey, scorePaper, type PaperItem } from "./paper.js";
+import { download, lockedPaper, type LockedPaper } from "./locked.js";
+import { ALL_SLOTS, DEFAULT_CAPACITY, EXAM_MINUTES, LATE_JOIN_MINUTES, bookingOpen, canStartAt, isSlot, paperEnds, slotStart } from "./slots.js";
 
 const MIN = 60 * 1000;
 /** Answers sent this long after the end still count (slow networks); after that the paper is closed. */
@@ -49,9 +50,16 @@ const slotSchema = z.object({
   slotId: z.string().max(20).optional(),
 }).strict();
 
+/** The Join button (and the password) show from this long before the booked hour. */
+const JOIN_EARLY_MS = 10 * MIN;
+const joinOpen = (slotId: string, now: number) =>
+  now >= slotStart(slotId) - JOIN_EARLY_MS && now <= slotStart(slotId) + (EXAM_MINUTES + LATE_JOIN_MINUTES) * MIN;
+
 /**
  * The family picks (or changes) the exam hour once the fee is confirmed. Without slotId it only lists the slots.
- * Answers { ok, slotId, slots: [{ id, full, open }] }; 409 not_paid / full / closed.
+ * Answers { ok, slotId, slots: [{ id, full, open }], password? }; 409 not_paid / full / closed.
+ * The exam password (date of birth as DDMMYYYY) comes with the list only from 10 minutes before the booked hour
+ * until it closes, so the page can show it next to the Join button on the day.
  */
 export async function handleScholarshipSlot(req: Request, res: Response): Promise<void> {
   const started = await examNow();
@@ -86,7 +94,9 @@ export async function handleScholarshipSlot(req: Request, res: Response): Promis
     if (slotId === undefined) {
       const reg = await regRef.get();
       if (!reg.exists) { res.status(404).json({ error: "not_found" }); return; }
-      res.status(200).json(await list((reg.get("slotId") as string | undefined) ?? null));
+      const current = (reg.get("slotId") as string | undefined) ?? null;
+      const showPassword = current && isSlot(current) && payStatusOf(reg.data()) === "paid" && joinOpen(current, started);
+      res.status(200).json({ ...(await list(current)), ...(showPassword ? { password: dobPassword(String(reg.get("dob"))) } : {}) });
       return;
     }
     if (!isSlot(slotId)) { res.status(400).json({ error: "invalid" }); return; }
@@ -121,6 +131,13 @@ const startSchema = z.object({
   rollNo: z.string().regex(ROLL),
   /** Date of birth as DDMMYYYY: the password. */
   password: z.string().regex(/^\d{8}$/),
+  /** The version of the locked paper already downloaded on this phone: then only its key is sent. */
+  have: z.string().regex(/^[a-f0-9]{16}$/).optional(),
+}).strict();
+const paperSchema = z.object({
+  action: z.literal("paper"),
+  regNo: z.string().regex(REG_NO_PATTERN),
+  token: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
 const indexMap = z.record(z.string().regex(/^\d{1,2}$/), z.number().int().min(0).max(3));
 const saveSchema = z.object({
@@ -146,6 +163,7 @@ export async function handleScholarshipExam(req: Request, res: Response): Promis
   try {
     if (action === "start") return await start(req, res, pepper, started);
     if (action === "save") return await save(req, res, pepper, started);
+    if (action === "paper") return await paper(req, res, pepper, started);
     res.status(400).json({ error: "invalid" });
   } catch (error) {
     logger.error("scholarship_exam_failed", { action, code: (error as { code?: unknown }).code ?? null, message: String(error).slice(0, 200) });
@@ -156,7 +174,7 @@ export async function handleScholarshipExam(req: Request, res: Response): Promis
 async function start(req: Request, res: Response, pepper: string, now: number) {
   const parsed = startSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "invalid" }); return; }
-  const { rollNo, password } = parsed.data;
+  const { rollNo, password, have } = parsed.data;
   const db = getFirestore();
   // Many phones share one address on mobile networks, so the address limit is loose; wrong passwords are counted per roll number.
   if (await isRateLimited(db, keyedHash(pepper, `scholarship-exam-ip:${clientIp(req)}`), now, { per10Min: 300, perDay: 3000 })) {
@@ -182,13 +200,13 @@ async function start(req: Request, res: Response, pepper: string, now: number) {
   if (!attempt.exists) {
     if (now < slotStart(slotId)) { res.status(425).json({ error: "too_early", slotId, startsAt: slotStart(slotId), serverNow: now }); return; }
     if (!canStartAt(slotId, now)) { res.status(410).json({ error: "missed", slotId }); return; }
-    const bank = (await loadBank()).get(String(reg.get("studentClass"))) ?? [];
-    const paper = makePaper(bank, keyedHash(pepper, `scholarship-paper:${rollNo}`));
-    if (paper.length < 4) { logger.error("scholarship_exam_failed", { reason: "no_bank" }); res.status(503).json({ error: "retry" }); return; }
+    // The paper made when the fee was confirmed (and downloaded since), or made now if it wasn't.
+    const locked = await lockedPaper(pepper, rollNo, String(reg.get("studentClass")), true);
+    if (!locked) { logger.error("scholarship_exam_failed", { reason: "no_bank" }); res.status(503).json({ error: "retry" }); return; }
     try {
       await attemptRef.create({
         rollNo, regNo: reg.id, studentName: reg.get("studentName"), studentClass: reg.get("studentClass"), slotId,
-        paper, answers: {}, marked: [], visited: [], strikes: 0, status: "started",
+        paper: locked.paper, paperVersion: locked.version, answers: {}, marked: [], visited: [], strikes: 0, status: "started",
         startedAt: Timestamp.fromMillis(now), endsAt: Timestamp.fromMillis(paperEnds(slotId, now)), savedAt: Timestamp.fromMillis(now),
       });
     } catch {
@@ -203,18 +221,19 @@ async function start(req: Request, res: Response, pepper: string, now: number) {
     res.status(409).json({ error: "finished", status: "timeout" });
     return;
   }
-  const byId = new Map(((await loadBank()).get(String(a["studentClass"])) ?? []).map((q) => [q.id, q]));
-  const questions = (a["paper"] as PaperItem[]).map((item) => {
-    const q = byId.get(item.id);
-    return q ? { subject: q.subject, text: q.text, options: item.order.map((i) => q.options[i]!) } : { subject: "maths", text: "", options: ["", "", "", ""] };
-  });
-  logger.info("scholarship_exam_start", { rollNo, slotId });
+  // The phone already holds this paper (downloaded ahead, locked): it only needs the key. Otherwise send it now.
+  const version = a["paperVersion"] as string;
+  const onPhone = have !== undefined && have === version;
+  const questions = onPhone ? null : ((await db.doc(`examPapers/${rollNo}`).get()).get("questions") as LockedPaper["questions"] | undefined);
+  if (!onPhone && !questions) { logger.error("scholarship_exam_failed", { reason: "no_paper" }); res.status(503).json({ error: "retry" }); return; }
+  logger.info("scholarship_exam_start", { rollNo, slotId, onPhone });
   res.status(200).json({
     ok: true,
     token: examToken(pepper, rollNo),
     student: { name: a["studentName"], studentClass: a["studentClass"], rollNo },
     sections: SUBJECTS,
-    questions,
+    version,
+    ...(onPhone ? { key: paperKey(pepper, rollNo).toString("base64") } : { questions }),
     endsAt: (a["endsAt"] as Timestamp).toMillis(),
     serverNow: now,
     state: { answers: a["answers"], marked: a["marked"], visited: a["visited"], strikes: a["strikes"] },
@@ -259,12 +278,36 @@ async function save(req: Request, res: Response, pepper: string, now: number) {
   res.status(200).json({ ok: true, status: "started", serverNow: now });
 }
 
+/**
+ * POST { action: "paper", regNo, token } from /scholarship once the fee is confirmed: the student's paper,
+ * locked, to keep on the phone until the exam. Its key comes only with "start" inside the booked hour.
+ * Answers { ok, rollNo, version, iv, data }, or 409 { error: "not_ready" } (fee not confirmed, or no bank yet).
+ */
+async function paper(req: Request, res: Response, pepper: string, now: number) {
+  const parsed = paperSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "invalid" }); return; }
+  const { regNo, token } = parsed.data;
+  if (!tokenMatches(payToken(pepper, regNo), token)) { res.status(403).json({ error: "forbidden" }); return; }
+  const db = getFirestore();
+  if (await isRateLimited(db, keyedHash(pepper, `scholarship-paper-ip:${clientIp(req)}`), now, { per10Min: 120, perDay: 1000 })) {
+    res.status(429).json({ error: "rate_limited" });
+    return;
+  }
+  const reg = await db.doc(`scholarshipRegistrations/${regNo}`).get();
+  const rollNo = reg.get("rollNo") as string | undefined;
+  if (!reg.exists || payStatusOf(reg.data()) !== "paid" || !rollNo) { res.status(409).json({ error: "not_ready" }); return; }
+  // Once the exam has begun, the paper it began with stays; before that, a newer bank upload makes a new paper.
+  const started = (await db.doc(`examAttempts/${rollNo}`).get()).exists;
+  const locked = await lockedPaper(pepper, rollNo, String(reg.get("studentClass")), !started).catch(() => null);
+  if (!locked) { res.status(409).json({ error: "not_ready" }); return; }
+  res.status(200).json({ ok: true, rollNo, ...download(locked) });
+}
+
 /** Marks a paper (answers as last saved) and closes it. Safe to call twice: a closed paper is left alone. */
 export async function finishAttempt(snap: DocumentSnapshot, status: "submitted" | "timeout" | "struck", now: number): Promise<void> {
   const data = snap.data() as DocumentData | undefined;
   if (!data || data["status"] !== "started") return;
-  const bank = new Map<string, BankQuestion>(((await loadBank()).get(String(data["studentClass"])) ?? []).map((q) => [q.id, q]));
-  const score = scorePaper(data["paper"] as PaperItem[], data["answers"] as Record<string, number>, bank);
+  const score = scorePaper(data["paper"] as PaperItem[], data["answers"] as Record<string, number>);
   const startedAt = (data["startedAt"] as Timestamp).toMillis();
   const endedAt = Math.min(now, (data["endsAt"] as Timestamp).toMillis());
   await getFirestore().runTransaction(async (tx) => {

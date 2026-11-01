@@ -13,7 +13,18 @@ def clean(text: str) -> str:
     text = re.sub(r"0\.3333333333333333", "(1/3)", text)
     text = re.sub(r"0\.6666666666666666", "(2/3)", text)
     text = re.sub(r"(\d+\.\d{4,})", lambda m: f"{float(m.group(1)):g}", text)
+    text = powers(text)
     return re.sub(r"\s+", " ", text).strip()
+
+SUPERSCRIPT = str.maketrans("0123456789+-=()n", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿ")
+
+def powers(text: str) -> str:
+    """x^2, x^(n+1), x^{10}, 10^-3 -> x², xⁿ⁺¹, x¹⁰, 10⁻³ (written the usual way, small and raised).
+    Powers with other letters stay as ^ and the exam page raises them when it shows the question."""
+    def raise_(m):
+        power = m.group(1) or m.group(2) or m.group(3)
+        return power.translate(SUPERSCRIPT) if all(c in "0123456789+-=()n" for c in power) else m.group(0)
+    return re.sub(r"\^(?:\{([^}]{1,12})\}|\(([^)]{1,12})\)|(-?[0-9n]+))", raise_, text)
 
 def options(line: str):
     parts = re.split(r"\(([A-D])\)\s*", line)

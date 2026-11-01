@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { SITE_CONFIG } from "@/config/siteConfig";
 import { SCHOLARSHIP_CONFIG } from "@/config/scholarshipConfig";
-import { PAGES_META } from "@/config/pagesMeta";
 import { Logo } from "@/brand/Logo";
 import { CampaignSlide } from "@/components/scholarship/CampaignSlide";
 import { UpiQr } from "@/components/UpiQr";
@@ -9,7 +8,7 @@ import { SlotPicker } from "@/components/scholarship/SlotPicker";
 import { SCHOLARSHIP_EXAM, slotLabel } from "@/lib/scholarship";
 import {
   onlyDigits, onlyLetters, preparePhoto, saveRegistration, savedRegistration, sendPayment, submitScholarship, upiPayLink, type Registered,
-  dobRange, isPlausibleDob, paymentStatus,
+  dobRange, isPlausibleDob, paymentStatus, loginScholarship, downloadPaper, storedPaper,
 } from "@/lib/scholarship";
 import { warmUpLeadForm } from "@/lib/lead";
 
@@ -25,7 +24,10 @@ export function ScholarshipPage() {
       <header className="border-b border-neutral-200">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <a href="/" className="logo" aria-label={copy.backHome}><Logo /></a>
-          <a href="#register" className="rounded-full bg-[#fbb308] px-4 py-2 text-sm font-extrabold text-[#0a1026]">{f.submit}</a>
+          <span className="flex items-center gap-4">
+            <a href="#login" className="text-sm font-bold underline">{copy.login.link}</a>
+            <a href="#register" className="rounded-full bg-[#fbb308] px-4 py-2 text-sm font-extrabold text-[#0a1026]">{f.submit}</a>
+          </span>
         </div>
       </header>
       <main>
@@ -90,9 +92,19 @@ function RegisterForm() {
   const [photoBusy, setPhotoBusy] = useState(false);
   // The prerendered form can't be sent until its code has loaded, so it never submits natively.
   const [hydrated, setHydrated] = useState(false);
+  // Families registered on another phone (or who cleared the browser) log in instead of registering again.
+  const [loggingIn, setLoggingIn] = useState(false);
   useEffect(() => {
     setHydrated(true);
     setDone(savedRegistration());
+    const fromHash = () => {
+      if (location.hash !== "#login") return;
+      setLoggingIn(true);
+      document.getElementById("register")?.scrollIntoView({ block: "start" });
+    };
+    fromHash();
+    addEventListener("hashchange", fromHash);
+    return () => removeEventListener("hashchange", fromHash);
   }, []);
   const request = useRef<{ idempotencyKey: string; startedAt: number } | null>(null);
   useEffect(() => { request.current = { idempotencyKey: newKey(), startedAt: Date.now() }; }, []);
@@ -167,15 +179,18 @@ function RegisterForm() {
     setFormError(result.reason === "rate_limited" ? f.errors.rateLimited : result.reason === "invalid" ? f.errors.invalid : f.errors.network);
   };
 
-  const again = () => {
+  const logOut = () => {
     saveRegistration(null);
     setDone(null);
+    setLoggingIn(true);
     setPhoto(null);
     setErrors({});
     request.current = { idempotencyKey: newKey(), startedAt: Date.now() };
   };
 
-  if (done) return <Success done={done} again={again} update={(next) => { saveRegistration(next); setDone(next); }} />;
+  const show = (next: Registered) => { saveRegistration(next); setDone(next); };
+  if (done) return <Success done={done} logOut={logOut} update={show} />;
+  if (loggingIn) return <LoginForm onDone={show} onRegister={() => { setLoggingIn(false); history.replaceState(null, "", "#register"); }} />;
 
   const input = "mt-1 block w-full min-h-12 rounded-xl border border-neutral-300 bg-white px-4 text-base outline-none focus:border-[#0a1026] focus:ring-2 focus:ring-[#fbb308] aria-[invalid=true]:border-red-600";
   // Keeps only allowed characters as the parent types (names: letters; phone and PIN: digits).
@@ -189,6 +204,10 @@ function RegisterForm() {
     <section id="register" className="min-w-0 scroll-mt-6 rounded-3xl border border-neutral-200 p-5 shadow-[0_20px_50px_rgba(10,16,38,.08)] sm:p-8">
       <h2 className={`${display} text-2xl font-bold sm:text-3xl`}>{f.heading}</h2>
       <p className="mt-2 text-neutral-600">{f.lead}</p>
+      <p className="mt-3 rounded-xl bg-neutral-100 px-4 py-3 text-sm">
+        {copy.login.already}{" "}
+        <button type="button" className="font-bold underline" onClick={() => setLoggingIn(true)}>{copy.login.link}</button>
+      </p>
       <form ref={formRef} className="mt-6 grid gap-5" onSubmit={submit} onFocus={warmUpLeadForm} onPointerDown={warmUpLeadForm} noValidate aria-busy={pending}>
         <Field label={f.studentName} error={errors.studentName}>
           <input name="studentName" autoComplete="off" maxLength={80} placeholder={f.studentNamePlaceholder} onInput={letters} className={input} aria-invalid={Boolean(errors.studentName)} />
@@ -261,10 +280,8 @@ function RegisterForm() {
 
 const fee = (text: string, amount: number) => text.replace("{fee}", String(amount));
 
-function Success({ done, again, update }: { done: Registered; again: () => void; update: (next: Registered) => void }) {
+function Success({ done, logOut, update }: { done: Registered; logOut: () => void; update: (next: Registered) => void }) {
   const s = SCHOLARSHIP_CONFIG.success;
-  const link = `${SITE_CONFIG.siteUrl}${PAGES_META.scholarship.path}`;
-  const share = `https://wa.me/?text=${encodeURIComponent(`${s.shareText} ${link}`)}`;
   const pay = done.payment;
   const status = SCHOLARSHIP_CONFIG.pay.status[pay.status];
   // Coming back to the page: pick up the team's check (and the roll number) without asking the parent to tap.
@@ -298,12 +315,77 @@ function Success({ done, again, update }: { done: Registered; again: () => void;
       </div>
       <p className="mt-4 leading-7 text-[#c9cee0]">{done.rollNo ? s.leadWithRoll : done.existing ? s.existingLead : s.lead}</p>
       <Payment done={done} update={update} />
+      {pay.status === "paid" && done.rollNo && <PaperDownload done={done} />}
       {pay.status === "paid" && <SlotPicker done={done} update={update} />}
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
         <button type="button" onClick={() => window.print()} className="inline-flex min-h-12 items-center rounded-full bg-white px-5 font-extrabold text-[#0a1026]">{s.download}</button>
-        <a href={share} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center rounded-full bg-[#fbb308] px-5 font-extrabold text-[#0a1026]">{s.share}</a>
-        <button type="button" onClick={again} className="min-h-12 rounded-full border border-white/40 px-5 font-bold">{s.another}</button>
+        <button type="button" onClick={logOut} className="text-sm font-bold text-[#c9cee0] underline">{SCHOLARSHIP_CONFIG.login.logOut}</button>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Once the fee is confirmed, the student's paper downloads to this phone quietly in the background, locked.
+ * It opens only with the key the server gives when the exam hour starts, so a slow network on the day matters less.
+ */
+function PaperDownload({ done }: { done: Registered }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let stop = false;
+    const run = async () => {
+      // Downloaded on every visit: a new copy only replaces the old one if the team changed the question bank.
+      const ok = await downloadPaper(done);
+      if (!stop) setReady(ok || storedPaper(done.rollNo!) !== null);
+    };
+    const idle = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    const t = idle ? idle(() => void run()) : setTimeout(() => void run(), 1500);
+    return () => { stop = true; if (!idle) clearTimeout(t); };
+  }, [done]);
+  if (!ready) return null;
+  return <p className="mt-4 text-sm text-[#c9cee0]">✓ {SCHOLARSHIP_CONFIG.login.paperReady}</p>;
+}
+
+function LoginForm({ onDone, onRegister }: { onDone: (r: Registered) => void; onRegister: () => void }) {
+  const l = SCHOLARSHIP_CONFIG.login;
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
+    const phone = String(values["phone"] ?? "").trim();
+    const dob = String(values["dob"] ?? "").trim();
+    if (!/^[6-9]\d{9}$/.test(phone)) return setError(f.errors.phone);
+    if (!isPlausibleDob(dob)) return setError(f.errors.dob);
+    setBusy(true);
+    setError("");
+    const result = await loginScholarship(phone, dob);
+    setBusy(false);
+    if ("regNo" in result) return onDone(result);
+    setError(result.error === "login" ? l.errors.login : result.error === "rate_limited" ? l.errors.rateLimited : f.errors.network);
+  };
+  const input = "mt-1 block w-full min-h-12 rounded-xl border border-neutral-300 bg-white px-4 text-base outline-none focus:border-[#0a1026] focus:ring-2 focus:ring-[#fbb308]";
+  return (
+    <section id="register" className="min-w-0 scroll-mt-6 rounded-3xl border border-neutral-200 p-5 shadow-[0_20px_50px_rgba(10,16,38,.08)] sm:p-8">
+      <h2 className={`${display} text-2xl font-bold sm:text-3xl`}>{l.heading}</h2>
+      <p className="mt-2 text-neutral-600">{l.lead}</p>
+      <form className="mt-6 grid gap-5" onSubmit={(e) => void submit(e)} onFocus={warmUpLeadForm} noValidate aria-busy={busy}>
+        <Field label={f.phone} error={undefined}>
+          <input name="phone" type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} placeholder={f.phonePlaceholder}
+            onInput={(e) => { const el = e.currentTarget; const v = onlyDigits(el.value.replace(/^(\+?91|0)(?=\d{10}$)/, ""), 10); if (v !== el.value) el.value = v; }} className={input} />
+        </Field>
+        <Field label={f.dob} error={undefined}>
+          <input name="dob" type="date" min={dobRange().min} max={dobRange().max} className={input} />
+        </Field>
+        {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
+        <button type="submit" disabled={busy} className="min-h-13 rounded-full bg-[#0a1026] px-6 py-3.5 text-base font-extrabold text-white disabled:opacity-60">
+          {busy ? l.busy : l.submit}
+        </button>
+      </form>
+      <p className="mt-5 text-sm">
+        {l.notYet}{" "}
+        <button type="button" className="font-bold underline" onClick={onRegister}>{l.register}</button>
+      </p>
     </section>
   );
 }

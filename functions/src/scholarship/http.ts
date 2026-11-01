@@ -87,5 +87,6 @@ export function registrationAnswer(
       upi,
     },
     ...(typeof reg["rollNo"] === "string" && payStatusOf(reg) === "paid" ? { rollNo: reg["rollNo"] } : {}),
+    slotId: typeof reg["slotId"] === "string" ? reg["slotId"] : null,
   };
 }

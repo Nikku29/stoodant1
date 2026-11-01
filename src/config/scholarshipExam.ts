@@ -26,8 +26,10 @@ export const SCHOLARSHIP_EXAM = {
   },
   join: {
     button: "Join the exam",
-    opensAt: "The Join button appears here at {time} on {date}. Keep the roll number and date of birth ready.",
+    opensAt: "The Join button and the exam password appear here at {time} on {date}, 10 minutes before your hour.",
     open: "The exam is open now. Join within the first 15 minutes of your hour.",
+    password: "Exam password",
+    passwordNote: "Type this on the exam page with the roll number.",
     missed: "This exam hour has passed. Please WhatsApp us if something went wrong.",
   },
   exam: {
@@ -35,6 +37,7 @@ export const SCHOLARSHIP_EXAM = {
     rollLabel: "Roll number",
     passwordLabel: "Password",
     passwordHint: "The student's date of birth as DDMMYYYY. For example, 5 August 2011 is 05082011.",
+    paperOnPhone: "Your paper is already on this phone. It opens when you start.",
     instructions: [
       "60 questions in 4 sections: Mathematics, Science, Reasoning and English. 60 minutes in all.",
       "Each correct answer gets 1 mark. No marks are taken off for a wrong answer.",

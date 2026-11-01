@@ -30,6 +30,13 @@ export function isPlausibleDob(value: string, now = new Date()): boolean {
   return age >= 11 && age <= 19;
 }
 
+/** An Indian mobile number in any usual spelling, stored as +91XXXXXXXXXX. */
+const indianMobile = z.string().max(20).transform((value, ctx) => {
+  const e164 = normaliseIndianMobile(value);
+  if (!e164) ctx.addIssue({ code: "custom", message: "phone" });
+  return e164 ?? "";
+});
+
 export const scholarshipRequestSchema = z.object({
   idempotencyKey: z.string().uuid(),
   studentName: name,
@@ -40,11 +47,7 @@ export const scholarshipRequestSchema = z.object({
   /** Indian PIN code: six digits, never starting with 0. */
   pincode: z.string().trim().regex(/^[1-9]\d{5}$/),
   parentName: name,
-  phone: z.string().max(20).transform((value, ctx) => {
-    const e164 = normaliseIndianMobile(value);
-    if (!e164) ctx.addIssue({ code: "custom", message: "phone" });
-    return e164 ?? "";
-  }),
+  phone: indianMobile,
   /** JPEG, base64 without the data: prefix. Checked again after decoding. */
   photo: z.string().min(100).max(Math.ceil((MAX_PHOTO_BYTES * 4) / 3) + 4).regex(/^[A-Za-z0-9+/]+={0,2}$/),
   consent: z.literal(true),
@@ -72,6 +75,12 @@ export function decodePhoto(base64: string): Buffer | null {
 export function duplicateKey(phone: string): string {
   return `scholarship-phone:${phone}`;
 }
+
+/** Logging in on /scholarship (another phone, cleared browser): the parent's mobile number and the child's date of birth. */
+export const loginSchema = z.object({
+  phone: indianMobile,
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}).strict();
 
 export const paymentSchema = z.object({
   regNo: z.string().regex(REG_NO_PATTERN),

@@ -151,6 +151,54 @@ export async function paymentStatus(regNo: string, token: string): Promise<PayAn
   return answer?.status === 200 ? payAnswer(answer.data) : null;
 }
 
+/** Logs in on another phone (or after clearing the browser) with the parent's mobile number and the child's date of birth. */
+export async function loginScholarship(phone: string, dob: string): Promise<Registered | { error: "login" | "rate_limited" | "network" }> {
+  const answer = await post(PAY_ENDPOINT, JSON.stringify({ phone, dob }));
+  if (!answer) return { error: "network" };
+  if (answer.status === 200) { const { ok: _ok, ...registered } = answer.data; return registered as unknown as Registered; }
+  return { error: answer.status === 429 ? "rate_limited" : answer.status === 401 || answer.status === 400 ? "login" : "network" };
+}
+
+// ---------- The exam paper, downloaded ahead and locked ----------
+
+/** A paper as kept on the phone: AES-GCM ciphertext (tag at the end) and its IV, base64. The key comes at the exam's start. */
+export type StoredPaper = { version: string; iv: string; data: string };
+const paperKey = (roll: string) => `stoodant-paper-${roll}`;
+export function storedPaper(roll: string): StoredPaper | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(paperKey(roll)) ?? "null") as StoredPaper | null;
+    return value?.version && value.iv && value.data ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Downloads the student's locked paper once the fee is confirmed (again only if the team has changed the question bank). */
+export async function downloadPaper(done: Registered): Promise<boolean> {
+  if (!done.rollNo) return false;
+  const answer = await post(EXAM_ENDPOINT, JSON.stringify({ action: "paper", regNo: done.regNo, token: done.payment.token }));
+  if (answer?.status !== 200) return false;
+  const { version, iv, data } = answer.data as unknown as StoredPaper;
+  try {
+    localStorage.setItem(paperKey(done.rollNo), JSON.stringify({ version, iv, data }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Opens the downloaded paper with the key the server gives when the exam hour starts. Null if it can't be opened. */
+export async function unlockPaper<T>(paper: StoredPaper, keyBase64: string): Promise<T | null> {
+  try {
+    const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey("raw", bytes(keyBase64), "AES-GCM", false, ["decrypt"]);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes(paper.iv) }, key, bytes(paper.data));
+    return JSON.parse(new TextDecoder().decode(plain)) as T;
+  } catch {
+    return null;
+  }
+}
+
 const SAVED = "stoodant-scholarship";
 /** The last registration made in this browser, so the slip and payment step survive a reload. */
 export function savedRegistration(): Registered | null {

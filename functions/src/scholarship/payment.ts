@@ -6,8 +6,8 @@ import { Timestamp, getFirestore } from "firebase-admin/firestore";
 import { keyedHash } from "../lib/hash.js";
 import { invalidFields } from "../lead/schema.js";
 import { clientIp, isRateLimited } from "../lead/submit.js";
-import { paymentSchema } from "./schema.js";
-import { passesGate, payStatusOf, payToken, pepperOr500 } from "./http.js";
+import { duplicateKey, loginSchema, paymentSchema } from "./schema.js";
+import { passesGate, payStatusOf, payToken, pepperOr500, registrationAnswer, upiDetails } from "./http.js";
 
 const LIMITS = { per10Min: 20, perDay: 100 };
 
@@ -22,6 +22,7 @@ const LIMITS = { per10Min: 20, perDay: 100 };
 export async function handleScholarshipPayment(req: Request, res: Response): Promise<void> {
   const started = Date.now();
   if (!(await passesGate(req, res, 4 * 1024, "scholarship_payment_rejected"))) return;
+  if (req.body && typeof req.body === "object" && "phone" in req.body) return login(req, res, started);
 
   const parsed = paymentSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -66,6 +67,44 @@ export async function handleScholarshipPayment(req: Request, res: Response): Pro
     res.status(200).json({ ok: true, status: result.status, ...(result.rollNo ? { rollNo: result.rollNo } : {}) });
   } catch (error) {
     logger.error("scholarship_payment_failed", { reason: "write", code: (error as { code?: unknown }).code ?? null });
+    res.status(503).json({ error: "retry" });
+  }
+}
+
+/**
+ * POST { phone, dob }: a family logging in on /scholarship from another phone or a cleared browser.
+ * The mobile number finds the registration (one number = one student) and the date of birth must match.
+ * Answers like a registration: { ok, regNo, studentName, payment: { token, ... }, rollNo?, slotId }, or 401 { error: "login" }.
+ * Tries are counted per mobile number as well as per address, so a date of birth can't be guessed.
+ */
+async function login(req: Request, res: Response, started: number): Promise<void> {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "invalid", fields: invalidFields(parsed.error) }); return; }
+  const { phone, dob } = parsed.data;
+  const pepper = pepperOr500(res, "scholarship_login_failed");
+  if (!pepper) return;
+  const db = getFirestore();
+  const keyId = keyedHash(pepper, duplicateKey(phone));
+  if (
+    (await isRateLimited(db, keyedHash(pepper, `scholarship-login-ip:${clientIp(req)}`), started, { per10Min: 60, perDay: 300 })) ||
+    (await isRateLimited(db, keyedHash(pepper, `scholarship-login:${keyId}`), started, { per10Min: 8, perDay: 30 }))
+  ) {
+    res.status(429).json({ error: "rate_limited" });
+    return;
+  }
+  try {
+    const key = await db.doc(`scholarshipKeys/${keyId}`).get();
+    const regNo = key.get("regNo") as string | undefined;
+    const reg = regNo ? await db.doc(`scholarshipRegistrations/${regNo}`).get() : null;
+    if (!reg?.exists || reg.get("dob") !== dob) {
+      logger.info("scholarship_login", { ok: false });
+      res.status(401).json({ error: "login" });
+      return;
+    }
+    logger.info("scholarship_login", { ok: true, regNo });
+    res.status(200).json(registrationAnswer(pepper, reg.data()!, true, await upiDetails()));
+  } catch (error) {
+    logger.error("scholarship_login_failed", { code: (error as { code?: unknown }).code ?? null });
     res.status(503).json({ error: "retry" });
   }
 }

@@ -1,28 +1,36 @@
-import { createHmac } from "node:crypto";
+import { createCipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 import { getStorage } from "firebase-admin/storage";
 
 export type Level = "easy" | "medium" | "hard";
 export const SUBJECTS = ["maths", "science", "reasoning", "english"] as const;
 export type Subject = (typeof SUBJECTS)[number];
 export type BankQuestion = { id: string; class: string; subject: Subject; level: Level; text: string; options: string[]; answer: number };
-/** Each subject's 15 questions: 3 easy, 6 medium, 6 hard (taken from the other levels when one runs short). */
-export const BLUEPRINT: Record<Level, number> = { easy: 3, medium: 6, hard: 6 };
+/** Each subject's 15 questions, mostly hard (a scholarship test picks the best): 2 easy, 5 medium, 8 hard (taken from the other levels when one runs short). */
+export const BLUEPRINT: Record<Level, number> = { easy: 2, medium: 5, hard: 8 };
 export const PER_SUBJECT = 15;
 export const BANK_PATH = "private/exam/bank.json";
 
-/** One question as the student gets it: the bank id and the order its four options are shown in. */
-export type PaperItem = { id: string; order: number[] };
+/**
+ * One question as the student gets it: the bank id, the order its four options are shown in, and which shown
+ * option is right. The answer key travels with each student's own paper, so marking never depends on question
+ * numbers or on the bank changing later.
+ */
+export type PaperItem = { id: string; subject: Subject; order: number[]; answer: number };
+/** A question as the browser shows it (no answer). */
+export type ShownQuestion = { subject: Subject; text: string; options: string[] };
 
-let cached: { at: number; byClass: Map<string, BankQuestion[]> } | null = null;
+let cached: { at: number; byClass: Map<string, BankQuestion[]>; version: string } | null = null;
 const CACHE_MS = 5 * 60 * 1000;
 
-/** The question bank (uploaded by the team in /admin), read once per server and kept for five minutes. */
-export async function loadBank(): Promise<Map<string, BankQuestion[]>> {
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.byClass;
+/** The question bank (uploaded by the team in /admin) and its version, read once per server and kept for five minutes. */
+export async function loadBankVersioned(): Promise<{ byClass: Map<string, BankQuestion[]>; version: string }> {
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached;
   const [buffer] = await getStorage().bucket().file(BANK_PATH).download();
-  cached = { at: Date.now(), byClass: indexBank(JSON.parse(buffer.toString("utf8")) as unknown[]) };
-  return cached.byClass;
+  const version = createHash("sha256").update(buffer).digest("hex").slice(0, 16);
+  cached = { at: Date.now(), byClass: indexBank(JSON.parse(buffer.toString("utf8")) as unknown[]), version };
+  return cached;
 }
+export const loadBank = async () => (await loadBankVersioned()).byClass;
 export const forgetBank = () => { cached = null; };
 
 /** Valid questions per class, with exact repeats (same text and options) kept once. */
@@ -79,21 +87,43 @@ export function makePaper(bank: BankQuestion[], seed: string): PaperItem[] {
       left.push(...options.slice(BLUEPRINT[level]));
     }
     picked.push(...shuffle(left, random).slice(0, Math.max(0, PER_SUBJECT - picked.length)));
-    return shuffle(picked, random).map((q) => ({ id: q.id, order: shuffle([0, 1, 2, 3], random) }));
+    return shuffle(picked, random).map((q) => {
+      const order = shuffle([0, 1, 2, 3], random);
+      return { id: q.id, subject, order, answer: order.indexOf(q.answer) };
+    });
   });
 }
 
+/** The questions of a paper as the student sees them: options in the paper's order, no answers. */
+export function showPaper(paper: PaperItem[], bank: BankQuestion[]): ShownQuestion[] {
+  const byId = new Map(bank.map((q) => [q.id, q]));
+  return paper.map((item) => {
+    const q = byId.get(item.id)!;
+    return { subject: q.subject, text: q.text, options: item.order.map((i) => q.options[i]!) };
+  });
+}
+
+/** The key that unlocks one student's downloaded paper. Derived, never stored; given out only when their exam hour starts. */
+export const paperKey = (pepper: string, rollNo: string) => createHmac("sha256", pepper).update(`scholarship-paper-key:${rollNo}`).digest();
+
+/** The shown questions locked with AES-256-GCM (what WebCrypto reads: ciphertext followed by the tag), base64. */
+export function lockQuestions(questions: ShownQuestion[], key: Buffer): { iv: string; data: string } {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const data = Buffer.concat([cipher.update(JSON.stringify(questions), "utf8"), cipher.final(), cipher.getAuthTag()]);
+  return { iv: iv.toString("base64"), data: data.toString("base64") };
+}
+
 /** Marks: 1 per correct answer, nothing taken off for a wrong one. `answers` holds the shown option index per question. */
-export function scorePaper(paper: PaperItem[], answers: Record<string, number>, bank: Map<string, BankQuestion>) {
+export function scorePaper(paper: PaperItem[], answers: Record<string, number>) {
   const bySubject: Record<string, { correct: number; wrong: number }> = {};
   let correct = 0;
   let wrong = 0;
   paper.forEach((item, i) => {
-    const q = bank.get(item.id);
     const shown = answers[String(i)];
-    if (!q || shown === undefined || shown === null) return;
-    const s = (bySubject[q.subject] ??= { correct: 0, wrong: 0 });
-    if (item.order[shown] === q.answer) { correct++; s.correct++; } else { wrong++; s.wrong++; }
+    if (shown === undefined || shown === null) return;
+    const s = (bySubject[item.subject] ??= { correct: 0, wrong: 0 });
+    if (shown === item.answer) { correct++; s.correct++; } else { wrong++; s.wrong++; }
   });
   return { marks: correct, correct, wrong, unanswered: paper.length - correct - wrong, bySubject };
 }
