@@ -48,6 +48,13 @@ export async function listRegistrations(after: QueryDocumentSnapshot | null = nu
   return { rows: snap.docs.map((d) => d.data() as Registration), next: snap.docs.length === PAGE ? snap.docs.at(-1)! : null };
 }
 
+/** Registered students who have taken the mock test at least once, best score first. */
+export async function mockScores(): Promise<Registration[]> {
+  const snap = await getDocs(query(collection(db(), "scholarshipRegistrations"), where("practice.attempts", ">=", 1)));
+  return snap.docs.map((d) => d.data() as Registration)
+    .sort((a, b) => (b.practice!.best - a.practice!.best) || (b.practice!.last.marks - a.practice!.last.marks));
+}
+
 /** Every registration, for the spreadsheet download (one read per child). */
 export async function allRegistrations(): Promise<Registration[]> {
   const rows: Registration[] = [];
