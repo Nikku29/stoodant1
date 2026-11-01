@@ -59,15 +59,17 @@ test("a paper never takes two questions from the same pattern group", () => {
   }
 });
 
-test("options that differ only in a slash, space or bracket count as look-alikes; such questions are left out", () => {
-  assert.ok(lookAlike("10√3 m", "10/√3 m"));
-  assert.ok(lookAlike("Ω m", "Ω/m"));
+test("the same answer written twice is left out; close-but-different distractors stay", () => {
+  assert.ok(lookAlike("10 m", "10m"));
+  assert.ok(lookAlike("Ω M", "ω m"));
   assert.ok(lookAlike("x^2", "x²"));
+  assert.ok(!lookAlike("10√3 m", "10/√3 m"));
+  assert.ok(!lookAlike("Ω m", "Ω/m"));
   assert.ok(!lookAlike("9.8 m/s²", "98 m/s²"));
   assert.ok(!lookAlike("It's raining.", "Its raining."));
-  assert.ok(!hasLookAlikeOptions(["5√3 m", "10 m", "10√3 m", "20 m"]));
+  assert.ok(!hasLookAlikeOptions(["5√3 m", "10/√3 m", "10√3 m", "20 m"]));
   const q = (id: string, options: string[]) => ({ id, class: "10", subject: "maths", level: "hard", text: id, options, answer: 0 });
-  const indexed = indexBank([q("ok", ["5√3 m", "10 m", "10√3 m", "20 m"]), q("alike", ["5√3 m", "10/√3 m", "10√3 m", "20 m"])]);
+  const indexed = indexBank([q("ok", ["5√3 m", "10/√3 m", "10√3 m", "20 m"]), q("alike", ["5√3 m", "10 m", "10m", "20 m"])]);
   assert.deepEqual(indexed.get("10")!.map((x) => x.id), ["ok"]);
 });
 

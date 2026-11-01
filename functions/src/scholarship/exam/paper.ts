@@ -6,8 +6,8 @@ export const SUBJECTS = ["maths", "science", "reasoning", "english"] as const;
 export type Subject = (typeof SUBJECTS)[number];
 /** `group`: questions made from one pattern (only the numbers or letters change). A paper takes at most one of each group. */
 export type BankQuestion = { id: string; class: string; subject: Subject; level: Level; text: string; options: string[]; answer: number; group?: string };
-/** Each subject's 15 questions, medium to hard (a scholarship test picks the best): 7 medium, 8 hard (taken from the other levels when one runs short). */
-export const BLUEPRINT: Record<Level, number> = { easy: 0, medium: 7, hard: 8 };
+/** Each subject's 15 questions, mostly hard (a scholarship test picks the best): 4 medium, 11 hard (taken from the other levels when one runs short). */
+export const BLUEPRINT: Record<Level, number> = { easy: 0, medium: 4, hard: 11 };
 export const PER_SUBJECT = 15;
 export const BANK_PATH = "private/exam/bank.json";
 
@@ -23,11 +23,14 @@ export type ShownQuestion = { subject: Subject; text: string; options: string[] 
 let cached: { at: number; byClass: Map<string, BankQuestion[]>; version: string } | null = null;
 const CACHE_MS = 5 * 60 * 1000;
 
-/** The question bank (uploaded by the team in /admin) and its version, read once per server and kept for five minutes. */
+/**
+ * The question bank (uploaded by the team in /admin) and its version, read once per server and kept for five minutes.
+ * The version also covers BLUEPRINT, so changing the mix remakes every paper not yet started, like a new upload does.
+ */
 export async function loadBankVersioned(): Promise<{ byClass: Map<string, BankQuestion[]>; version: string }> {
   if (cached && Date.now() - cached.at < CACHE_MS) return cached;
   const [buffer] = await getStorage().bucket().file(BANK_PATH).download();
-  const version = createHash("sha256").update(buffer).digest("hex").slice(0, 16);
+  const version = createHash("sha256").update(buffer).update(JSON.stringify(BLUEPRINT)).digest("hex").slice(0, 16);
   cached = { at: Date.now(), byClass: indexBank(JSON.parse(buffer.toString("utf8")) as unknown[]), version };
   return cached;
 }
@@ -35,11 +38,12 @@ export const loadBank = async () => (await loadBankVersioned()).byClass;
 export const forgetBank = () => { cached = null; };
 
 /**
- * Two options that differ only in spaces, slashes, brackets, × or · (10√3 m and 10/√3 m, Ω m and Ω/m) look the same
- * on a small screen. Such a question is left out. The same check is in checkBank (src/lib/firebase/scholarship.ts).
+ * Two options that are the same answer written twice (only spaces, capitals or x^2 / x² differ, like "10 m" and "10m").
+ * Such a question is left out. Close-but-different distractors (10√3 m and 10/√3 m, Ω m and Ω/m) are kept on purpose.
+ * The same check is in checkBank (src/lib/firebase/scholarship.ts).
  */
 export const lookAlike = (a: string, b: string) => {
-  const plain = (s: string) => s.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s/()·×*^]/g, "");
+  const plain = (s: string) => s.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s^]/g, "");
   return a !== b && plain(a) === plain(b);
 };
 export const hasLookAlikeOptions = (options: string[]) => options.some((a, i) => options.some((b, j) => j > i && lookAlike(a, b)));
