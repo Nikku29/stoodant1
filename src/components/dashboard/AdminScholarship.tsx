@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { QueryDocumentSnapshot } from "firebase/firestore/lite";
 import {
-  allRegistrations, checkPayment, deleteRegistration, findRegistration, listRegistrations, payStatus, photoUrl, readRegistration,
+  allRegistrations, checkPayment, deleteRegistration, findRegistration, listRegistrations, mockScores, payStatus, photoUrl, readRegistration,
   registrationCounts, registrationsCsv, type PayStatus, type Registration,
 } from "@/lib/firebase/scholarship";
 import { Tile } from "./AppNav";
@@ -25,14 +25,15 @@ const SHOW: [Show, string][] = [["all", "All"], ["9", "Class 9"], ["10", "Class 
  * fee with its UPI reference to tick off against the bank account, lookup by number or phone, and a spreadsheet.
  */
 export function AdminScholarship({ uid }: { uid: string }) {
-  const [view, setView] = useState<"registrations" | "exam">("registrations");
+  const [view, setView] = useState<"registrations" | "mock" | "exam">("registrations");
   return (
     <>
       <div className="pd-picker" role="group" aria-label="Scholarship">
         <button type="button" aria-pressed={view === "registrations"} onClick={() => setView("registrations")}>Registrations</button>
+        <button type="button" aria-pressed={view === "mock"} onClick={() => setView("mock")}>Mock test scores</button>
         <button type="button" aria-pressed={view === "exam"} onClick={() => setView("exam")}>Exam days and results</button>
       </div>
-      {view === "exam" ? <AdminScholarshipExam uid={uid} /> : <Registrations uid={uid} />}
+      {view === "exam" ? <AdminScholarshipExam uid={uid} /> : view === "mock" ? <MockScores /> : <Registrations uid={uid} />}
     </>
   );
 }
@@ -175,6 +176,57 @@ function mockSummary(r: Registration): string {
   if (!p) return "Not taken yet";
   const parts = SECTION_SHORT.map(([k, name]) => `${name} ${p.last.bySection[k] ?? 0}`).join(" · ");
   return `${p.last.marks}/${p.last.total} (${parts}) · best ${p.best} · ${p.attempts} taken`;
+}
+
+/** Every registered student's mock test score in one list: registration and roll number, name, class, last and best score. */
+function MockScores() {
+  const [rows, setRows] = useState<Registration[] | null>(null);
+  const [cls, setCls] = useState<"all" | "9" | "10">("all");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    mockScores().then(setRows).catch(() => setError("Couldn't load the mock test scores. Please check the internet connection and refresh."));
+  }, []);
+  const shown = (rows ?? []).filter((r) => cls === "all" || r.studentClass === cls);
+  const at = (r: Registration) =>
+    r.practice?.last.at?.toDate().toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) ?? "";
+  return (
+    <section className="pd-card">
+      <h3>Mock test scores</h3>
+      <p className="pd-muted" style={{ marginTop: 4 }}>
+        A score is saved when a registered student finishes the mock test on the phone they registered with. Best score first.
+      </p>
+      {error && <p className="pd-alert" role="alert">{error}</p>}
+      <div className="pd-picker" role="group" aria-label="Class">
+        {(["all", "9", "10"] as const).map((k) => (
+          <button key={k} type="button" aria-pressed={cls === k} onClick={() => setCls(k)}>{k === "all" ? "All" : `Class ${k}`}</button>
+        ))}
+      </div>
+      {!rows && !error && <p className="pd-empty">Loading…</p>}
+      {rows && !shown.length && <p className="pd-empty">No mock test scores yet.</p>}
+      {shown.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse", marginTop: 8 }}>
+            <thead>
+              <tr style={{ textAlign: "left" }}>
+                <th>#</th><th>Student</th><th>Registration no.</th><th>Roll no.</th><th>Class</th><th>Last score</th>
+                {SECTION_SHORT.map(([k, name]) => <th key={k}>{name}</th>)}<th>Best</th><th>Taken</th><th>Last taken</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r, i) => (
+                <tr key={r.regNo} style={{ borderTop: "1px solid #e5e7eb" }}>
+                  <td>{i + 1}</td><td>{r.studentName}</td><td>{r.regNo}</td><td>{r.rollNo ?? "—"}</td><td>{r.studentClass}</td>
+                  <td><b>{r.practice!.last.marks}</b> / {r.practice!.last.total}</td>
+                  {SECTION_SHORT.map(([k]) => <td key={k}>{r.practice!.last.bySection[k] ?? 0}</td>)}
+                  <td><b>{r.practice!.best}</b></td><td>{r.practice!.attempts}</td><td style={{ whiteSpace: "nowrap" }}>{at(r)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function Item({ r, check, remove }: {
