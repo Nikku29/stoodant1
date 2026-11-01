@@ -221,6 +221,8 @@ function Item({ r, check, remove }: {
       <div className="pd-actions">
         {/* Either way round at any time: a denied payment found later can be confirmed, a confirm made by mistake denied. */}
         {pay !== "paid" && <button type="button" className="pd-confirm" onClick={() => void check(r, "paid")}>✓ Confirm</button>}
+        {/* Confirmed before the roll-number function was live: confirming again gives the roll number. */}
+        {pay === "paid" && !r.rollNo && <button type="button" className="pd-confirm" onClick={() => void check(r, "paid")}>✓ Give roll number</button>}
         {pay !== "rejected" && pay !== "due" && <button type="button" className="pd-deny" onClick={() => void check(r, "rejected")}>✕ Deny</button>}
         {pay === "paid" && r.rollNo && <a className="pd-confirm" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }} href={wa} target="_blank" rel="noopener noreferrer">Send roll number on WhatsApp</a>}
         <a className="pd-link" href={`tel:${r.parentPhoneE164}`}>Call</a>
