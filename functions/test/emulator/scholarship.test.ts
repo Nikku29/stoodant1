@@ -120,6 +120,14 @@ test("confirming the fee gives a roll number, which the page can ask for without
   assert.equal(rollNo, "260900001");
   assert.deepEqual(await check(), { ok: true, status: "paid", rollNo: "260900001" });
 
+  // The team changes its mind: denied hides the roll number, confirming again brings back the same one.
+  await db.doc(`scholarshipRegistrations/${a.regNo}`).update({ "payment.status": "rejected" });
+  assert.deepEqual(await check(), { ok: true, status: "rejected" });
+  await db.doc(`scholarshipRegistrations/${a.regNo}`).update({ "payment.status": "paid" });
+  await new Promise((r) => setTimeout(r, 1500));
+  assert.deepEqual(await check(), { ok: true, status: "paid", rollNo: "260900001" });
+  assert.equal((await db.doc("counters/scholarship-roll-9").get()).get("count"), 1);
+
   // Filling the form again with the same number and date of birth shows it too.
   const back = (await (await post(body({ studentClass: "9", phone }))).json()) as Answer & { rollNo?: string };
   assert.equal(back.rollNo, "260900001");
