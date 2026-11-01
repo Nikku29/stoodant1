@@ -51,7 +51,7 @@ export function AdminScholarshipExam({ uid }: { uid: string }) {
     const check = checkBank(parsed);
     if (!check.ok) return setBankNote(check.problems[0] ?? "No questions found in this file.");
     const summary = Object.entries(check.counts).map(([k, n]) => `Class ${k.replace("-", " ")}: ${n}`).join(" · ");
-    if (!window.confirm(`Upload this question bank?\n\n${summary}${check.problems.length ? `\n\n${check.problems.length} questions skipped (incomplete).` : ""}\n\nPapers already started keep their questions.`)) return;
+    if (!window.confirm(`Upload this question bank?\n\n${summary}${check.problems.length ? `\n\n${check.problems.length} questions skipped (incomplete, or two options look the same).` : ""}\n\nPapers already started keep their questions.`)) return;
     try {
       await uploadBank(new File([JSON.stringify(parsed)], "bank.json", { type: "application/json" }));
       const { serverTimestamp } = await import("firebase/firestore/lite");

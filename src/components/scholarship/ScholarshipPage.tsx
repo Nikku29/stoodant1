@@ -11,6 +11,7 @@ import {
   dobRange, isPlausibleDob, paymentStatus, loginScholarship, downloadPaper, storedPaper,
 } from "@/lib/scholarship";
 import { warmUpLeadForm } from "@/lib/lead";
+import { SITE_HOME, confirmLeave, useLeaveGuard } from "@/lib/scholarship";
 
 const copy = SCHOLARSHIP_CONFIG;
 const f = copy.form;
@@ -23,7 +24,7 @@ export function ScholarshipPage() {
     <div className="min-h-screen bg-white text-[var(--ink)]">
       <header className="border-b border-neutral-200">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <a href="/" className="logo" aria-label={copy.backHome}><Logo /></a>
+          <a href={SITE_HOME} onClick={confirmLeave} className="logo" aria-label={copy.backHome}><Logo /></a>
           <span className="flex items-center gap-4">
             <a href="#login" className="text-sm font-bold underline">{copy.login.link}</a>
             <a href="#register" className="rounded-full bg-[#fbb308] px-4 py-2 text-sm font-extrabold text-[#0a1026]">{f.submit}</a>
@@ -90,6 +91,8 @@ function RegisterForm() {
   const [done, setDone] = useState<Registered | null>(null);
   const [photo, setPhoto] = useState<{ base64: string; preview: string } | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  // Something typed in the form that hasn't been sent: leaving asks first.
+  const [typed, setTyped] = useState(false);
   // The prerendered form can't be sent until its code has loaded, so it never submits natively.
   const [hydrated, setHydrated] = useState(false);
   // Families registered on another phone (or who cleared the browser) log in instead of registering again.
@@ -109,6 +112,7 @@ function RegisterForm() {
   const request = useRef<{ idempotencyKey: string; startedAt: number } | null>(null);
   useEffect(() => { request.current = { idempotencyKey: newKey(), startedAt: Date.now() }; }, []);
   const formRef = useRef<HTMLFormElement>(null);
+  useLeaveGuard(typed && !done && !loggingIn ? f.leave : null);
 
   const pickPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -208,7 +212,7 @@ function RegisterForm() {
         {copy.login.already}{" "}
         <button type="button" className="font-bold underline" onClick={() => setLoggingIn(true)}>{copy.login.link}</button>
       </p>
-      <form ref={formRef} className="mt-6 grid gap-5" onSubmit={submit} onFocus={warmUpLeadForm} onPointerDown={warmUpLeadForm} noValidate aria-busy={pending}>
+      <form ref={formRef} className="mt-6 grid gap-5" onSubmit={submit} onFocus={warmUpLeadForm} onPointerDown={warmUpLeadForm} onInput={() => setTyped(true)} noValidate aria-busy={pending}>
         <Field label={f.studentName} error={errors.studentName}>
           <input name="studentName" autoComplete="off" maxLength={80} placeholder={f.studentNamePlaceholder} onInput={letters} className={input} aria-invalid={Boolean(errors.studentName)} />
         </Field>

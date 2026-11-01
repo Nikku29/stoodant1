@@ -6,6 +6,8 @@ export const DEFAULT_CAPACITY = 600;
 export const EXAM_MINUTES = 60;
 /** Reading time for the rules before the questions open. Not taken from the 60 minutes. */
 export const READING_MINUTES = 2;
+/** Log-in opens this long before the slot, so the student reads the rules and format before the hour starts. */
+export const EARLY_LOGIN_MINUTES = 5;
 /** A student may start up to this late into their slot; the paper still ends with the slot (+ these minutes). */
 export const LATE_JOIN_MINUTES = 15;
 /** Slot changes close this long before either slot starts. */
@@ -25,10 +27,15 @@ export function slotStart(id: string): number {
   return Date.UTC(y!, m! - 1, d!, Number(hour)) - IST_OFFSET_MS;
 }
 
-/** When the questions open for a student who logs in at `startedAt`: after the reading time. */
-export const questionsOpen = (startedAt: number) => startedAt + READING_MINUTES * MIN;
+/** Log-in (and the rules page) opens 5 minutes before the hour. */
+export const loginOpens = (id: string) => slotStart(id) - EARLY_LOGIN_MINUTES * MIN;
+/**
+ * When the questions open for a student who logs in at `startedAt`, by themselves (no tap needed): at the start of the
+ * hour for anyone who logged in early, otherwise after 2 minutes' reading.
+ */
+export const questionsOpen = (id: string, startedAt: number) => Math.max(slotStart(id), startedAt + READING_MINUTES * MIN);
 /** When they must finish: 60 minutes after the questions open, but never past the slot's end plus the late-join and reading minutes. */
 export const paperEnds = (id: string, startedAt: number) =>
-  Math.min(questionsOpen(startedAt) + EXAM_MINUTES * MIN, slotStart(id) + (EXAM_MINUTES + LATE_JOIN_MINUTES + READING_MINUTES) * MIN);
-export const canStartAt = (id: string, now: number) => now >= slotStart(id) && now <= slotStart(id) + LATE_JOIN_MINUTES * MIN;
+  Math.min(questionsOpen(id, startedAt) + EXAM_MINUTES * MIN, slotStart(id) + (EXAM_MINUTES + LATE_JOIN_MINUTES + READING_MINUTES) * MIN);
+export const canStartAt = (id: string, now: number) => now >= loginOpens(id) && now <= slotStart(id) + LATE_JOIN_MINUTES * MIN;
 export const bookingOpen = (id: string, now: number) => now < slotStart(id) - BOOKING_CLOSES_MINUTES * MIN;

@@ -84,8 +84,11 @@ test("the exam: only in the booked hour, with the right password, a shuffled pap
   const start = (password = "05082011") => send("scholarshipExam", { action: "start", rollNo: s.rollNo, password });
 
   assert.equal((await start("01012011")).status, 401);
-  await at("2026-11-10T08:55:00");
-  assert.equal(((await (await start()).json()) as { error: string }).error, "too_early");
+  // Log-in opens 5 minutes before the hour (08:55).
+  await at("2026-11-10T08:54:00");
+  const early = (await (await start()).json()) as { error: string; startsAt: number };
+  assert.equal(early.error, "too_early");
+  assert.equal(early.startsAt, Date.parse("2026-11-10T08:55:00Z") - IST);
 
   await at("2026-11-10T09:02:00");
   const res = await start();
@@ -218,4 +221,34 @@ test("log in on the scholarship page with the mobile number and date of birth", 
   assert.equal(body.payment.token, s.token);
   assert.equal(body.payment.status, "paid");
   assert.equal(body.slotId, null);
+});
+
+test("logging in early: the rules show until the hour starts, then the questions open with the full 60 minutes", async () => {
+  await at("2026-11-09T12:00:00");
+  const s = await paidStudent("2011-08-05");
+  await send("scholarshipSlot", { regNo: s.regNo, token: s.token, slotId: "2026-11-10T11" });
+  await at("2026-11-10T10:56:00");
+  const res = await send("scholarshipExam", { action: "start", rollNo: s.rollNo, password: "05082011" });
+  assert.equal(res.status, 200);
+  const paper = (await res.json()) as { questionsAt: number; endsAt: number };
+  assert.equal(paper.questionsAt, Date.parse("2026-11-10T11:00:00Z") - IST);
+  assert.equal(paper.endsAt, Date.parse("2026-11-10T12:00:00Z") - IST);
+});
+
+test("a registered student's mock test score is kept on the registration", async () => {
+  await at("2026-11-02T12:00:00");
+  const s = await paidStudent();
+  const practice = (extra: Record<string, unknown>) => send("scholarshipExam", {
+    action: "practice", regNo: s.regNo, token: s.token, studentClass: "10", bySection: { maths: 13, science: 14, reasoning: 14, english: 15 }, ...extra,
+  });
+  assert.equal((await practice({})).status, 200);
+  assert.equal((await practice({ bySection: { maths: 10, science: 10, reasoning: 10, english: 10 } })).status, 200);
+  const saved = (await db.doc(`scholarshipRegistrations/${s.regNo}`).get()).get("practice") as { attempts: number; best: number; last: { marks: number; total: number } };
+  assert.equal(saved.attempts, 2);
+  assert.equal(saved.best, 56);
+  assert.equal(saved.last.marks, 40);
+  assert.equal(saved.last.total, 60);
+  assert.equal((await practice({ token: "0".repeat(64) })).status, 403);
+  assert.equal((await practice({ studentClass: "9" })).status, 409);
+  assert.equal((await practice({ bySection: { maths: 16, science: 0, reasoning: 0, english: 0 } })).status, 400);
 });

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createDecipheriv } from "node:crypto";
-import { BLUEPRINT, lockQuestions, makePaper, paperKey, scorePaper, showPaper, type BankQuestion } from "../../lib/scholarship/exam/paper.js";
+import { BLUEPRINT, indexBank, hasLookAlikeOptions, lookAlike, lockQuestions, makePaper, paperKey, scorePaper, showPaper, type BankQuestion } from "../../lib/scholarship/exam/paper.js";
+import { canStartAt, paperEnds, questionsOpen, slotStart } from "../../lib/scholarship/exam/slots.js";
 
 const SUBJECTS = ["maths", "science", "reasoning", "english"] as const;
 const levels = ["easy", "medium", "hard"] as const;
@@ -56,4 +57,31 @@ test("a paper never takes two questions from the same pattern group", () => {
     const groups = paper.map((p) => grouped.find((q) => q.id === p.id)!.group).filter(Boolean);
     assert.equal(new Set(groups).size, groups.length);
   }
+});
+
+test("options that differ only in a slash, space or bracket count as look-alikes; such questions are left out", () => {
+  assert.ok(lookAlike("10√3 m", "10/√3 m"));
+  assert.ok(lookAlike("Ω m", "Ω/m"));
+  assert.ok(lookAlike("x^2", "x²"));
+  assert.ok(!lookAlike("9.8 m/s²", "98 m/s²"));
+  assert.ok(!lookAlike("It's raining.", "Its raining."));
+  assert.ok(!hasLookAlikeOptions(["5√3 m", "10 m", "10√3 m", "20 m"]));
+  const q = (id: string, options: string[]) => ({ id, class: "10", subject: "maths", level: "hard", text: id, options, answer: 0 });
+  const indexed = indexBank([q("ok", ["5√3 m", "10 m", "10√3 m", "20 m"]), q("alike", ["5√3 m", "10/√3 m", "10√3 m", "20 m"])]);
+  assert.deepEqual(indexed.get("10")!.map((x) => x.id), ["ok"]);
+});
+
+test("log-in opens 5 minutes early; the questions open by themselves at the hour, or 2 minutes after a later log-in", () => {
+  const slot = "2026-11-10T09";
+  const start = slotStart(slot);
+  const MIN = 60_000;
+  assert.ok(!canStartAt(slot, start - 6 * MIN));
+  assert.ok(canStartAt(slot, start - 5 * MIN));
+  assert.ok(canStartAt(slot, start + 15 * MIN));
+  assert.ok(!canStartAt(slot, start + 16 * MIN));
+  assert.equal(questionsOpen(slot, start - 4 * MIN), start);
+  assert.equal(questionsOpen(slot, start - MIN), start + MIN);
+  assert.equal(questionsOpen(slot, start + 2 * MIN), start + 4 * MIN);
+  assert.equal(paperEnds(slot, start - 4 * MIN), start + 60 * MIN);
+  assert.equal(paperEnds(slot, start + 15 * MIN), start + 77 * MIN);
 });

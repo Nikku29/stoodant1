@@ -8,10 +8,10 @@ import { keyedHash } from "../../lib/hash.js";
 import { clientIp, isRateLimited } from "../../lead/submit.js";
 import { REG_NO_PATTERN } from "../schema.js";
 import { passesGate, payStatusOf, payToken, pepperOr500 } from "../http.js";
-import { SUBJECTS, paperKey, scorePaper, type PaperItem } from "./paper.js";
+import { PER_SUBJECT, SUBJECTS, paperKey, scorePaper, type PaperItem } from "./paper.js";
 import { download, lockedPaper, type LockedPaper } from "./locked.js";
 import { getStorage } from "firebase-admin/storage";
-import { ALL_SLOTS, DEFAULT_CAPACITY, EXAM_MINUTES, LATE_JOIN_MINUTES, READING_MINUTES, bookingOpen, canStartAt, isSlot, paperEnds, questionsOpen, slotStart } from "./slots.js";
+import { ALL_SLOTS, DEFAULT_CAPACITY, EXAM_MINUTES, LATE_JOIN_MINUTES, READING_MINUTES, bookingOpen, canStartAt, isSlot, loginOpens, paperEnds, questionsOpen, slotStart } from "./slots.js";
 
 const MIN = 60 * 1000;
 /** Answers sent this long after the end still count (slow networks); after that the paper is closed. */
@@ -150,6 +150,15 @@ const paperSchema = z.object({
   regNo: z.string().regex(REG_NO_PATTERN),
   token: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
+/** A mock test's marks, sent from the phone that took it (the mock test is marked there). */
+const sectionMarks = z.number().int().min(0).max(PER_SUBJECT);
+const practiceSchema = z.object({
+  action: z.literal("practice"),
+  regNo: z.string().regex(REG_NO_PATTERN),
+  token: z.string().regex(/^[a-f0-9]{64}$/),
+  studentClass: z.enum(["9", "10"]),
+  bySection: z.object({ maths: sectionMarks, science: sectionMarks, reasoning: sectionMarks, english: sectionMarks }).strict(),
+}).strict();
 const indexMap = z.record(z.string().regex(/^\d{1,2}$/), z.number().int().min(0).max(3));
 const saveSchema = z.object({
   action: z.literal("save"),
@@ -176,6 +185,7 @@ export async function handleScholarshipExam(req: Request, res: Response): Promis
     if (action === "save") return await save(req, res, pepper, started);
     if (action === "paper") return await paper(req, res, pepper, started);
     if (action === "photo") return await photo(req, res, pepper, started);
+    if (action === "practice") return await practice(req, res, pepper, started);
     res.status(400).json({ error: "invalid" });
   } catch (error) {
     logger.error("scholarship_exam_failed", { action, code: (error as { code?: unknown }).code ?? null, message: String(error).slice(0, 200) });
@@ -210,7 +220,8 @@ async function start(req: Request, res: Response, pepper: string, now: number) {
   const attemptRef = db.doc(`examAttempts/${rollNo}`);
   let attempt = await attemptRef.get();
   if (!attempt.exists) {
-    if (now < slotStart(slotId)) { res.status(425).json({ error: "too_early", slotId, startsAt: slotStart(slotId), serverNow: now }); return; }
+    // Log-in opens 5 minutes before the hour; the page tries again by itself then.
+    if (now < loginOpens(slotId)) { res.status(425).json({ error: "too_early", slotId, startsAt: loginOpens(slotId), serverNow: now }); return; }
     if (!canStartAt(slotId, now)) { res.status(410).json({ error: "missed", slotId }); return; }
     // The paper made when the fee was confirmed (and downloaded since), or made now if it wasn't.
     const locked = await lockedPaper(pepper, rollNo, String(reg.get("studentClass")), true);
@@ -219,7 +230,7 @@ async function start(req: Request, res: Response, pepper: string, now: number) {
       await attemptRef.create({
         rollNo, regNo: reg.id, studentName: reg.get("studentName"), studentClass: reg.get("studentClass"), slotId,
         paper: locked.paper, paperVersion: locked.version, answers: {}, marked: [], visited: [], strikes: 0, status: "started",
-        photos: 0, startedAt: Timestamp.fromMillis(now), questionsAt: Timestamp.fromMillis(questionsOpen(now)), endsAt: Timestamp.fromMillis(paperEnds(slotId, now)), savedAt: Timestamp.fromMillis(now),
+        photos: 0, startedAt: Timestamp.fromMillis(now), questionsAt: Timestamp.fromMillis(questionsOpen(slotId, now)), endsAt: Timestamp.fromMillis(paperEnds(slotId, now)), savedAt: Timestamp.fromMillis(now),
       });
     } catch {
       // Two taps at once: the other one made it. Carry on with that.
@@ -246,7 +257,7 @@ async function start(req: Request, res: Response, pepper: string, now: number) {
     sections: SUBJECTS,
     version,
     ...(onPhone ? { key: paperKey(pepper, rollNo).toString("base64") } : { questions }),
-    /** The rules show until then (2 minutes' reading); the 60 minutes run from there to endsAt. */
+    /** The rules show until then (from log-in, at least 2 minutes); the questions then open by themselves and the 60 minutes run to endsAt. */
     questionsAt: ((a["questionsAt"] ?? a["startedAt"]) as Timestamp).toMillis(),
     endsAt: (a["endsAt"] as Timestamp).toMillis(),
     serverNow: now,
@@ -292,6 +303,42 @@ async function save(req: Request, res: Response, pepper: string, now: number) {
     return;
   }
   res.status(200).json({ ok: true, status: "started", serverNow: now });
+}
+
+/**
+ * POST { action: "practice", regNo, token, studentClass, bySection } when a registered student finishes the mock test
+ * on the phone they registered with: the marks go on the registration (practice.last, practice.best, practice.attempts)
+ * so the team sees them in /admin. The mock test counts for nothing; it only shows how ready the student is.
+ */
+async function practice(req: Request, res: Response, pepper: string, now: number) {
+  const parsed = practiceSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "invalid" }); return; }
+  const { regNo, token, studentClass, bySection } = parsed.data;
+  if (!tokenMatches(payToken(pepper, regNo), token)) { res.status(403).json({ error: "forbidden" }); return; }
+  const db = getFirestore();
+  if (await isRateLimited(db, keyedHash(pepper, `scholarship-practice:${regNo}`), now, { per10Min: 10, perDay: 40 })) {
+    res.status(429).json({ error: "rate_limited" });
+    return;
+  }
+  const marks = SUBJECTS.reduce((sum, s) => sum + bySection[s], 0);
+  const ref = db.doc(`scholarshipRegistrations/${regNo}`);
+  const saved = await db.runTransaction(async (tx) => {
+    const reg = await tx.get(ref);
+    // A mock test of the other class says nothing about this student.
+    if (!reg.exists || String(reg.get("studentClass")) !== studentClass) return false;
+    const before = (reg.get("practice") ?? {}) as { attempts?: number; best?: number };
+    tx.update(ref, {
+      practice: {
+        attempts: (before.attempts ?? 0) + 1,
+        best: Math.max(before.best ?? 0, marks),
+        last: { marks, total: SUBJECTS.length * PER_SUBJECT, bySection, at: Timestamp.fromMillis(now) },
+      },
+    });
+    return true;
+  });
+  if (!saved) { res.status(409).json({ error: "not_found" }); return; }
+  logger.info("scholarship_practice_saved", { regNo, marks });
+  res.status(200).json({ ok: true });
 }
 
 /**
