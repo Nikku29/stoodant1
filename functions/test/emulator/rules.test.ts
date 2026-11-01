@@ -108,3 +108,27 @@ test("push devices: each phone saves only its own token, as itself; nobody reads
   await assertFails(deleteDoc(doc(team, "pushDevices", id)));
   await assertSucceeds(deleteDoc(doc(parent, "pushDevices", id)));
 });
+
+test("scholarship: only the team reads registrations, and may only confirm or reject the fee as themselves", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "scholarshipRegistrations/SS26-10-00001"), {
+      regNo: "SS26-10-00001", studentName: "Aarav", parentPhoneE164: "+919876543210",
+      payment: { status: "submitted", utr: "412345678901" },
+    });
+  });
+  const reg = "scholarshipRegistrations/SS26-10-00001";
+  for (const db of [anon(), user()]) {
+    await assertFails(getDoc(doc(db, reg)));
+    await assertFails(updateDoc(doc(db, reg), { payment: { status: "paid" } }));
+  }
+  const db = admin();
+  await assertSucceeds(getDoc(doc(db, reg)));
+  const checked = (status: string, by = "owner") =>
+    ({ payment: { status, utr: "412345678901", checkedAt: serverTimestamp(), checkedBy: by }, updatedAt: serverTimestamp() });
+  await assertFails(updateDoc(doc(db, reg), checked("paid", "someone-else")));
+  await assertFails(updateDoc(doc(db, reg), checked("free")));
+  await assertFails(updateDoc(doc(db, reg), { ...checked("paid"), studentName: "Changed" }));
+  await assertSucceeds(updateDoc(doc(db, reg), checked("rejected")));
+  await assertSucceeds(updateDoc(doc(db, reg), checked("paid")));
+  await assertFails(getDoc(doc(db, "scholarshipUtrs/412345678901")));
+});

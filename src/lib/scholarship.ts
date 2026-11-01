@@ -1,18 +1,30 @@
 // Sends a scholarship test registration (with a small JPEG of the student's photo) to the submitScholarship
-// Cloud Function. Same transport as the demo form in lead.ts: App Check header, idempotency key, retries.
+// Cloud Function, and the UPI reference for the test fee to scholarshipPayment. Same transport as the demo
+// form in lead.ts: App Check header, idempotency key, retries.
 import { warmUpLeadForm } from "./lead";
 
 export type ScholarshipFields = {
-  studentName: string; studentClass: string; dob: string; school: string; city: string; parentName: string; phone: string; photo: string;
+  studentName: string; studentClass: string; dob: string; school: string; city: string; pincode: string; parentName: string; phone: string; photo: string;
+};
+export type PayStatus = "due" | "submitted" | "paid" | "rejected";
+/** What the page shows after registering. Kept in this browser so the slip is still there on the next visit. */
+export type Registered = {
+  regNo: string;
+  existing: boolean;
+  studentName: string;
+  studentClass: string;
+  payment: { amount: number; status: PayStatus; token: string; upi: { upiId: string; payeeName: string } | null };
 };
 export type ScholarshipResult =
-  | { ok: true; regNo: string; existing: boolean }
-  | { ok: false; reason: "invalid" | "rate_limited" | "network"; fields?: string[] | undefined };
+  | ({ ok: true } & Registered)
+  | { ok: false; reason: "invalid" | "rate_limited" | "network" | "phone_taken"; fields?: string[] | undefined };
 
 const LEAD_ENDPOINT = import.meta.env["VITE_LEAD_ENDPOINT"] as string | undefined;
-// Production sets VITE_LEAD_ENDPOINT to the submitLead function's address; this function sits next to it.
-const ENDPOINT = (import.meta.env["VITE_SCHOLARSHIP_ENDPOINT"] as string | undefined)
-  ?? (LEAD_ENDPOINT?.endsWith("/submitLead") ? LEAD_ENDPOINT.replace(/submitLead$/, "submitScholarship") : "/api/scholarship");
+// Production sets VITE_LEAD_ENDPOINT to the submitLead function's address; these functions sit next to it.
+const endpoint = (fn: string, local: string) =>
+  LEAD_ENDPOINT?.endsWith("/submitLead") ? LEAD_ENDPOINT.replace(/submitLead$/, fn) : local;
+const ENDPOINT = (import.meta.env["VITE_SCHOLARSHIP_ENDPOINT"] as string | undefined) ?? endpoint("submitScholarship", "/api/scholarship");
+const PAY_ENDPOINT = endpoint("scholarshipPayment", "/api/scholarship-payment");
 const ATTEMPTS = 3;
 const PHOTO_SIDE = 480;
 const PHOTO_MAX_BYTES = 120 * 1024;
@@ -71,38 +83,81 @@ function visitSource() {
   return { path: location.pathname, utmSource: tag("utm_source"), utmMedium: tag("utm_medium"), utmCampaign: tag("utm_campaign") };
 }
 
-/** POSTs one registration; network errors and 5xx are retried with the same idempotency key, so a retry never registers twice. */
-export async function submitScholarship(
-  fields: ScholarshipFields,
-  meta: { idempotencyKey: string; startedAt: number; noticeVersion: string; website: string },
-): Promise<ScholarshipResult> {
+async function headers(): Promise<Record<string, string>> {
   warmUpLeadForm();
-  let token: string | null = null;
+  const h: Record<string, string> = { "Content-Type": "application/json" };
   try {
-    token = await (await import("./appCheck")).getAppCheckToken();
+    const token = await (await import("./appCheck")).getAppCheckToken();
+    if (token) h["X-Firebase-AppCheck"] = token;
   } catch {
     // The server decides whether a token is required.
   }
-  const body = JSON.stringify({ ...fields, ...meta, consent: true, source: visitSource() });
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers["X-Firebase-AppCheck"] = token;
+  return h;
+}
 
+/** POSTs with retries on network errors and 5xx. Every request here is safe to repeat. */
+async function post(url: string, body: string): Promise<{ status: number; data: Record<string, unknown> } | null> {
+  const h = await headers();
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     try {
-      const response = await fetch(ENDPOINT, { method: "POST", headers, body });
-      if (response.ok) {
-        const data = (await response.json()) as { regNo?: string; existing?: boolean };
-        return { ok: true, regNo: data.regNo ?? "", existing: Boolean(data.existing) };
-      }
-      if (response.status === 429) return { ok: false, reason: "rate_limited" };
-      if (response.status < 500) {
-        const data = (await response.json().catch(() => ({}))) as { fields?: string[] };
-        return { ok: false, reason: "invalid", fields: data.fields };
-      }
+      const response = await fetch(url, { method: "POST", headers: h, body });
+      if (response.status < 500) return { status: response.status, data: (await response.json().catch(() => ({}))) as Record<string, unknown> };
     } catch {
       // Network error: retry.
     }
     if (attempt < ATTEMPTS - 1) await new Promise((resolve) => setTimeout(resolve, Math.random() * 400 * 2 ** attempt));
   }
-  return { ok: false, reason: "network" };
+  return null;
 }
+
+/** POSTs one registration; a retry uses the same idempotency key, so it never registers twice. */
+export async function submitScholarship(
+  fields: ScholarshipFields,
+  meta: { idempotencyKey: string; startedAt: number; noticeVersion: string; website: string },
+): Promise<ScholarshipResult> {
+  const answer = await post(ENDPOINT, JSON.stringify({ ...fields, ...meta, consent: true, source: visitSource() }));
+  if (!answer) return { ok: false, reason: "network" };
+  const { status, data } = answer;
+  if (status === 200) return { ok: true, ...(data as unknown as Registered) };
+  if (status === 429) return { ok: false, reason: "rate_limited" };
+  if (status === 409) return { ok: false, reason: "phone_taken", fields: ["phone"] };
+  return { ok: false, reason: "invalid", fields: data["fields"] as string[] | undefined };
+}
+
+/** Sends the UPI reference after paying the fee. */
+export async function sendPayment(regNo: string, token: string, utr: string): Promise<{ status: PayStatus } | { error: "utr" | "utr_used" | "network" }> {
+  const answer = await post(PAY_ENDPOINT, JSON.stringify({ regNo, token, utr }));
+  if (!answer) return { error: "network" };
+  if (answer.status === 200) return { status: answer.data["status"] as PayStatus };
+  if (answer.status === 409) return { error: "utr_used" };
+  return { error: answer.status === 400 ? "utr" : "network" };
+}
+
+const SAVED = "stoodant-scholarship";
+/** The last registration made in this browser, so the slip and payment step survive a reload. */
+export function savedRegistration(): Registered | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(SAVED) ?? "null") as Registered | null;
+    return value?.regNo ? value : null;
+  } catch {
+    return null;
+  }
+}
+export function saveRegistration(value: Registered | null) {
+  try {
+    if (value) localStorage.setItem(SAVED, JSON.stringify(value));
+    else localStorage.removeItem(SAVED);
+  } catch {
+    // Private mode: the page still works, it just won't remember.
+  }
+}
+
+/** UPI payment link (NPCI's linking spec): opens the parent's UPI app with payee and amount filled in. */
+export function upiPayLink(upi: { upiId: string; payeeName: string }, amount: number, regNo: string): string {
+  const q = new URLSearchParams({ pa: upi.upiId, pn: upi.payeeName, am: amount.toFixed(2), cu: "INR", tn: `Scholarship test ${regNo}` });
+  return `upi://pay?${q.toString().replace(/\+/g, "%20")}`;
+}
+
+/** Typing filters: names and city keep letters, spaces and . ' -; phone and PIN keep digits. */
+export const onlyLetters = (v: string) => v.replace(/[^\p{L}\p{M} .'-]/gu, "");
+export const onlyDigits = (v: string, max: number) => v.replace(/\D/g, "").slice(0, max);

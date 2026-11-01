@@ -215,7 +215,7 @@ function Admin({ session }: { session: Session }) {
             />
           )}
           {section === "batches" && <Batches data={data} act={act} />}
-          {section === "scholarship" && <AdminScholarship />}
+          {section === "scholarship" && <AdminScholarship uid={session.user.uid} />}
           {section === "help" && <Help help={data.help} act={act} uid={session.user.uid} />}
         </div>
       )}
