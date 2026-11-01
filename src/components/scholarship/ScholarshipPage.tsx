@@ -5,6 +5,8 @@ import { PAGES_META } from "@/config/pagesMeta";
 import { Logo } from "@/brand/Logo";
 import { CampaignSlide } from "@/components/scholarship/CampaignSlide";
 import { UpiQr } from "@/components/UpiQr";
+import { SlotPicker } from "@/components/scholarship/SlotPicker";
+import { SCHOLARSHIP_EXAM, slotLabel } from "@/lib/scholarship";
 import {
   onlyDigits, onlyLetters, preparePhoto, saveRegistration, savedRegistration, sendPayment, submitScholarship, upiPayLink, type Registered,
   dobRange, isPlausibleDob, paymentStatus,
@@ -291,10 +293,12 @@ function Success({ done, again, update }: { done: Registered; again: () => void;
           {done.rollNo
             ? <dd className={`${display} select-all text-xl font-extrabold tracking-wider text-[#fbb308]`}>{done.rollNo}</dd>
             : <dd className="slip-muted text-[#c9cee0]">{s.rollPending}</dd>}
+          {done.slotId && <><dt className="slip-muted text-[#c9cee0]">{SCHOLARSHIP_EXAM.slots.yours}</dt><dd className="font-semibold">{slotLabel(done.slotId)}</dd></>}
         </dl>
       </div>
       <p className="mt-4 leading-7 text-[#c9cee0]">{done.rollNo ? s.leadWithRoll : done.existing ? s.existingLead : s.lead}</p>
       <Payment done={done} update={update} />
+      {pay.status === "paid" && <SlotPicker done={done} update={update} />}
       <div className="mt-6 flex flex-wrap gap-3">
         <button type="button" onClick={() => window.print()} className="inline-flex min-h-12 items-center rounded-full bg-white px-5 font-extrabold text-[#0a1026]">{s.download}</button>
         <a href={share} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center rounded-full bg-[#fbb308] px-5 font-extrabold text-[#0a1026]">{s.share}</a>

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as R404RouteImport } from './routes/404'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ExamRouteImport } from './routes/exam'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ParentRouteImport } from './routes/parent'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -41,6 +42,11 @@ const AboutRoute = AboutRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamRoute = ExamRouteImport.update({
+  id: '/exam',
+  path: '/exam',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof R404Route
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/exam': typeof ExamRoute
   '/login': typeof LoginRoute
   '/parent': typeof ParentRoute
   '/privacy': typeof PrivacyRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/404': typeof R404Route
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/exam': typeof ExamRoute
   '/login': typeof LoginRoute
   '/parent': typeof ParentRoute
   '/privacy': typeof PrivacyRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/404': typeof R404Route
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/exam': typeof ExamRoute
   '/login': typeof LoginRoute
   '/parent': typeof ParentRoute
   '/privacy': typeof PrivacyRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/about'
     | '/admin'
+    | '/exam'
     | '/login'
     | '/parent'
     | '/privacy'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/about'
     | '/admin'
+    | '/exam'
     | '/login'
     | '/parent'
     | '/privacy'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/about'
     | '/admin'
+    | '/exam'
     | '/login'
     | '/parent'
     | '/privacy'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   R404Route: typeof R404Route
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
+  ExamRoute: typeof ExamRoute
   LoginRoute: typeof LoginRoute
   ParentRoute: typeof ParentRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exam': {
+      id: '/exam'
+      path: '/exam'
+      fullPath: '/exam'
+      preLoaderRoute: typeof ExamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -300,6 +320,7 @@ const rootRouteChildren: RootRouteChildren = {
   R404Route: R404Route,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
+  ExamRoute: ExamRoute,
   LoginRoute: LoginRoute,
   ParentRoute: ParentRoute,
   PrivacyRoute: PrivacyRoute,

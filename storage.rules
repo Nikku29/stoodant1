@@ -50,5 +50,9 @@ service firebase.storage {
     match /private/{allPaths=**} {
       allow read: if isAdmin();
     }
+    // The scholarship test's question bank (with answers): only the team uploads it, only the exam function reads it.
+    match /private/exam/bank.json {
+      allow write: if isAdmin() && request.resource.size < 5 * 1024 * 1024 && request.resource.contentType == 'application/json';
+    }
   }
 }

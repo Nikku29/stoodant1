@@ -5,6 +5,8 @@ import {
   registrationCounts, registrationsCsv, type PayStatus, type Registration,
 } from "@/lib/firebase/scholarship";
 import { Tile } from "./AppNav";
+import { slotLabel } from "@/lib/scholarship";
+import { AdminScholarshipExam } from "./AdminScholarshipExam";
 
 const when = (r: Registration) =>
   r.createdAt?.toDate().toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) ?? "";
@@ -23,6 +25,19 @@ const SHOW: [Show, string][] = [["all", "All"], ["9", "Class 9"], ["10", "Class 
  * fee with its UPI reference to tick off against the bank account, lookup by number or phone, and a spreadsheet.
  */
 export function AdminScholarship({ uid }: { uid: string }) {
+  const [view, setView] = useState<"registrations" | "exam">("registrations");
+  return (
+    <>
+      <div className="pd-picker" role="group" aria-label="Scholarship">
+        <button type="button" aria-pressed={view === "registrations"} onClick={() => setView("registrations")}>Registrations</button>
+        <button type="button" aria-pressed={view === "exam"} onClick={() => setView("exam")}>Exam days and results</button>
+      </div>
+      {view === "exam" ? <AdminScholarshipExam uid={uid} /> : <Registrations uid={uid} />}
+    </>
+  );
+}
+
+function Registrations({ uid }: { uid: string }) {
   const [rows, setRows] = useState<Registration[] | null>(null);
   const [next, setNext] = useState<QueryDocumentSnapshot | null>(null);
   const [counts, setCounts] = useState<Record<"9" | "10", number> | null>(null);
@@ -175,6 +190,7 @@ function Item({ r, check, remove }: {
   const rows: [string, string][] = [
     ["Registration no.", r.regNo],
     ["Roll no.", r.rollNo ?? (pay === "paid" ? "being given…" : "after the fee is confirmed")],
+    ["Exam hour", r.slotId ? slotLabel(r.slotId) : "—"],
     ["Class", r.studentClass],
     ["Date of birth", born(r.dob)],
     ["School", r.school],

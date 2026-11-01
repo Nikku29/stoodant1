@@ -9,6 +9,7 @@ import { handleLeadCreated } from "./lead/notify.js";
 import { handleSubmitScholarship } from "./scholarship/submit.js";
 import { handleScholarshipPayment } from "./scholarship/payment.js";
 import { handleScholarshipUpdated } from "./scholarship/roll.js";
+import { finishExpiredAttempts, handleScholarshipExam, handleScholarshipSlot } from "./scholarship/exam/handlers.js";
 import { handleAskForHelp, handleHelpRequested } from "./help/ask.js";
 import { handleNoticeCreated } from "./notices/notify.js";
 import { handleDoubtCreated, handleDoubtUpdated } from "./doubts/notify.js";
@@ -41,6 +42,25 @@ export const submitScholarship = onRequest(
 export const scholarshipPayment = onRequest(
   { concurrency: 40, invoker: "public", timeoutSeconds: 15, maxInstances: 5, secrets: [PHONE_HASH_PEPPER] },
   handleScholarshipPayment,
+);
+
+// The family picks the exam hour once the fee is confirmed.
+export const scholarshipSlot = onRequest(
+  { concurrency: 80, invoker: "public", timeoutSeconds: 15, maxInstances: 10, secrets: [PHONE_HASH_PEPPER] },
+  handleScholarshipSlot,
+);
+
+// The online test itself: log in (roll number + date of birth) inside the booked hour, autosave, submit.
+// A whole slot (up to the capacity set in /admin) can start within minutes, so it scales wide.
+export const scholarshipExam = onRequest(
+  { concurrency: 80, invoker: "public", timeoutSeconds: 20, memory: "512MiB", minInstances: 0, maxInstances: 40, secrets: [PHONE_HASH_PEPPER] },
+  handleScholarshipExam,
+);
+export const scholarshipExamClose = onSchedule(
+  { schedule: "every 5 minutes", timeZone: "Asia/Kolkata", timeoutSeconds: 240, maxInstances: 1, retryCount: 0 },
+  async () => {
+    await finishExpiredAttempts();
+  },
 );
 
 // The team confirmed the fee in /admin: the child gets an exam roll number.

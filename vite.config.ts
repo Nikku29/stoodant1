@@ -26,6 +26,9 @@ const vendorChunks = [
   // The animation features that <LazyMotion> loads later are left out, so they stay out of the initial load.
   { name: "framer-motion", test: /node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/](?!.*(features|gestures))/ },
   { name: "gsap", test: /node_modules[\\/]gsap[\\/]/ },
+  // Scholarship code shared by /scholarship, /exam and /admin: one file instead of three, which keeps the
+  // home page's list of lazy files (part of its first download) short.
+  { name: "scholarship-shared", test: /src[\\/](lib[\\/]scholarship\.ts|config[\\/]scholarshipExam\.ts|components[\\/]UpiQr\.tsx)/ },
 ];
 
 export default defineConfig({
@@ -43,7 +46,7 @@ export default defineConfig({
       // In-page links such as /#demo are the home page again, so the crawl skips them.
       prerender: { enabled: true, crawlLinks: true, filter: (page) => !page.path.includes("#") && page.path !== "/blog/" },
       // /parent, /teacher, /login and /admin are not linked from the landing page, so the crawl would miss them.
-      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }, ...["/scholarship", "/about", "/privacy", "/terms", "/refund-policy", BLOG.path, ...BLOG_POSTS.map((post) => blogPostPath(post.slug))].map((path) => ({ path, prerender: { enabled: true, outputPath: `${path}.html` } }))],
+      pages: [{ path: "/404", prerender: { enabled: true, outputPath: "/404.html" } }, { path: "/parent", prerender: { enabled: true, outputPath: "/parent.html" } }, { path: "/teacher", prerender: { enabled: true, outputPath: "/teacher.html" } }, { path: "/login", prerender: { enabled: true, outputPath: "/login.html" } }, { path: "/exam", prerender: { enabled: true, outputPath: "/exam.html" } }, { path: "/admin", prerender: { enabled: true, outputPath: "/admin.html" } }, ...["/scholarship", "/about", "/privacy", "/terms", "/refund-policy", BLOG.path, ...BLOG_POSTS.map((post) => blogPostPath(post.slug))].map((path) => ({ path, prerender: { enabled: true, outputPath: `${path}.html` } }))],
     }),
     viteReact(),
     seoFiles(),
