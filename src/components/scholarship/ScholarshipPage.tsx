@@ -317,6 +317,12 @@ function Success({ done, logOut, update }: { done: Registered; logOut: () => voi
       <Payment done={done} update={update} />
       {pay.status === "paid" && done.rollNo && <PaperDownload done={done} />}
       {pay.status === "paid" && <SlotPicker done={done} update={update} />}
+      {(done.studentClass === "9" || done.studentClass === "10") && (
+        <div className="mt-6 rounded-2xl bg-white/10 p-4">
+          <a href={`/exam?practice=${done.studentClass}`} className="inline-flex min-h-12 items-center rounded-full bg-[#fbb308] px-5 font-extrabold text-[#0a1026]">{SCHOLARSHIP_EXAM.practice.link}</a>
+          <p className="mt-2 text-sm leading-6 text-[#c9cee0]">{SCHOLARSHIP_EXAM.practice.linkNote}</p>
+        </div>
+      )}
       <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
         <button type="button" onClick={() => window.print()} className="inline-flex min-h-12 items-center rounded-full bg-white px-5 font-extrabold text-[#0a1026]">{s.download}</button>
         <button type="button" onClick={logOut} className="text-sm font-bold text-[#c9cee0] underline">{SCHOLARSHIP_CONFIG.login.logOut}</button>
@@ -400,6 +406,8 @@ function Payment({ done, update }: { done: Registered; update: (next: Registered
   const p = SCHOLARSHIP_CONFIG.pay;
   const pay = done.payment;
   const [utr, setUtr] = useState("");
+  const [proofKind, setProofKind] = useState<"utr" | "upi">("utr");
+  const [payerUpi, setPayerUpi] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -430,13 +438,15 @@ function Payment({ done, update }: { done: Registered; update: (next: Registered
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const ref = utr.replace(/\s+/g, "");
-    if (!/^[A-Za-z0-9]{6,30}$/.test(ref)) return setError(p.errors.utr);
+    const id = payerUpi.trim().toLowerCase();
+    if (proofKind === "utr" && !/^\d{12}$/.test(ref)) return setError(p.errors.utr);
+    if (proofKind === "upi" && !/^[a-z0-9._-]{2,64}@[a-z][a-z0-9]{1,31}$/.test(id)) return setError(p.errors.upi);
     setSending(true);
     setError("");
-    const result = await sendPayment(done.regNo, pay.token, ref);
+    const result = await sendPayment(done.regNo, pay.token, proofKind === "utr" ? { utr: ref } : { payerUpi: id });
     setSending(false);
     if ("status" in result) return update(withAnswer(done, result));
-    setError(result.error === "utr_used" ? p.errors.utrUsed : result.error === "utr" ? p.errors.utr : p.errors.network);
+    setError(result.error === "utr_used" ? p.errors.utrUsed : result.error === "utr" ? (proofKind === "utr" ? p.errors.utr : p.errors.upi) : p.errors.network);
   };
 
   return (
@@ -465,13 +475,33 @@ function Payment({ done, update }: { done: Registered; update: (next: Registered
         </div>
       </div>
       <form className="mt-4" onSubmit={send} noValidate>
-        <label className="block">
-          <span className="text-sm font-semibold">{p.utrLabel}</span>
-          <input value={utr} onChange={(e) => setUtr(e.target.value.replace(/[^A-Za-z0-9 ]/g, "").slice(0, 34))} inputMode="text" autoComplete="off" className="mt-1 block min-h-12 w-full rounded-xl border border-neutral-300 px-4 text-base outline-none focus:border-[#0a1026] focus:ring-2 focus:ring-[#fbb308]" aria-invalid={Boolean(error)} />
-          {!error && <small className="mt-1 block text-sm text-neutral-600">{p.utrHint}</small>}
-          {error && <small role="alert" className="mt-1 block text-sm text-red-700">{error}</small>}
-        </label>
-        <button type="submit" disabled={sending || !utr.trim()} className="mt-3 min-h-12 w-full rounded-full bg-[#0a1026] px-5 font-extrabold text-white disabled:opacity-60">{sending ? p.sending : p.send}</button>
+        <fieldset>
+          <legend className="text-sm font-semibold">{p.proofLabel}</legend>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(["utr", "upi"] as const).map((k) => (
+              <label key={k} className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-neutral-300 px-2 text-center text-sm font-bold has-[:checked]:border-[#0a1026] has-[:checked]:bg-[#0a1026] has-[:checked]:text-white has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#fbb308]">
+                <input type="radio" name="proof" value={k} checked={proofKind === k} onChange={() => { setProofKind(k); setError(""); }} className="sr-only" />
+                {p.proofChoices[k]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {proofKind === "utr" ? (
+          <label className="mt-3 block">
+            <span className="text-sm font-semibold">{p.utrLabel}</span>
+            <input value={utr} onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, 12))} inputMode="numeric" autoComplete="off" minLength={12} maxLength={12} className="mt-1 block min-h-12 w-full rounded-xl border border-neutral-300 px-4 text-base tracking-wider outline-none focus:border-[#0a1026] focus:ring-2 focus:ring-[#fbb308]" aria-invalid={Boolean(error)} />
+            {!error && <small className="mt-1 block text-sm text-neutral-600">{p.utrHint} ({utr.length}/12)</small>}
+            {error && <small role="alert" className="mt-1 block text-sm text-red-700">{error}</small>}
+          </label>
+        ) : (
+          <label className="mt-3 block">
+            <span className="text-sm font-semibold">{p.upiLabel}</span>
+            <input value={payerUpi} onChange={(e) => setPayerUpi(e.target.value.replace(/[^A-Za-z0-9._@-]/g, "").slice(0, 97))} inputMode="email" autoComplete="off" autoCapitalize="none" spellCheck={false} className="mt-1 block min-h-12 w-full rounded-xl border border-neutral-300 px-4 text-base outline-none focus:border-[#0a1026] focus:ring-2 focus:ring-[#fbb308]" aria-invalid={Boolean(error)} />
+            {!error && <small className="mt-1 block text-sm text-neutral-600">{p.upiHint}</small>}
+            {error && <small role="alert" className="mt-1 block text-sm text-red-700">{error}</small>}
+          </label>
+        )}
+        <button type="submit" disabled={sending || (proofKind === "utr" ? utr.length !== 12 : !payerUpi.includes("@"))} className="mt-3 min-h-12 w-full rounded-full bg-[#0a1026] px-5 font-extrabold text-white disabled:opacity-60">{sending ? p.sending : p.send}</button>
       </form>
     </div>
   );

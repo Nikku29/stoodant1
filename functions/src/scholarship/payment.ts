@@ -12,11 +12,12 @@ import { passesGate, payStatusOf, payToken, pepperOr500, registrationAnswer, upi
 const LIMITS = { per10Min: 20, perDay: 100 };
 
 /**
- * POST from the /scholarship page after the parent pays the test fee by UPI: { regNo, token, utr }.
+ * POST from the /scholarship page after the parent pays the test fee by UPI: { regNo, token, utr } (the 12-digit
+ * UPI reference) or { regNo, token, payerUpi } (the UPI ID they paid from), whichever the parent chose.
  * The token came with the registration, so only that browser (or someone with the phone and date of birth)
  * can send it. The payment becomes "submitted"; the team checks the bank account and marks it paid in /admin.
  * One UPI reference can be used for one registration only.
- * Without a utr it only reads: the page asks this way to learn whether the team has confirmed the fee.
+ * Without either it only reads: the page asks this way to learn whether the team has confirmed the fee.
  * Answers { ok, status, rollNo? } (the roll number once the fee is confirmed), or 409 { error: "utr_used" } / 404 { error: "not_found" }.
  */
 export async function handleScholarshipPayment(req: Request, res: Response): Promise<void> {
@@ -29,7 +30,8 @@ export async function handleScholarshipPayment(req: Request, res: Response): Pro
     res.status(400).json({ error: "invalid", fields: invalidFields(parsed.error) });
     return;
   }
-  const { regNo, token, utr } = parsed.data;
+  const { regNo, token, utr, payerUpi } = parsed.data;
+  const proof = utr ? { utr } : payerUpi ? { payerUpi } : null;
 
   const pepper = pepperOr500(res, "scholarship_payment_failed");
   if (!pepper) return;
@@ -55,15 +57,15 @@ export async function handleScholarshipPayment(req: Request, res: Response): Pro
       if (!reg!.exists) return "not_found" as const;
       const status = payStatusOf(reg!.data());
       const rollNo = status === "paid" ? (reg!.get("rollNo") as string | undefined) : undefined;
-      if (status === "paid" || !utr) return { status, rollNo };
+      if (status === "paid" || !proof) return { status, rollNo };
       if (used?.exists && used.get("regNo") !== regNo) return "utr_used" as const;
-      tx.update(regRef, { payment: { status: "submitted", utr, submittedAt: now }, updatedAt: now });
-      tx.set(utrRef, { regNo, at: now });
+      tx.update(regRef, { payment: { status: "submitted", ...proof, submittedAt: now }, updatedAt: now });
+      if (utr) tx.set(utrRef, { regNo, at: now });
       return { status: "submitted" as const, rollNo: undefined };
     });
     if (result === "not_found") { res.status(404).json({ error: "not_found" }); return; }
     if (result === "utr_used") { res.status(409).json({ error: "utr_used", fields: ["utr"] }); return; }
-    if (utr) logger.info("scholarship_payment", { regNo, status: result.status, ms: Date.now() - started });
+    if (proof) logger.info("scholarship_payment", { regNo, status: result.status, by: utr ? "utr" : "upi_id", ms: Date.now() - started });
     res.status(200).json({ ok: true, status: result.status, ...(result.rollNo ? { rollNo: result.rollNo } : {}) });
   } catch (error) {
     logger.error("scholarship_payment_failed", { reason: "write", code: (error as { code?: unknown }).code ?? null });

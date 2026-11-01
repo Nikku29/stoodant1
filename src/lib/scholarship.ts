@@ -136,9 +136,9 @@ const payAnswer = (data: Record<string, unknown>): PayAnswer => ({
   ...(typeof data["rollNo"] === "string" ? { rollNo: data["rollNo"] } : {}),
 });
 
-/** Sends the UPI reference after paying the fee. */
-export async function sendPayment(regNo: string, token: string, utr: string): Promise<PayAnswer | { error: "utr" | "utr_used" | "network" }> {
-  const answer = await post(PAY_ENDPOINT, JSON.stringify({ regNo, token, utr }));
+/** Sends the proof of paying the fee: the 12-digit UPI reference (utr) or the UPI ID the parent paid from (payerUpi). */
+export async function sendPayment(regNo: string, token: string, proof: { utr: string } | { payerUpi: string }): Promise<PayAnswer | { error: "utr" | "utr_used" | "network" }> {
+  const answer = await post(PAY_ENDPOINT, JSON.stringify({ regNo, token, ...proof }));
   if (!answer) return { error: "network" };
   if (answer.status === 200) return payAnswer(answer.data);
   if (answer.status === 409) return { error: "utr_used" };

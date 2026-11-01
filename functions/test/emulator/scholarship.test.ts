@@ -93,6 +93,18 @@ test("the fee: a UPI reference marks it submitted, once per reference, and only 
   assert.equal(reused.status, 409);
   assert.deepEqual(await reused.json(), { error: "utr_used", fields: ["utr"] });
 
+  // Or the UPI ID they paid from, instead of the reference (never both; a UTR is exactly 12 digits).
+  const short = await send("scholarshipPayment", { regNo: b.regNo, token: b.payment.token, utr: "41234567890" });
+  assert.equal(short.status, 400);
+  const both = await send("scholarshipPayment", { regNo: b.regNo, token: b.payment.token, utr: "512345678901", payerUpi: "kabir@ybl" });
+  assert.equal(both.status, 400);
+  const byId = await send("scholarshipPayment", { regNo: b.regNo, token: b.payment.token, payerUpi: "Kabir.Sharma@OkAxis" });
+  assert.equal(byId.status, 200);
+  const regB = await db.doc(`scholarshipRegistrations/${b.regNo}`).get();
+  assert.equal(regB.get("payment.status"), "submitted");
+  assert.equal(regB.get("payment.payerUpi"), "kabir.sharma@okaxis");
+  assert.equal(regB.get("payment.utr"), undefined);
+
   // The same family sending its reference again (say, a corrected one) is fine.
   const again = await send("scholarshipPayment", { regNo: a.regNo, token: a.payment.token, utr: "412345678902" });
   assert.equal(again.status, 200);

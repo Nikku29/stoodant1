@@ -20,14 +20,18 @@ export function AdminScholarshipExam({ uid }: { uid: string }) {
     try { setPhotos({ rollNo, urls: await examPhotos(rollNo) }); } catch { setMessage("Couldn't load the photos."); }
   };
 
+  // Without the settings nothing here can be saved, so say so plainly instead of failing quietly.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const NOT_LOADED = "The exam settings couldn't be loaded, so saving and uploading don't work yet. Please refresh the page. If this keeps happening, the latest update hasn't been deployed: run the deploy command, then try again.";
   useEffect(() => {
-    void examSettings().then((s) => { setSettings(s); setCapacity(String(s.capacity)); }).catch(() => setMessage("Couldn't load the exam settings."));
+    void examSettings().then((s) => { setSettings(s); setCapacity(String(s.capacity)); }).catch(() => setLoadFailed(true));
     void slotCounts(ALL).then(setCounts).catch(() => undefined);
   }, []);
 
   const saveCapacity = async () => {
     const value = Number(capacity);
-    if (!settings || !Number.isInteger(value) || value < 1 || value > 20000) return setMessage("Please enter a number from 1 to 20000.");
+    if (!settings) return setMessage(NOT_LOADED);
+    if (!Number.isInteger(value) || value < 1 || value > 20000) return setMessage("Please enter a number from 1 to 20000.");
     try {
       await saveExamSettings({ ...settings, capacity: value }, uid);
       setSettings({ ...settings, capacity: value });
@@ -40,7 +44,8 @@ export function AdminScholarshipExam({ uid }: { uid: string }) {
   const pickBank = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file || !settings) return;
+    if (!file) return;
+    if (!settings) return setBankNote(NOT_LOADED);
     let parsed: unknown;
     try { parsed = JSON.parse(await file.text()); } catch { return setBankNote("This file can't be read. Please choose the question bank .json file."); }
     const check = checkBank(parsed);
@@ -73,6 +78,7 @@ export function AdminScholarshipExam({ uid }: { uid: string }) {
   const total = counts ? Object.values(counts).reduce((a, b) => a + b, 0) : null;
   return (
     <>
+      {loadFailed && <p className="pd-alert" role="alert">{NOT_LOADED}</p>}
       {message && <p className="pd-alert" role="status">{message}</p>}
       <section className="pd-card">
         <h3>Students per hour</h3>

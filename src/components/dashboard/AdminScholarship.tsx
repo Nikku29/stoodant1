@@ -101,7 +101,7 @@ function Registrations({ uid }: { uid: string }) {
     const ask = status === "paid" && r.rollNo
       ? `Confirm the fee for ${r.studentName} (${r.regNo}) again? The roll number ${r.rollNo} given earlier stays the same.`
       : status === "paid"
-      ? `Confirm ₹${r.fee ?? 99} received for ${r.studentName} (${r.regNo})?${r.payment?.utr ? `\nUPI reference: ${r.payment.utr}` : ""}\nThe student then gets an exam roll number.`
+      ? `Confirm ₹${r.fee ?? 99} received for ${r.studentName} (${r.regNo})?${r.payment?.utr ? `\nUPI reference: ${r.payment.utr}` : ""}${r.payment?.payerUpi ? `\nPaid from UPI ID: ${r.payment.payerUpi}` : ""}\nThe student then gets an exam roll number.`
       : `Deny the payment of ${r.studentName} (${r.regNo})? The family sees "payment not found" and can send the reference again or WhatsApp you.${r.rollNo ? " Their roll number is hidden until you confirm again." : ""}`;
     if (!window.confirm(ask)) return;
     try {
@@ -200,6 +200,7 @@ function Item({ r, check, remove }: {
     ["Phone", r.parentPhoneE164],
     ["Registered", when(r)],
     ["UPI reference", r.payment?.utr ?? "—"],
+    ["Paid from UPI ID", r.payment?.payerUpi ?? "—"],
   ];
   return (
     <li className="pd-item">
@@ -220,6 +221,8 @@ function Item({ r, check, remove }: {
       <div className="pd-actions">
         {/* Either way round at any time: a denied payment found later can be confirmed, a confirm made by mistake denied. */}
         {pay !== "paid" && <button type="button" className="pd-confirm" onClick={() => void check(r, "paid")}>✓ Confirm</button>}
+        {/* Confirmed before the roll-number function was live: confirming again gives the roll number. */}
+        {pay === "paid" && !r.rollNo && <button type="button" className="pd-confirm" onClick={() => void check(r, "paid")}>✓ Give roll number</button>}
         {pay !== "rejected" && pay !== "due" && <button type="button" className="pd-deny" onClick={() => void check(r, "rejected")}>✕ Deny</button>}
         {pay === "paid" && r.rollNo && <a className="pd-confirm" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }} href={wa} target="_blank" rel="noopener noreferrer">Send roll number on WhatsApp</a>}
         <a className="pd-link" href={`tel:${r.parentPhoneE164}`}>Call</a>
