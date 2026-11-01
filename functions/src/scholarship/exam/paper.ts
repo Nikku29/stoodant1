@@ -6,8 +6,8 @@ export const SUBJECTS = ["maths", "science", "reasoning", "english"] as const;
 export type Subject = (typeof SUBJECTS)[number];
 /** `group`: questions made from one pattern (only the numbers or letters change). A paper takes at most one of each group. */
 export type BankQuestion = { id: string; class: string; subject: Subject; level: Level; text: string; options: string[]; answer: number; group?: string };
-/** Each subject's 15 questions, mostly hard (a scholarship test picks the best): 2 easy, 5 medium, 8 hard (taken from the other levels when one runs short). */
-export const BLUEPRINT: Record<Level, number> = { easy: 2, medium: 5, hard: 8 };
+/** Each subject's 15 questions, medium to hard (a scholarship test picks the best): 7 medium, 8 hard (taken from the other levels when one runs short). */
+export const BLUEPRINT: Record<Level, number> = { easy: 0, medium: 7, hard: 8 };
 export const PER_SUBJECT = 15;
 export const BANK_PATH = "private/exam/bank.json";
 

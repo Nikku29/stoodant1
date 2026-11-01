@@ -72,7 +72,7 @@ export function SlotPicker({ done, update }: { done: Registered; update: (next: 
               <div className="mt-3 rounded-xl bg-neutral-100 px-4 py-3">
                 <p className="text-xs font-bold uppercase tracking-[.14em] text-neutral-500">{X.join.password}</p>
                 <p className={`${display} select-all text-2xl font-extrabold tracking-widest`}>{password}</p>
-                <p className="text-sm text-neutral-600">{X.join.passwordNote}</p>
+                <p className="text-sm text-neutral-600">{X.join.passwordNote.replace("{date}", new Date(Date.UTC(+password.slice(4), +password.slice(2, 4) - 1, +password.slice(0, 2))).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }))}</p>
               </div>
             )}
             <a href={`/exam?roll=${encodeURIComponent(done.rollNo ?? "")}`} className="mt-3 flex min-h-12 items-center justify-center rounded-full bg-[#fbb308] px-5 text-lg font-extrabold">{X.join.button}</a>

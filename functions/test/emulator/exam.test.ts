@@ -94,7 +94,9 @@ test("the exam: only in the booked hour, with the right password, a shuffled pap
   assert.equal(paper.questions.length, 60);
   assert.deepEqual(SUBJECTS.map((x) => paper.questions.filter((q) => q.subject === x).length), [15, 15, 15, 15]);
   assert.ok(!JSON.stringify(paper).includes("\"answer\""));
-  assert.ok(Math.abs(paper.endsAt - (Date.parse("2026-11-10T10:02:00Z") - IST)) < 2000);
+  // 2 minutes to read the rules, then 60 minutes for the questions.
+  assert.ok(Math.abs(paper.endsAt - (Date.parse("2026-11-10T10:04:00Z") - IST)) < 2000);
+  assert.ok(Math.abs((paper as unknown as { questionsAt: number }).questionsAt - (Date.parse("2026-11-10T09:04:00Z") - IST)) < 2000);
 
   // Answer the first 10 right and the next 5 wrong.
   const answers: Record<string, number> = {};
@@ -102,8 +104,22 @@ test("the exam: only in the booked hour, with the right password, a shuffled pap
   const save = (extra: Record<string, unknown> = {}) => send("scholarshipExam", {
     action: "save", rollNo: s.rollNo, token: paper.token, answers, marked: [3], visited: [0, 1, 2], strikes: 0, submit: false, ...extra,
   });
+  // Answers sent while the rules are still showing are not kept.
+  assert.equal((await save()).status, 200);
+  assert.deepEqual((await db.doc(`examAttempts/${s.rollNo}`).get()).get("answers"), {});
+  await at("2026-11-10T09:05:00");
   assert.equal((await save()).status, 200);
   assert.equal((await save({ token: "0".repeat(64) })).status, 403);
+
+  // Photos from the front camera are kept privately; a camera that is off is noted.
+  const jpegPhoto = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300, 1)]).toString("base64");
+  const shot = (extra: Record<string, unknown>) => send("scholarshipExam", { action: "photo", rollNo: s.rollNo, token: paper.token, ...extra });
+  assert.equal((await shot({ image: jpegPhoto })).status, 200);
+  assert.equal((await shot({ cameraOff: true })).status, 200);
+  assert.equal((await shot({ image: jpegPhoto, token: undefined })).status, 400);
+  const [photos] = await getStorage(app).bucket().getFiles({ prefix: `private/exam-photos/${s.rollNo}/` });
+  assert.equal(photos.length, 1);
+  assert.equal((await db.doc(`examAttempts/${s.rollNo}`).get()).get("cameraOff"), true);
 
   // Reloading the page gets the same paper and the saved answers back.
   const again = (await (await start()).json()) as { questions: unknown[]; state: { answers: Record<string, number> } };
@@ -180,6 +196,7 @@ test("the paper is made when the fee is confirmed, downloads locked, and unlocks
   assert.deepEqual(full.questions, questions);
 
   // Marked from the student's own answer key, whatever order their options were in.
+  await at("2026-11-10T11:04:00");
   const answers: Record<string, number> = {};
   questions.forEach((q, i) => { answers[String(i)] = q.options.indexOf("right"); });
   const token = ((await (await start()).json()) as { token: string }).token;

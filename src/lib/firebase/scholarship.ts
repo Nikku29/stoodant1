@@ -180,8 +180,19 @@ export async function uploadBank(file: File): Promise<void> {
 export type Attempt = {
   rollNo: string; regNo: string; studentName: string; studentClass: string; slotId: string; status: string; strikes: number;
   startedAt?: Timestamp; submittedAt?: Timestamp; timeTakenMs?: number;
+  /** Camera photos taken during the test, and whether the camera was refused. */
+  photos?: number; cameraOff?: boolean;
   score?: { marks: number; correct: number; wrong: number; unanswered: number; bySubject: Record<string, { correct: number; wrong: number }> };
 };
+/** The camera photos of one student's test, oldest first, as links the team can open. */
+export async function examPhotos(rollNo: string): Promise<string[]> {
+  const { getStorage, ref, listAll, getDownloadURL, connectStorageEmulator } = await import("firebase/storage");
+  const bucket = getStorage(firebaseApp());
+  if (import.meta.env["VITE_USE_EMULATORS"] === "1") connectStorageEmulator(bucket, "127.0.0.1", 9199);
+  const list = await listAll(ref(bucket, `private/exam-photos/${rollNo}`));
+  const items = [...list.items].sort((a, b) => a.name.localeCompare(b.name));
+  return Promise.all(items.map((i) => getDownloadURL(i)));
+}
 /** Every paper of one class, best first: more marks, then less time taken. */
 export async function classResults(studentClass: string): Promise<Attempt[]> {
   const snap = await getDocs(query(collection(db(), "examAttempts"), where("studentClass", "==", studentClass)));
@@ -190,12 +201,13 @@ export async function classResults(studentClass: string): Promise<Attempt[]> {
 }
 export function resultsCsv(rows: Attempt[]): string {
   const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v);
-  const head = ["Rank", "Roll no.", "Registration no.", "Student", "Class", "Hour", "Status", "Marks", "Correct", "Wrong", "Unanswered", "Maths", "Science", "Reasoning", "English", "Minutes", "Warnings"];
+  const head = ["Rank", "Roll no.", "Registration no.", "Student", "Class", "Hour", "Status", "Marks", "Correct", "Wrong", "Unanswered", "Maths", "Science", "Reasoning", "English", "Minutes", "Warnings", "Photos", "Camera"];
   const lines = rows.map((r, i) => [
     String(i + 1), r.rollNo, r.regNo, r.studentName, r.studentClass, r.slotId, r.status, String(r.score?.marks ?? ""),
     String(r.score?.correct ?? ""), String(r.score?.wrong ?? ""), String(r.score?.unanswered ?? ""),
     ...["maths", "science", "reasoning", "english"].map((s) => String(r.score?.bySubject[s]?.correct ?? "")),
     r.timeTakenMs ? (r.timeTakenMs / 60000).toFixed(1) : "", String(r.strikes ?? 0),
+    String(r.photos ?? 0), r.cameraOff ? "Off" : "On",
   ]);
   return [head, ...lines].map((l) => l.map(cell).join(",")).join("\n");
 }
