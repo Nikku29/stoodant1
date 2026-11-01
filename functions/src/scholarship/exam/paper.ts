@@ -35,11 +35,12 @@ export const loadBank = async () => (await loadBankVersioned()).byClass;
 export const forgetBank = () => { cached = null; };
 
 /**
- * Two options that differ only in spaces, slashes, brackets, × or · (10√3 m and 10/√3 m, Ω m and Ω/m) look the same
- * on a small screen. Such a question is left out. The same check is in checkBank (src/lib/firebase/scholarship.ts).
+ * Two options that are the same answer written twice (only spaces, capitals or x^2 / x² differ, like "10 m" and "10m").
+ * Such a question is left out. Close-but-different distractors (10√3 m and 10/√3 m, Ω m and Ω/m) are kept on purpose.
+ * The same check is in checkBank (src/lib/firebase/scholarship.ts).
  */
 export const lookAlike = (a: string, b: string) => {
-  const plain = (s: string) => s.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s/()·×*^]/g, "");
+  const plain = (s: string) => s.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s^]/g, "");
   return a !== b && plain(a) === plain(b);
 };
 export const hasLookAlikeOptions = (options: string[]) => options.some((a, i) => options.some((b, j) => j > i && lookAlike(a, b)));

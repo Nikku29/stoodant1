@@ -157,8 +157,8 @@ export async function slotCounts(ids: string[]): Promise<Record<string, number>>
   return Object.fromEntries(ids.map((id, i) => [id, (snaps[i]!.get("count") as number | undefined) ?? 0]));
 }
 
-/** Two options that differ only in spaces, slashes, brackets, × or · look the same on a phone. Same as lookAlike in functions/src/scholarship/exam/paper.ts. */
-const plainOption = (o: string) => o.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s/()·×*^]/g, "");
+/** Two options that are the same answer written twice (only spaces, capitals or x^2 / x² differ). Same as lookAlike in functions/src/scholarship/exam/paper.ts. */
+const plainOption = (o: string) => o.toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/[\s^]/g, "");
 const lookAlikeOptions = (options: string[]) => new Set(options.map(plainOption)).size !== options.length;
 
 type BankItem = { id: string; class: string; subject: string; level: string; text: string; options: string[]; answer: number };
@@ -173,7 +173,7 @@ export function checkBank(raw: unknown): { ok: boolean; counts: Record<string, n
       && new Set(q.options).size === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= 3
       && ["maths", "science", "reasoning", "english"].includes(q.subject) && ["easy", "medium", "hard"].includes(q.level);
     if (!valid) { problems.push(`Skipped: ${String(q?.id ?? "?")}`); continue; }
-    if (lookAlikeOptions(q.options)) { problems.push(`Skipped (two options look the same): ${q.id}`); continue; }
+    if (lookAlikeOptions(q.options)) { problems.push(`Skipped (two options are the same): ${q.id}`); continue; }
     const key = `${q.class}|${q.subject}|${q.text}|${[...q.options].sort().join("|")}`;
     if (seen.has(key)) continue;
     seen.add(key);
