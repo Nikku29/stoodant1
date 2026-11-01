@@ -528,7 +528,7 @@ service cloud.firestore {
       // reference again. Nothing else on a registration changes from the browser.
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payment', 'updatedAt'])
-        && request.resource.data.payment.keys().hasOnly(['status', 'utr', 'submittedAt', 'checkedAt', 'checkedBy'])
+        && request.resource.data.payment.keys().hasOnly(['status', 'utr', 'payerUpi', 'submittedAt', 'checkedAt', 'checkedBy'])
         && request.resource.data.payment.status in ['paid', 'rejected']
         && request.resource.data.payment.checkedBy == request.auth.uid
         && request.resource.data.payment.checkedAt == request.time

@@ -9,8 +9,10 @@ export const REG_PREFIX = "SS26";
 export const MAX_PHOTO_BYTES = 150 * 1024;
 /** The test fee in rupees. Must match SCHOLARSHIP_CONFIG.fee in src/config/scholarshipConfig.ts. */
 export const SCHOLARSHIP_FEE = 99;
-/** UPI reference numbers (UTR): 12 digits on most apps, letters and digits on a few. */
-export const UTR_PATTERN = /^[A-Za-z0-9]{6,30}$/;
+/** UPI reference number (UTR / UPI Ref No.): always 12 digits. */
+export const UTR_PATTERN = /^\d{12}$/;
+/** The UPI ID the parent paid from, e.g. name@okaxis or 9876543210@ybl. */
+export const PAYER_UPI_PATTERN = /^[a-z0-9._-]{2,64}@[a-z][a-z0-9]{1,31}$/;
 export const REG_NO_PATTERN = /^SS\d{2}-\d{2}-\d{5}$/;
 
 /** Letters only: people's names and city names. */
@@ -86,8 +88,10 @@ export const paymentSchema = z.object({
   regNo: z.string().regex(REG_NO_PATTERN),
   token: z.string().regex(/^[a-f0-9]{64}$/),
   /** Left out to only ask for the status (and the roll number once the fee is confirmed). */
-  utr: z.string().trim().regex(UTR_PATTERN).transform((v) => v.toUpperCase()).optional(),
-}).strict();
+  utr: z.string().transform((v) => v.replace(/\s+/g, "")).pipe(z.string().regex(UTR_PATTERN)).optional(),
+  /** Instead of the UTR, the parent can give the UPI ID they paid from (the team finds it in the bank statement). */
+  payerUpi: z.string().transform((v) => v.trim().toLowerCase()).pipe(z.string().regex(PAYER_UPI_PATTERN)).optional(),
+}).strict().refine((d) => !(d.utr && d.payerUpi), { message: "one", path: ["payerUpi"] });
 
 /** Exam roll number, given once the fee is confirmed: 26 (year), the class as two digits, then a running number. 9 digits, easy to type. */
 export function rollNumber(studentClass: string, n: number): string {

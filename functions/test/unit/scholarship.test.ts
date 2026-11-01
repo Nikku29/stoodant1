@@ -50,8 +50,14 @@ test("names and city are letters only; PIN code is exactly six digits", () => {
 test("payment: a registration number, a 64-hex token and a UPI reference", () => {
   const ok = { regNo: "SS26-10-00001", token: "a".repeat(64), utr: " 412345678901 " };
   assert.equal(paymentSchema.parse(ok).utr, "412345678901");
-  assert.equal(paymentSchema.parse({ ...ok, utr: "abc123xyz" }).utr, "ABC123XYZ");
-  assert.equal(paymentSchema.safeParse({ ...ok, utr: "12-34" }).success, false);
+  assert.equal(paymentSchema.parse({ ...ok, utr: "4123 4567 8901" }).utr, "412345678901");
+  assert.equal(paymentSchema.safeParse({ ...ok, utr: "abc123xyz123" }).success, false);
+  assert.equal(paymentSchema.safeParse({ ...ok, utr: "41234567890" }).success, false);
+  assert.equal(paymentSchema.safeParse({ ...ok, utr: "4123456789012" }).success, false);
+  const { utr: _utr, ...noUtr } = ok;
+  assert.equal(paymentSchema.parse({ ...noUtr, payerUpi: " Asha.Rao@OkAxis " }).payerUpi, "asha.rao@okaxis");
+  assert.equal(paymentSchema.safeParse({ ...noUtr, payerUpi: "9876543210" }).success, false);
+  assert.equal(paymentSchema.safeParse({ ...ok, payerUpi: "asha@ybl" }).success, false);
   assert.equal(paymentSchema.safeParse({ ...ok, regNo: "SS26-10-1" }).success, false);
   assert.equal(paymentSchema.safeParse({ ...ok, token: "x" }).success, false);
 });

@@ -4,15 +4,21 @@ import { SCHOLARSHIP_EXAM as X } from "@/lib/scholarship";
 import { EXAM_ENDPOINT, post, storedPaper, unlockPaper } from "@/lib/scholarship";
 
 const E = X.exam;
+const P = X.practice;
 const display = "font-[family-name:var(--font-display)]";
 type Subject = keyof typeof E.sections;
 type Question = { subject: Subject; text: string; options: string[] };
-type Paper = { token: string; rollNo: string; name: string; studentClass: string; questions: Question[]; questionsAt: number; endsAt: number; offset: number };
+type Paper = {
+  token: string; rollNo: string; name: string; studentClass: string; questions: Question[]; questionsAt: number; endsAt: number; offset: number;
+  /** Only on the practice paper: the answers, so it is marked on the phone and nothing goes to the server. */
+  answerKey?: number[];
+};
 type Saved = { answers: Record<string, number>; marked: number[]; visited: number[]; strikes: number };
 type Phase =
   | { kind: "login"; error?: string; waitUntil?: number }
   | { kind: "exam"; paper: Paper }
-  | { kind: "done"; status: string };
+  | { kind: "done"; status: string }
+  | { kind: "practiceDone"; paper: Paper; answers: Record<string, number> };
 const MAX_STRIKES = 3;
 const backupKey = (roll: string) => `stoodant-exam-${roll}`;
 const readBackup = (roll: string): Saved | null => {
@@ -27,8 +33,36 @@ export function ExamPage() {
 
 function Exams() {
   const [phase, setPhase] = useState<Phase>({ kind: "login" });
-  if (phase.kind === "exam") return <Exam paper={phase.paper} finish={(status) => setPhase({ kind: "done", status })} />;
+  // /exam?practice=9 or 10: the practice paper, which needs no login and never talks to the server.
+  const [practiceClass, setPracticeClass] = useState<"9" | "10" | null>(null);
+  useEffect(() => {
+    const c = new URLSearchParams(location.search).get("practice");
+    if (c === "9" || c === "10") setPracticeClass(c);
+  }, []);
+  const startPractice = useCallback(async (cls: "9" | "10") => {
+    const { PRACTICE, PRACTICE_MINUTES } = await import("@/content/scholarshipPractice");
+    const now = Date.now();
+    const opens = now + X.readingMinutes * 60_000;
+    setPhase({
+      kind: "exam",
+      paper: {
+        token: "", rollNo: `practice-${cls}`, name: P.title, studentClass: cls, offset: 0,
+        questions: PRACTICE[cls].map(({ subject, text, options }) => ({ subject, text, options })),
+        answerKey: PRACTICE[cls].map((q) => q.answer),
+        questionsAt: opens, endsAt: opens + PRACTICE_MINUTES * 60_000,
+      },
+    });
+  }, []);
+  useEffect(() => { if (practiceClass) void startPractice(practiceClass); }, [practiceClass, startPractice]);
+
+  if (phase.kind === "exam") {
+    const paper = phase.paper;
+    return <Exam key={paper.questionsAt} paper={paper} finish={(status, answers) =>
+      setPhase(paper.answerKey ? { kind: "practiceDone", paper, answers: answers ?? {} } : { kind: "done", status })} />;
+  }
+  if (phase.kind === "practiceDone") return <PracticeDone paper={phase.paper} answers={phase.answers} again={() => void startPractice(phase.paper.studentClass as "9" | "10")} />;
   if (phase.kind === "done") return <Done status={phase.status} />;
+  if (practiceClass) return <Shell><p className="text-neutral-600">…</p></Shell>;
   return <Login error={phase.error} waitUntil={phase.waitUntil} onPhase={setPhase} />;
 }
 
@@ -127,7 +161,8 @@ function mergeState(roll: string, server: Saved): Saved {
   };
 }
 
-function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (status: string) => void }) {
+function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (status: string, answers?: Record<string, number>) => void }) {
+  const practice = paper.answerKey !== undefined;
   const qs = paper.questions;
   const sections = useMemo(() => (Object.keys(E.sections) as Subject[]).filter((s) => qs.some((q) => q.subject === s)), [qs]);
   const [answers, setAnswers] = useState<Record<string, number>>(paper.answers ?? {});
@@ -145,10 +180,19 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
   state.current = { answers, marked: [...marked], visited: [...visited], strikes };
   const dirty = useRef(false);
   const ended = useRef(false);
-  const camera = useCamera(paper);
+  const camera = useCamera(paper, !practice);
+  // The practice paper can skip the reading time; its minutes then start at once.
+  const [opensAt, setOpensAt] = useState(paper.questionsAt);
+  const endsAt = practice ? opensAt + (paper.endsAt - paper.questionsAt) : paper.endsAt;
 
   const send = useCallback(async (submit: boolean) => {
     const s = state.current;
+    if (practice) {
+      if (!submit) return "started";
+      ended.current = true;
+      finish("practice", s.answers);
+      return "practice";
+    }
     writeBackup(paper.rollNo, s);
     setSaveState("saving");
     const answer = await post(EXAM_ENDPOINT, JSON.stringify({ action: "save", rollNo: paper.rollNo, token: paper.token, ...s, submit }));
@@ -161,7 +205,7 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
       finish(answer.data["error"] === "finished" ? String(answer.data["status"] ?? "submitted") : status);
     }
     return status;
-  }, [paper.rollNo, paper.token, finish]);
+  }, [paper.rollNo, paper.token, finish, practice]);
 
   // Clock, autosave every 30 seconds, and the end of time.
   useEffect(() => {
@@ -169,7 +213,7 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
     const autosave = setInterval(() => { if (dirty.current && !ended.current) void send(false); }, 30_000);
     return () => { clearInterval(tick); clearInterval(autosave); };
   }, [paper.offset, send]);
-  const left = Math.max(0, paper.endsAt - now);
+  const left = Math.max(0, endsAt - now);
   useEffect(() => {
     if (left > 0 || ended.current) return;
     ended.current = true;
@@ -208,7 +252,7 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
     setAnswers(nextAnswers);
     setMarked((m) => { const n = new Set(m); if (mark) n.add(current); else n.delete(current); return n; });
     dirty.current = true;
-    writeBackup(paper.rollNo, { ...state.current, answers: nextAnswers });
+    if (!practice) writeBackup(paper.rollNo, { ...state.current, answers: nextAnswers });
     if (current === qs.length - 1) setConfirming(true); else go(current + 1);
   };
   const clear = () => {
@@ -231,15 +275,16 @@ function Exam({ paper, finish }: { paper: Paper & Partial<Saved>; finish: (statu
   const ss = Math.floor((left % 60000) / 1000);
 
   // The first 2 minutes: the rules, with the time until the questions open. The 60 minutes start after this.
-  if (now < paper.questionsAt) {
-    return <Rules paper={paper} now={now} camera={camera} warning={warning} closeWarning={() => setWarning(null)} />;
+  if (now < opensAt) {
+    return <Rules opensAt={opensAt} now={now} camera={camera} warning={warning} closeWarning={() => setWarning(null)}
+      startNow={practice ? () => { const t = Date.now() + paper.offset; setOpensAt(t); setNow(t); } : undefined} />;
   }
 
   return (
     <div className="flex min-h-screen select-none flex-col bg-neutral-50 text-[#0a1026]" onContextMenu={(e) => e.preventDefault()}>
       <header className="sticky top-0 z-20 bg-[#0a1026] text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2">
-          <div className="min-w-0 text-sm leading-5"><p className="truncate font-bold">{paper.name}</p><p className="text-[#c9cee0]">{E.rollLabel}: {paper.rollNo} · Class {paper.studentClass}</p></div>
+          <div className="min-w-0 text-sm leading-5"><p className="truncate font-bold">{paper.name}</p><p className="text-[#c9cee0]">{practice ? `${P.badge} · Class ${paper.studentClass}` : `${E.rollLabel}: ${paper.rollNo} · Class ${paper.studentClass}`}</p></div>
           {camera.view("h-12 w-10 ml-auto")}
           <div className="text-right" aria-live="off">
             <p className="text-xs text-[#c9cee0]">{E.timeLeft}</p>
@@ -329,7 +374,7 @@ type Camera = { state: "asking" | "on" | "off"; ask: () => void; view: (classNam
  * moments while the questions are open. Each photo is a small JPEG sent to the server and kept privately for the team.
  * If the camera is refused, the server notes it so the team checks that paper more closely.
  */
-function useCamera(paper: Paper): Camera {
+function useCamera(paper: Paper, enabled: boolean): Camera {
   const video = useRef<HTMLVideoElement | null>(null);
   const stream = useRef<MediaStream | null>(null);
   // The preview moves from the rules page to the test page: each new element gets the same stream.
@@ -355,12 +400,14 @@ function useCamera(paper: Paper): Camera {
     }
   }, [report]);
   useEffect(() => {
+    if (!enabled) return;
     void ask();
     return () => stream.current?.getTracks().forEach((t) => t.stop());
-  }, [ask]);
+  }, [ask, enabled]);
 
   // Six moments spread at random over the hour (plus one soon after the questions open), fixed per paper.
   useEffect(() => {
+    if (!enabled) return;
     const span = Math.max(0, paper.endsAt - paper.questionsAt - 2 * 60_000);
     const times = [20_000, ...Array.from({ length: 6 }, () => 60_000 + Math.random() * span)].map((t) => paper.questionsAt + t - paper.offset);
     const timers = times.filter((t) => t > Date.now()).map((t) => setTimeout(() => {
@@ -375,7 +422,7 @@ function useCamera(paper: Paper): Camera {
       void report({ image: data.slice(data.indexOf(",") + 1) });
     }, t - Date.now()));
     return () => timers.forEach(clearTimeout);
-  }, [paper.endsAt, paper.questionsAt, paper.offset, report]);
+  }, [paper.endsAt, paper.questionsAt, paper.offset, report, enabled]);
 
   const view = (className: string) => (
     <video ref={setVideo} autoPlay muted playsInline aria-hidden="true"
@@ -384,16 +431,17 @@ function useCamera(paper: Paper): Camera {
   return { state, ask: () => void ask(), view };
 }
 
-function Rules({ paper, now, camera, warning, closeWarning }: {
-  paper: Paper; now: number; camera: Camera; warning: number | null; closeWarning: () => void;
+function Rules({ opensAt, now, camera, warning, closeWarning, startNow }: {
+  opensAt: number; now: number; camera: Camera; warning: number | null; closeWarning: () => void; startNow?: (() => void) | undefined;
 }) {
   const R = E.rules;
-  const left = Math.max(0, paper.questionsAt - now);
+  const left = Math.max(0, opensAt - now);
   const time = `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}`;
   return (
     <Shell>
       <h1 className={`${display} text-2xl font-extrabold`}>{R.heading}</h1>
-      <p className="mt-1 text-neutral-700">{R.lead}</p>
+      <p className="mt-1 text-neutral-700">{startNow ? P.lead : R.lead}</p>
+      {startNow && <p className="mt-4 rounded-2xl border-2 border-sky-600 bg-sky-50 p-4 font-semibold text-sky-950">{P.note}</p>}
       <section className="mt-5 rounded-2xl border-2 border-red-600 bg-red-50 p-4 text-red-900">
         <h2 className="font-extrabold">⚠ {R.tabHeading}</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 leading-6">{R.tab.map((l) => <li key={l}>{l}</li>)}</ul>
@@ -401,9 +449,10 @@ function Rules({ paper, now, camera, warning, closeWarning }: {
       <section className="mt-4 rounded-2xl border-2 border-amber-500 bg-amber-50 p-4 text-amber-950">
         <h2 className="font-extrabold">📷 {R.cameraHeading}</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 leading-6">{R.camera.map((l) => <li key={l}>{l}</li>)}</ul>
-        {camera.state === "on" && <p className="mt-3 flex items-center gap-3 font-bold text-emerald-800">{camera.view("h-20 w-16")}✓ {R.cameraOn}</p>}
-        {camera.state === "off" && <button type="button" onClick={camera.ask} className="mt-3 text-left text-sm font-bold underline">{R.cameraOffNote}</button>}
-        {camera.state === "asking" && <button type="button" onClick={camera.ask} className="mt-3 min-h-11 rounded-full bg-[#0a1026] px-5 font-bold text-white">{R.cameraAllow}</button>}
+        {startNow && <p className="mt-3 font-bold">{P.cameraNote}</p>}
+        {!startNow && camera.state === "on" && <p className="mt-3 flex items-center gap-3 font-bold text-emerald-800">{camera.view("h-20 w-16")}✓ {R.cameraOn}</p>}
+        {!startNow && camera.state === "off" && <button type="button" onClick={camera.ask} className="mt-3 text-left text-sm font-bold underline">{R.cameraOffNote}</button>}
+        {!startNow && camera.state === "asking" && <button type="button" onClick={camera.ask} className="mt-3 min-h-11 rounded-full bg-[#0a1026] px-5 font-bold text-white">{R.cameraAllow}</button>}
       </section>
       <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
         <h2 className="font-extrabold">{R.formatHeading}</h2>
@@ -413,9 +462,11 @@ function Rules({ paper, now, camera, warning, closeWarning }: {
         <Legend counts={{}} />
       </section>
       <div className="sticky bottom-0 mt-5 bg-neutral-50 py-3">
-        <button type="button" disabled className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold disabled:opacity-80">
-          {R.startsIn.replace("{time}", time)}
-        </button>
+        {startNow
+          ? <button type="button" onClick={startNow} className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold">{P.startNow} ({time})</button>
+          : <button type="button" disabled className="min-h-12 w-full rounded-full bg-[#fbb308] px-5 text-lg font-extrabold disabled:opacity-80">
+              {R.startsIn.replace("{time}", time)}
+            </button>}
       </div>
       {warning !== null && warning < MAX_STRIKES && (
         <Modal>
@@ -450,6 +501,39 @@ function Modal({ children }: { children: React.ReactNode }) {
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 text-[#0a1026]">{children}</div>
     </div>
+  );
+}
+
+/** The practice paper's marks, with every question, the student's answer and the right one. */
+function PracticeDone({ paper, answers, again }: { paper: Paper; answers: Record<string, number>; again: () => void }) {
+  const key = paper.answerKey ?? [];
+  const marks = key.filter((a, i) => answers[String(i)] === a).length;
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+  return (
+    <Shell>
+      <div className="rounded-3xl bg-white p-6 shadow-sm">
+        <h1 className={`${display} text-2xl font-extrabold`}>{P.resultHeading}</h1>
+        <p className="mt-2 text-lg font-bold">{P.score.replace("{marks}", String(marks)).replace("{total}", String(key.length))}</p>
+        <ol className="mt-5 space-y-4">
+          {paper.questions.map((q, i) => {
+            const mine = answers[String(i)];
+            const right = mine === key[i];
+            return (
+              <li key={i} className={`rounded-2xl border p-4 ${right ? "border-green-600 bg-green-50" : "border-red-300 bg-red-50"}`}>
+                <p className="text-xs font-bold uppercase tracking-[.14em] text-neutral-500">{E.sections[q.subject]} · {i + 1}</p>
+                <p className="mt-1 leading-7"><Rich text={q.text} /></p>
+                <p className="mt-2 text-sm">{P.yours}: <b>{mine === undefined ? P.none : <Rich text={`${"ABCD"[mine]}. ${q.options[mine]!}`} />}</b> {right ? "✓" : "✗"}</p>
+                {!right && <p className="text-sm">{P.correct}: <b><Rich text={`${"ABCD"[key[i]!]}. ${q.options[key[i]!]!}`} /></b></p>}
+              </li>
+            );
+          })}
+        </ol>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button type="button" onClick={again} className="inline-flex min-h-12 items-center rounded-full bg-[#0a1026] px-5 font-extrabold text-white">{P.again}</button>
+          <a href="/scholarship" className="inline-flex min-h-12 items-center rounded-full bg-[#fbb308] px-5 font-extrabold">{E.back_home}</a>
+        </div>
+      </div>
+    </Shell>
   );
 }
 

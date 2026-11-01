@@ -21,7 +21,7 @@ export type Registration = {
   keyId?: string;
   status: string;
   fee?: number;
-  payment?: { status: PayStatus; utr?: string; submittedAt?: Timestamp; checkedAt?: Timestamp; checkedBy?: string };
+  payment?: { status: PayStatus; utr?: string; payerUpi?: string; submittedAt?: Timestamp; checkedAt?: Timestamp; checkedBy?: string };
   /** Exam roll number, given by the onScholarshipUpdated function a moment after the fee is confirmed. */
   rollNo?: string;
   slotId?: string;
@@ -121,6 +121,7 @@ const CSV_COLUMNS: [string, (r: Registration) => string][] = [
   ["Phone", (r) => r.parentPhoneE164],
   ["Fee", (r) => payStatus(r)],
   ["UPI reference", (r) => r.payment?.utr ?? ""],
+  ["Paid from UPI ID", (r) => r.payment?.payerUpi ?? ""],
   ["Registered", (r) => r.createdAt?.toDate().toISOString() ?? ""],
 ];
 

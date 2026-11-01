@@ -112,6 +112,23 @@ export const SCHOLARSHIP_EXAM = {
     doneStruck: "The test ended after 3 warnings for leaving the page. Your saved answers have been submitted.",
     back_home: "Back to the scholarship page",
   },
+  /** The practice paper (/exam?practice=9 or 10): the real test's screens with 12 practice-only questions. */
+  practice: {
+    title: "Practice paper",
+    lead: "Take up to 2 minutes to read this. Your 15 minutes start only after this page.",
+    badge: "Practice paper · not marked for the scholarship",
+    note: "This is a practice paper with the same screens and rules as the real test: 12 questions, 15 minutes. These questions are only for practice and do not come in the exam.",
+    cameraNote: "In the real test the front camera takes photos. The practice paper does not use the camera.",
+    startNow: "Start the practice now",
+    resultHeading: "Practice result",
+    score: "You got {marks} out of {total} right.",
+    yours: "Your answer",
+    correct: "Correct answer",
+    none: "Not answered",
+    again: "Practise again",
+    link: "Try the practice paper",
+    linkNote: "Same screens and rules as the real test, with practice questions that don't come in the exam.",
+  },
 } as const;
 
 const IST_MS = 330 * 60 * 1000;
