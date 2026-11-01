@@ -36,9 +36,11 @@ def main(src, out):
     questions, cls, subject, level, pending, i = [], None, None, None, {}, 0
     while i < len(paras):
         p = paras[i].strip()
-        m = re.match(r"CLASS (\d+) — (\w+)", p)
+        m = re.match(r"CLASS (\d+) — (\w+)( — HARD LEVEL)?", p)
         if m:
             cls, subject = m.group(1), SUBJECTS[m.group(2)]
+            # The hard-level supplement has one section per subject and its answer key straight after it.
+            if m.group(3): level, pending = "hard", {}
         elif re.match(r"^(Easy|Medium|Hard) — \d+ questions", p):
             level = LEVELS[p.split()[0]]
             pending = {}
@@ -50,7 +52,7 @@ def main(src, out):
                 if q is not None: q["answer"] = "ABCD".index(a)
         elif cls and level and re.match(r"^\d+\. ", p):
             n = int(p.split(".", 1)[0])
-            text = clean(p.split(".", 1)[1])
+            text = re.sub(r"^Senior[- ](?:level analytical reasoning|division editing) challenge \d+: ", "", clean(p.split(".", 1)[1]))
             opts = options(paras[i + 1]) if i + 1 < len(paras) and paras[i + 1].lstrip().startswith("(A)") else ["", "", "", ""]
             if opts[0]: i += 1
             q = {"id": f"c{cls}-{subject}-{level}-{n:02d}", "class": cls, "subject": subject, "level": level, "text": text, "options": opts, "answer": None}

@@ -47,3 +47,13 @@ test("the locked paper opens only with the student's key", () => {
   assert.throws(() => open(paperKey("pepper", "261000002")));
   assert.ok(!locked.data.includes("maths"));
 });
+
+test("a paper never takes two questions from the same pattern group", () => {
+  const grouped: BankQuestion[] = bank.map((q, i) => (q.level === "hard" ? { ...q, group: `g${i % 3}-${q.subject}` } : q));
+  for (const seed of ["a", "b", "c", "d"]) {
+    const paper = makePaper(grouped, seed);
+    assert.equal(paper.length, 60);
+    const groups = paper.map((p) => grouped.find((q) => q.id === p.id)!.group).filter(Boolean);
+    assert.equal(new Set(groups).size, groups.length);
+  }
+});

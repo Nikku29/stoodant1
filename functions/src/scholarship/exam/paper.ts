@@ -4,7 +4,8 @@ import { getStorage } from "firebase-admin/storage";
 export type Level = "easy" | "medium" | "hard";
 export const SUBJECTS = ["maths", "science", "reasoning", "english"] as const;
 export type Subject = (typeof SUBJECTS)[number];
-export type BankQuestion = { id: string; class: string; subject: Subject; level: Level; text: string; options: string[]; answer: number };
+/** `group`: questions made from one pattern (only the numbers or letters change). A paper takes at most one of each group. */
+export type BankQuestion = { id: string; class: string; subject: Subject; level: Level; text: string; options: string[]; answer: number; group?: string };
 /** Each subject's 15 questions, mostly hard (a scholarship test picks the best): 2 easy, 5 medium, 8 hard (taken from the other levels when one runs short). */
 export const BLUEPRINT: Record<Level, number> = { easy: 2, medium: 5, hard: 8 };
 export const PER_SUBJECT = 15;
@@ -43,6 +44,7 @@ export function indexBank(raw: unknown[]): Map<string, BankQuestion[]> {
     if (!SUBJECTS.includes(q.subject) || !["easy", "medium", "hard"].includes(q.level)) continue;
     if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer > 3) continue;
     if (q.options.some((o) => typeof o !== "string" || !o.trim()) || new Set(q.options).size !== 4) continue;
+    if (q.group !== undefined && typeof q.group !== "string") continue;
     const key = `${q.class}|${q.subject}|${q.text}|${[...q.options].sort().join("|")}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -81,12 +83,22 @@ export function makePaper(bank: BankQuestion[], seed: string): PaperItem[] {
     const pool = bank.filter((q) => q.subject === subject);
     const picked: BankQuestion[] = [];
     const left: BankQuestion[] = [];
+    const groups = new Set<string>();
+    // Takes a question unless one from its pattern group is already in the paper.
+    const take = (q: BankQuestion) => {
+      if (q.group && groups.has(q.group)) return false;
+      if (q.group) groups.add(q.group);
+      picked.push(q);
+      return true;
+    };
     for (const level of ["easy", "medium", "hard"] as const) {
-      const options = shuffle(pool.filter((q) => q.level === level), random);
-      picked.push(...options.slice(0, BLUEPRINT[level]));
-      left.push(...options.slice(BLUEPRINT[level]));
+      let need = BLUEPRINT[level];
+      for (const q of shuffle(pool.filter((x) => x.level === level), random)) {
+        if (need > 0 && take(q)) need--;
+        else left.push(q);
+      }
     }
-    picked.push(...shuffle(left, random).slice(0, Math.max(0, PER_SUBJECT - picked.length)));
+    for (const q of shuffle(left, random)) if (picked.length < PER_SUBJECT && !picked.includes(q)) take(q);
     return shuffle(picked, random).map((q) => {
       const order = shuffle([0, 1, 2, 3], random);
       return { id: q.id, subject, order, answer: order.indexOf(q.answer) };
